@@ -1,1 +1,135 @@
-/* Login styles */
+/* ===== Login Page ===== */
+
+.login-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: #000;
+}
+
+/* --- Left side: form --- */
+.login-form-side {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.login-form {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  max-width: 380px;
+}
+
+.form-group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.85rem 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background: #9e9e23;
+  color: #000;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: 2px solid #FFD600;
+  outline-offset: 2px;
+}
+
+.login-btn {
+  margin-top: 1rem;
+  padding: 0.85rem 1.2rem;
+  border: none;
+  border-radius: 999px;
+  background: #FFD600;
+  color: #000;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.login-btn:hover {
+  opacity: 0.85;
+}
+
+.forgot-link {
+  text-align: center;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.register-text {
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.register-text a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-text a:hover {
+  text-decoration: underline;
+}
+
+/* --- Right side: logo --- */
+.login-logo-side {
+  display: grid;
+  place-items: center;
+  background: #FFD600;
+}
+
+.login-logo {
+  width: 70%;
+  max-width: 400px;
+  height: auto;
+}
+
+/* ===== Media Query: mobile ===== */
+@media (max-width: 768px) {
+  .login-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .login-logo-side {
+    order: -1;
+    padding: 2rem;
+    min-height: 200px;
+  }
+
+  .login-logo {
+    width: 40%;
+    max-width: 180px;
+  }
+
+  .login-form-side {
+    padding: 2rem 1.5rem;
+  }
+}

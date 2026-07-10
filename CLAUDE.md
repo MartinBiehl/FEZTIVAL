@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Feztival** (formerly called Setlist) is a web marketplace connecting musicians, DJs, and bands with event organizers in Brazil. Initial market: Porto Alegre, RS.
+**Feztival** (formerly called Setlist) is a web marketplace connecting musicians, DJs, and bands with event organizers in Brazil. Initial market: Ivoti, RS.
 
 **Type:** PWA (web-first, no native app)
 **Project lead:** Bernardo — goal is to lead developers, not write all the code himself. Explanations should support his understanding and decision-making.

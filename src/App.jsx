@@ -7,10 +7,12 @@ import Login from './pages/Login/Login.jsx';
 import ArtistLogin from './pages/ArtistLogin/ArtistLogin.jsx';
 import ArtistDashboard from './pages/ArtistDashboard/ArtistDashboard.jsx';
 import Contract from './pages/Contract/Contract.jsx';
+import ChooseLogin from './pages/ChooseLogin/ChooseLogin.jsx';
 
 const pages = {
   home: Home,
   artistProfile: ArtistProfile,
+  chooseLogin: ChooseLogin,
   login: Login,
   artistLogin: ArtistLogin,
   artistDashboard: ArtistDashboard,

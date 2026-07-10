@@ -1,0 +1,159 @@
+/* ===== Choose Login Page ===== */
+
+.choose-login-page {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  justify-items: center;
+  min-height: 100vh;
+  background: #000;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+/* --- Cards --- */
+.choose-card {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 1.5rem;
+  justify-items: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.choose-card:hover {
+  transform: scale(1.03);
+}
+
+/* Card image area */
+.choose-card__image {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1 / 1;
+  background-size: cover;
+  background-position: center;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* Overlay for readability */
+.choose-card__image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+}
+
+/* Contratante card: yellow border */
+.choose-card--contratante .choose-card__image {
+  border: 2px solid #FFD600;
+}
+
+/* Músico card: blue border */
+.choose-card--musico .choose-card__image {
+  border: 2px solid #6B8AFF;
+}
+
+/* --- Icon circles --- */
+.choose-card__icon {
+  position: relative;
+  z-index: 1;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.choose-card__icon svg {
+  width: 44px;
+  height: 44px;
+}
+
+.choose-card__icon--yellow {
+  border: 3px solid #FFD600;
+  color: #FFD600;
+}
+
+.choose-card__icon--blue {
+  border: 3px solid #6B8AFF;
+  color: #000;
+  background: rgba(107, 138, 255, 0.15);
+}
+
+.choose-card__icon--blue svg {
+  fill: #000;
+  color: #000;
+}
+
+/* --- Buttons --- */
+.choose-btn {
+  padding: 0.8rem 2.5rem;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.choose-btn:hover {
+  opacity: 0.85;
+}
+
+.choose-btn--yellow {
+  background: #CFD600;
+  color: #000;
+}
+
+.choose-btn--blue {
+  background: #6B8AFF;
+  color: #fff;
+}
+
+/* --- "ou" divider --- */
+.choose-divider {
+  display: grid;
+  place-items: center;
+}
+
+.choose-divider span {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ===== Media Query: mobile ===== */
+@media (max-width: 768px) {
+  .choose-login-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto 1fr;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .choose-card__image {
+    max-width: 300px;
+    aspect-ratio: 4 / 3;
+  }
+
+  .choose-card__icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .choose-card__icon svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .choose-divider span {
+    font-size: 1.4rem;
+  }
+}
