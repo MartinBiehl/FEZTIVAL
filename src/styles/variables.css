@@ -1,1 +1,16 @@
-/* CSS variables */
+:root {
+  --accent: #ffd600;
+  --accent-strong: #e4c000;
+  --accent-soft: rgba(255, 214, 0, 0.16);
+  --background: #f5f4f0;
+  --surface: #ffffff;
+  --surface-elevated: #edece8;
+  --surface-glass: rgba(245, 244, 240, 0.86);
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --text-tertiary: #8a8a8a;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --shadow-soft: 0 18px 50px -30px rgba(24, 20, 0, 0.24);
+  --page-width: 1200px;
+}

@@ -1,0 +1,32 @@
+.brand-logo__link {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Syne', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.08em;
+  line-height: 1;
+  user-select: none;
+}
+
+.brand-logo--small {
+  font-size: 1.15rem;
+}
+
+.brand-logo--medium {
+  font-size: 1.42rem;
+}
+
+.brand-logo--large {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.brand-logo__link:focus-visible {
+  border-radius: 0.25rem;
+  outline: 3px solid var(--accent);
+  outline-offset: 0.35rem;
+}
