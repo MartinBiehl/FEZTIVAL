@@ -1,135 +1,195 @@
-/* ===== Login Page ===== */
-
-.login-page {
+.access-page {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
   min-height: 100vh;
-  background: #000;
+  background: var(--background);
+  grid-template-columns: 1.05fr 0.95fr;
 }
 
-/* --- Left side: form --- */
-.login-form-side {
+.access-page__brand {
+  position: absolute;
+  z-index: 2;
+  top: 1.5rem;
+  right: 1.5rem;
+  left: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.access-page__brand > a {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.access-page__form {
   display: grid;
+  padding: 7rem 2rem 3rem;
   place-items: center;
-  padding: 2rem;
 }
 
-.login-form {
+.access-card {
+  width: min(100%, 440px);
+}
+
+.access-card h1 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.7rem, 4vw, 4.5rem);
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+}
+
+.access-card > p:not(.eyebrow) {
+  margin: 1rem 0 2rem;
+  color: var(--text-secondary);
+}
+
+.access-card form {
   display: grid;
   gap: 1rem;
-  width: 100%;
-  max-width: 380px;
 }
 
-.form-group {
+.access-card label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
-.form-group label {
-  color: #fff;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.95rem;
-  font-weight: 500;
+.access-card input {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink);
 }
 
-.form-group input {
-  width: 100%;
-  padding: 0.85rem 1.2rem;
-  border: none;
-  border-radius: 999px;
-  background: #9e9e23;
-  color: #000;
-  font-size: 1rem;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.form-group input:focus {
-  outline: 2px solid #FFD600;
-  outline-offset: 2px;
-}
-
-.login-btn {
-  margin-top: 1rem;
-  padding: 0.85rem 1.2rem;
-  border: none;
-  border-radius: 999px;
-  background: #FFD600;
-  color: #000;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 1rem;
-  font-weight: 500;
+.access-card form button {
+  display: flex;
+  margin-top: 0.5rem;
+  padding: 1rem 1.2rem;
+  border: 0;
+  border-radius: 11px;
+  background: var(--ink);
+  color: white;
+  justify-content: space-between;
+  font-weight: 800;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 
-.login-btn:hover {
-  opacity: 0.85;
+.access-card form button:hover {
+  background: var(--pink);
 }
 
-.forgot-link {
-  text-align: center;
-  color: #fff;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.9rem;
+.access-page--artist .access-card form button:hover {
+  background: var(--cyan);
+  color: var(--ink);
+}
+
+.access-card__forgot {
+  margin-top: 0.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.access-card__switch {
+  display: flex;
+  margin-top: 2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.access-card__switch button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.access-card__artist-link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  font-weight: 800;
   text-decoration: none;
 }
 
-.forgot-link:hover {
-  text-decoration: underline;
+.access-page__visual {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  margin: 1rem;
+  padding: 3rem;
+  border-radius: 26px;
+  background: var(--ink);
+  color: white;
+  justify-content: flex-end;
+  flex-direction: column;
 }
 
-.register-text {
-  color: #fff;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 0.9rem;
-  text-align: center;
-  margin-top: 3rem;
+.access-page__visual::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 35%, rgba(0, 0, 0, 0.88));
+  content: '';
 }
 
-.register-text a {
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
+.access-page__visual img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.register-text a:hover {
-  text-decoration: underline;
+.access-page__visual blockquote,
+.access-page__visual span {
+  position: relative;
+  z-index: 1;
 }
 
-/* --- Right side: logo --- */
-.login-logo-side {
-  display: grid;
-  place-items: center;
-  background: #FFD600;
+.access-page__visual blockquote {
+  max-width: 560px;
+  margin: 0 0 1rem;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 3.5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1;
 }
 
-.login-logo {
-  width: 70%;
-  max-width: 400px;
-  height: auto;
+.access-page__visual > span {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.72rem;
 }
 
-/* ===== Media Query: mobile ===== */
-@media (max-width: 768px) {
-  .login-page {
+@media (max-width: 850px) {
+  .access-page {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
   }
 
-  .login-logo-side {
-    order: -1;
-    padding: 2rem;
-    min-height: 200px;
+  .access-page__visual {
+    display: none;
   }
+}
 
-  .login-logo {
-    width: 40%;
-    max-width: 180px;
-  }
-
-  .login-form-side {
-    padding: 2rem 1.5rem;
+@media (max-width: 520px) {
+  .access-page__form {
+    padding-inline: 1rem;
   }
 }

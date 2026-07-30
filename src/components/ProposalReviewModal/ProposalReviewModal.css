@@ -1,0 +1,332 @@
+.proposal-review-layer {
+  position: fixed;
+  z-index: 110;
+  inset: 0;
+  display: grid;
+  padding: clamp(0.75rem, 3vw, 2rem);
+  place-items: center;
+}
+
+.proposal-review-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 4, 4, 0.82);
+  backdrop-filter: blur(12px);
+}
+
+.proposal-review-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  overflow: hidden;
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 1.5rem);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 26px;
+  background: #0d0d0d;
+  color: white;
+  box-shadow: 0 42px 120px -28px rgba(0, 0, 0, 0.9);
+  flex-direction: column;
+}
+
+.proposal-review-dialog__header {
+  display: flex;
+  padding: 1.5rem 1.5rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.proposal-review-dialog__header p {
+  margin: 0 0 0.25rem;
+  color: var(--artist-color);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.proposal-review-dialog__header h2 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.proposal-review-dialog__header span {
+  display: block;
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.72rem;
+}
+
+.proposal-review-dialog__header button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  font-size: 1.4rem;
+  cursor: pointer;
+  place-items: center;
+}
+
+.proposal-review-dialog__header button:hover {
+  border-color: var(--artist-color);
+  background: var(--artist-color);
+  color: #111;
+}
+
+.proposal-review-dialog__content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.2rem 1.5rem 1.5rem;
+  flex: 1 1 auto;
+}
+
+.proposal-review-artist {
+  display: flex;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.proposal-review-artist > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--artist-color), #282828);
+  color: rgba(255, 255, 255, 0.75);
+  font-family: 'Syne', sans-serif;
+  font-weight: 900;
+  place-items: center;
+}
+
+.proposal-review-artist div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.proposal-review-artist small {
+  color: var(--artist-color);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proposal-review-artist strong {
+  font-family: 'Syne', sans-serif;
+}
+
+.proposal-review-artist p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.68rem;
+}
+
+.proposal-review-details {
+  display: grid;
+  margin-top: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.proposal-review-details article {
+  display: grid;
+  min-height: 84px;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  align-content: space-between;
+  gap: 0.5rem;
+}
+
+.proposal-review-details__location {
+  grid-column: 1 / -1;
+}
+
+.proposal-review-details article span {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.proposal-review-details article strong {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.proposal-review-price {
+  display: grid;
+  margin-top: 0.8rem;
+  padding: 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--artist-color), transparent 65%);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--artist-color), transparent 94%);
+  text-align: center;
+}
+
+.proposal-review-price span,
+.proposal-review-price small {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.65rem;
+}
+
+.proposal-review-price strong {
+  color: var(--artist-color);
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  letter-spacing: -0.06em;
+}
+
+.proposal-review-payments {
+  display: grid;
+  margin-top: 1rem;
+  gap: 0.75rem;
+}
+
+.proposal-review-payments > div > span {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proposal-review-payments h3 {
+  margin: 0.15rem 0 0;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.95rem;
+}
+
+.proposal-review-payments ul {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+  list-style: none;
+  gap: 0.5rem;
+}
+
+.proposal-review-payments li {
+  display: flex;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.proposal-review-payments li span {
+  color: var(--artist-color);
+}
+
+.proposal-review-notice {
+  display: flex;
+  margin: 1rem 0 0;
+  padding: 0.8rem;
+  border-radius: 12px;
+  background: rgba(0, 191, 231, 0.08);
+  color: rgba(255, 255, 255, 0.58);
+  gap: 0.55rem;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.proposal-review-notice span {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: 1px solid var(--cyan);
+  border-radius: 50%;
+  color: var(--cyan);
+  font-weight: 900;
+  place-items: center;
+}
+
+.proposal-review-dialog__footer {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0a0a0a;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.proposal-review-dialog__footer button {
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  background: transparent;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.proposal-review-dialog__footer button:last-child {
+  display: flex;
+  min-width: 190px;
+  border-color: var(--artist-color);
+  background: var(--artist-color);
+  color: #111;
+  justify-content: space-between;
+}
+
+.proposal-review-dialog__footer button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 580px) {
+  .proposal-review-layer {
+    padding: 0.5rem;
+    align-items: end;
+  }
+
+  .proposal-review-dialog {
+    max-height: calc(100dvh - 1rem);
+    border-radius: 22px;
+  }
+
+  .proposal-review-dialog__header,
+  .proposal-review-dialog__content,
+  .proposal-review-dialog__footer {
+    padding-inline: 1rem;
+  }
+
+  .proposal-review-details {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .proposal-review-details article:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .proposal-review-dialog__footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .proposal-review-dialog__footer button,
+  .proposal-review-dialog__footer button:last-child {
+    width: 100%;
+  }
+}

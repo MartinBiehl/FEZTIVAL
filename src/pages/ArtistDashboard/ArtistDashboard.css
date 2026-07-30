@@ -1,1 +1,478 @@
-/* ArtistDashboard styles */
+.dashboard {
+  display: grid;
+  min-height: 100vh;
+  background: #efede7;
+  grid-template-columns: 240px 1fr;
+}
+
+.dashboard-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: 100vh;
+  padding: 1.5rem;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  flex-direction: column;
+}
+
+.dashboard-sidebar nav {
+  display: grid;
+  margin-top: 4rem;
+  gap: 0.35rem;
+}
+
+.dashboard-sidebar nav a {
+  display: flex;
+  padding: 0.75rem;
+  border-radius: 9px;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dashboard-sidebar nav a span {
+  font-size: 1rem;
+}
+
+.dashboard-sidebar nav a b {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--pink);
+  color: white;
+  font-size: 0.65rem;
+  place-items: center;
+}
+
+.dashboard-sidebar nav a.active,
+.dashboard-sidebar nav a:hover {
+  background: var(--ink);
+  color: white;
+}
+
+.dashboard-sidebar__user {
+  display: flex;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.dashboard-sidebar__user > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--yellow);
+  font-size: 0.75rem;
+  font-weight: 800;
+  place-items: center;
+}
+
+.dashboard-sidebar__user div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.dashboard-sidebar__user strong {
+  font-size: 0.78rem;
+}
+
+.dashboard-sidebar__user small {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+}
+
+.dashboard-sidebar > a {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.dashboard-main {
+  overflow: hidden;
+  padding: 3rem clamp(1.5rem, 5vw, 5rem);
+}
+
+.dashboard-header {
+  display: flex;
+  margin-bottom: 2.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.dashboard-header p {
+  margin: 0 0 0.3rem;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.5rem, 4vw, 4rem);
+  letter-spacing: -0.07em;
+}
+
+.dashboard-header > a {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.dashboard-profile-alert {
+  display: flex;
+  padding: 1rem 1.2rem;
+  border-radius: 15px;
+  background: var(--purple);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-profile-alert > div {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-profile-alert > div > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  border: 5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 800;
+  place-items: center;
+}
+
+.dashboard-profile-alert p {
+  margin: 0.2rem 0 0;
+  font-size: 0.73rem;
+}
+
+.dashboard-profile-alert button {
+  padding: 0.65rem 0.9rem;
+  border: 0;
+  border-radius: 9px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.dashboard-metrics {
+  display: grid;
+  margin: 1rem 0;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.dashboard-metrics article {
+  display: flex;
+  min-height: 160px;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  flex-direction: column;
+}
+
+.dashboard-metrics span {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.dashboard-metrics strong {
+  margin: auto 0 0.35rem;
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  letter-spacing: -0.05em;
+}
+
+.dashboard-metrics small {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+}
+
+.dashboard-panel {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.dashboard-panel__heading {
+  display: flex;
+  margin-bottom: 1.5rem;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.dashboard-panel__heading .eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+.dashboard-panel__heading h2 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  letter-spacing: -0.05em;
+}
+
+.dashboard-panel__heading button {
+  border: 0;
+  background: transparent;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.dashboard-proposals article {
+  display: grid;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  align-items: center;
+  grid-template-columns: 50px 1fr auto auto 34px;
+  gap: 1rem;
+}
+
+.dashboard-proposals time {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+
+.dashboard-proposals time b {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.2rem;
+}
+
+.dashboard-proposals time span,
+.dashboard-proposals__main span {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+}
+
+.dashboard-proposals__main {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-proposals__main strong,
+.dashboard-proposals article > b {
+  font-size: 0.78rem;
+}
+
+.dashboard-status {
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: var(--yellow);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.dashboard-status--em-conversa {
+  background: #d9ccff;
+}
+
+.dashboard-status--confirmada {
+  background: #c6f0d0;
+}
+
+.dashboard-proposals article > button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  place-items: center;
+}
+
+.dashboard-bottom-grid {
+  display: grid;
+  margin-top: 1rem;
+  grid-template-columns: 1.5fr 0.5fr;
+  gap: 1rem;
+}
+
+.dashboard-next-show {
+  display: flex;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-next-show > span {
+  display: flex;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: white;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+}
+
+.dashboard-next-show small {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.55rem;
+}
+
+.dashboard-next-show div p {
+  margin: 0.2rem 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.67rem;
+}
+
+.dashboard-next-show > b {
+  margin-left: auto;
+  color: #279546;
+  font-size: 0.65rem;
+}
+
+.dashboard-tip {
+  padding: 1.5rem;
+  border-radius: 18px;
+  background: var(--yellow);
+}
+
+.dashboard-tip > span {
+  font-size: 1.8rem;
+}
+
+.dashboard-tip h3 {
+  margin: 1rem 0 0.4rem;
+  font-family: 'Syne', sans-serif;
+}
+
+.dashboard-tip p {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.dashboard-tip button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+@media (max-width: 1000px) {
+  .dashboard {
+    grid-template-columns: 78px 1fr;
+  }
+
+  .dashboard-sidebar {
+    padding: 1rem;
+  }
+
+  .dashboard-sidebar .brand-logo {
+    font-size: 1rem;
+  }
+
+  .dashboard-sidebar nav a {
+    justify-content: center;
+    font-size: 0;
+  }
+
+  .dashboard-sidebar nav a span {
+    font-size: 1.1rem;
+  }
+
+  .dashboard-sidebar nav a b,
+  .dashboard-sidebar__user div,
+  .dashboard-sidebar > a {
+    display: none;
+  }
+
+  .dashboard-sidebar__user {
+    justify-content: center;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard {
+    display: block;
+  }
+
+  .dashboard-sidebar {
+    position: fixed;
+    z-index: 20;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: 68px;
+    padding: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .dashboard-sidebar > .brand-logo__link,
+  .dashboard-sidebar__user {
+    display: none;
+  }
+
+  .dashboard-sidebar nav {
+    display: flex;
+    margin: 0;
+    justify-content: space-around;
+  }
+
+  .dashboard-sidebar nav a {
+    width: 48px;
+  }
+
+  .dashboard-main {
+    padding: 2rem 1rem 6rem;
+  }
+
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dashboard-profile-alert {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-proposals article {
+    grid-template-columns: 42px 1fr auto;
+  }
+
+  .dashboard-proposals article > b,
+  .dashboard-status {
+    display: none;
+  }
+
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,56 +1,63 @@
 .site-footer {
+  display: grid;
   width: min(calc(100% - 3rem), var(--page-width));
-  margin: 4rem auto 0;
-  padding: 2.5rem 0 2rem;
-  border-top: 1px solid var(--border);
+  margin: 6rem auto 0;
+  padding: 4rem 0 2rem;
+  border-top: 1px solid var(--border-strong);
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
 }
 
-.site-footer__topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.site-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 1.5rem;
-}
-
-.site-footer__links a {
+.site-footer__brand p {
+  max-width: 22rem;
+  margin: 1rem 0 0;
   color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.site-footer__columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.site-footer__columns div {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.site-footer__columns strong {
+  margin-bottom: 0.3rem;
+  font-family: 'Syne', sans-serif;
+}
+
+.site-footer__columns a {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   text-decoration: none;
-  transition: color 160ms ease;
 }
 
-.site-footer__links a:hover,
-.site-footer__links a:focus-visible {
-  color: var(--text-primary);
+.site-footer__columns a:hover {
+  color: var(--ink);
 }
 
-.site-footer p {
-  margin: 1.25rem 0 0;
+.site-footer__bottom {
+  display: flex;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
   color: var(--text-tertiary);
   font-size: 0.75rem;
+  grid-column: 1 / -1;
+  justify-content: space-between;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
   .site-footer {
-    width: min(calc(100% - 2rem), var(--page-width));
-    margin-top: 2.5rem;
-  }
-
-  .site-footer__topline {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .site-footer__links {
-    justify-content: flex-start;
-    gap: 1rem 1.25rem;
+    width: calc(100% - 2rem);
+    margin-top: 4rem;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
   }
 }

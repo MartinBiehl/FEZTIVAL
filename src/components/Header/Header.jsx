@@ -1,66 +1,63 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import BrandLogo from '../BrandLogo/BrandLogo.jsx';
-import { landingContent } from '../../data/landingContent.js';
 import './Header.css';
 
+const navigation = [
+  { label: 'Explorar artistas', to: '/explorar' },
+  { label: 'Como funciona', to: '/#como-funciona' },
+  { label: 'Para artistas', to: '/#para-artistas' },
+];
+
 function Header() {
+  const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const isHome = pathname === '/';
 
   useEffect(() => {
-    function handleScroll() {
-      setIsScrolled(window.scrollY > 36);
-    }
-
-    function closeMenuOnEscape(event) {
-      if (event.key === 'Escape') {
-        setIsMenuOpen(false);
-      }
-    }
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 24);
+    const closeOnEscape = (event) => event.key === 'Escape' && setIsMenuOpen(false);
+    setIsMenuOpen(false);
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('keydown', closeMenuOnEscape);
-
+    window.addEventListener('keydown', closeOnEscape);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('keydown', closeMenuOnEscape);
+      window.removeEventListener('keydown', closeOnEscape);
     };
-  }, []);
+  }, [pathname]);
 
-  function closeMenu() {
-    setIsMenuOpen(false);
-  }
+  const headerClassName = [
+    'site-header',
+    isHome ? 'site-header--home' : '',
+    isScrolled ? 'site-header--scrolled' : '',
+    isMenuOpen ? 'site-header--menu-open' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <header className={`site-header${isScrolled ? ' site-header--scrolled' : ''}`}>
+    <header className={headerClassName}>
       <div className="site-header__content">
         <BrandLogo />
 
         <nav className="site-header__nav" aria-label="Navegação principal">
-          {landingContent.navigation.map(({ href, label }) => (
-            <a key={href} href={href}>{label}</a>
+          {navigation.map(({ label, to }) => (
+            <NavLink key={to} to={to}>{label}</NavLink>
           ))}
         </nav>
 
-        <div className="site-header__controls">
-          <div className="site-header__actions">
-            <Link className="site-header__login" to="/entrar">Entrar</Link>
-            <Link className="site-header__signup" to="/entrar">Cadastrar</Link>
-          </div>
-
+        <div className="site-header__actions">
+          <Link className="site-header__login" to="/entrar">Entrar</Link>
+          <Link className="site-header__signup" to="/entrar/contratante">Cadastre-se</Link>
           <button
             className="site-header__menu-toggle"
             type="button"
-            onClick={() => setIsMenuOpen((isOpen) => !isOpen)}
+            onClick={() => setIsMenuOpen((open) => !open)}
             aria-expanded={isMenuOpen}
             aria-controls="mobile-navigation"
-            aria-label={isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+            aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
           >
-            <span />
-            <span />
-            <span />
+            <span /><span />
           </button>
         </div>
 
@@ -69,13 +66,10 @@ function Header() {
           className={`site-header__mobile-nav${isMenuOpen ? ' site-header__mobile-nav--open' : ''}`}
           aria-label="Navegação móvel"
         >
-          {landingContent.navigation.map(({ href, label }) => (
-            <a key={href} href={href} onClick={closeMenu}>{label}</a>
+          {navigation.map(({ label, to }) => (
+            <Link key={to} to={to} onClick={() => setIsMenuOpen(false)}>{label}</Link>
           ))}
-          <div className="site-header__mobile-actions">
-            <Link className="site-header__login" to="/entrar" onClick={closeMenu}>Entrar</Link>
-            <Link className="site-header__signup" to="/entrar" onClick={closeMenu}>Cadastrar</Link>
-          </div>
+          <Link to="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar ou cadastrar</Link>
         </nav>
       </div>
     </header>

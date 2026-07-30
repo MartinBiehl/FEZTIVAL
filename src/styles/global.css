@@ -6,7 +6,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5.5rem;
+  scroll-padding-top: 6rem;
 }
 
 body {
@@ -15,21 +15,24 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--text-primary);
-  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 body,
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 button,
 a,
 input,
-summary {
+select,
+textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -46,32 +49,63 @@ a {
   color: inherit;
 }
 
+button,
+a {
+  transition: transform 180ms ease, color 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 3px;
+}
+
 ::selection {
-  background: var(--accent);
+  background: var(--yellow);
   color: #000;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.14);
-}
-
-#root {
+#root,
+.site-shell {
   min-height: 100vh;
 }
 
-.landing-shell {
-  min-height: 100vh;
+.site-shell {
   overflow: clip;
-  background: var(--background);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--yellow);
+  content: '';
+}
+
+.page-container {
+  width: min(calc(100% - 3rem), var(--page-width));
+  margin-inline: auto;
+}
+
+@media (max-width: 680px) {
+  .page-container {
+    width: min(calc(100% - 2rem), var(--page-width));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
