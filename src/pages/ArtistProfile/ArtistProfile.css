@@ -143,6 +143,7 @@
   padding: 1rem 0;
   border-bottom: 1px solid var(--border);
   background: var(--background);
+  box-shadow: 0 -1rem 0 var(--background);
   gap: 1.5rem;
   scrollbar-width: none;
 }
@@ -292,41 +293,63 @@
 .profile-planning__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 1rem;
 }
 
 .profile-info-card {
-  padding: 1.5rem;
+  overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--surface);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.profile-info-card.is-open {
+  border-color: color-mix(in srgb, var(--artist-color), var(--border) 45%);
+  box-shadow: 0 18px 48px -40px rgba(17, 17, 17, 0.55);
 }
 
 .profile-info-card--wide {
   grid-column: 1 / -1;
 }
 
-.profile-info-card__heading {
+.profile-info-card__trigger {
   display: flex;
-  margin-bottom: 1.4rem;
+  width: 100%;
+  padding: 1.1rem 1.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
   align-items: center;
+  text-align: left;
   gap: 0.8rem;
+  cursor: pointer;
 }
 
-.profile-info-card__heading > span {
+.profile-info-card__trigger:hover {
+  background: color-mix(in srgb, var(--artist-color), transparent 94%);
+}
+
+.profile-info-card__icon {
   display: grid;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--artist-color), white 72%);
-  font-size: 0.75rem;
-  font-weight: 900;
   place-items: center;
 }
 
-.profile-info-card__heading small {
+.profile-info-card__title {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 0.15rem;
+}
+
+.profile-info-card__title small {
   display: block;
-  margin-bottom: 0.15rem;
   color: var(--text-tertiary);
   font-size: 0.64rem;
   font-weight: 800;
@@ -334,10 +357,31 @@
   text-transform: uppercase;
 }
 
-.profile-info-card h3 {
-  margin: 0;
+.profile-info-card__title strong {
   font-family: 'Syne', sans-serif;
   font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.profile-info-card__chevron {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  place-items: center;
+}
+
+.profile-info-card__content {
+  overflow: hidden;
+}
+
+.profile-info-card__content-inner {
+  margin: 0 1.2rem 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
 }
 
 .profile-schedule {
@@ -458,7 +502,7 @@
 }
 
 .profile-reviews__heading > strong {
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-interface);
   font-size: 3rem;
 }
 
@@ -493,6 +537,39 @@
 
 .profile-review-grid footer span {
   color: var(--text-tertiary);
+}
+
+.profile-review-form {
+  display: grid;
+  margin-top: 2rem;
+  gap: 1rem;
+}
+
+.profile-review-form label {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.profile-review-form textarea {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.profile-review-form button {
+  width: fit-content;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .profile-questions form {
@@ -545,7 +622,7 @@
 .profile-booking > strong {
   display: block;
   margin-top: 0.3rem;
-  font-family: 'Syne', sans-serif;
+  font-family: var(--font-interface);
   font-size: 2.5rem;
   letter-spacing: -0.06em;
 }

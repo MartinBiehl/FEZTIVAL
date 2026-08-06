@@ -7,6 +7,7 @@ import {
   useSpring,
   useTransform,
 } from 'motion/react';
+import { Check, ChevronDown } from 'lucide-react';
 import ArtistCard from '../../components/ArtistCard/ArtistCard.jsx';
 import ArtistPreviewModal from '../../components/ArtistPreviewModal/ArtistPreviewModal.jsx';
 import { artists, categories, filterGroups } from '../../data/landingContent.js';
@@ -15,6 +16,8 @@ import './Explore.css';
 const initialFilters = { distance: [], duration: [], genre: [] };
 const fastGlowSpring = { stiffness: 150, damping: 24, mass: 0.45 };
 const slowGlowSpring = { stiffness: 65, damping: 20, mass: 0.95 };
+const filterDisclosureSpring = { type: 'spring', stiffness: 240, damping: 22, mass: 0.9 };
+const filterCheckSpring = { type: 'spring', stiffness: 520, damping: 30, mass: 0.7 };
 
 function asPercentage(value) {
   return `${value * 100}%`;
@@ -24,12 +27,163 @@ function clamp(value, min = 0, max = 1) {
   return Math.min(max, Math.max(min, value));
 }
 
+function FilterGroupDisclosure({ group, isOpen, onChange, onToggle, selectedValues, shouldReduceMotion }) {
+  const triggerId = `filter-trigger-${group.id}`;
+  const contentId = `filter-content-${group.id}`;
+  const transition = shouldReduceMotion ? { duration: 0 } : filterDisclosureSpring;
+  const optionsVariants = shouldReduceMotion
+    ? {
+        closed: { height: 0, opacity: 0, transition: { duration: 0 } },
+        open: { height: 'auto', opacity: 1, transition: { duration: 0 } },
+      }
+    : {
+        closed: {
+          height: 0,
+          opacity: 0,
+          transition: {
+            height: { ...filterDisclosureSpring, delay: 0.08 },
+            opacity: { duration: 0.12 },
+            staggerChildren: 0.025,
+            staggerDirection: -1,
+          },
+        },
+        open: {
+          height: 'auto',
+          opacity: 1,
+          transition: {
+            height: filterDisclosureSpring,
+            opacity: { duration: 0.16 },
+            delayChildren: 0.08,
+            staggerChildren: 0.045,
+          },
+        },
+      };
+  const optionVariants = shouldReduceMotion
+    ? { closed: { opacity: 0 }, open: { opacity: 1 } }
+    : {
+        closed: { opacity: 0, y: 14, scale: 0.97, filter: 'blur(4px)' },
+        open: {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: 'blur(0px)',
+          transition: filterDisclosureSpring,
+        },
+      };
+
+  return (
+    <motion.fieldset
+      className={`explore-filter-group${isOpen ? ' is-open' : ''}`}
+      layout={!shouldReduceMotion}
+      transition={transition}
+    >
+      <legend className="sr-only">{group.label}</legend>
+      <motion.button
+        id={triggerId}
+        className="explore-filter-group__trigger"
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={isOpen}
+        onClick={() => onToggle(group.id)}
+        whileHover={shouldReduceMotion ? undefined : { scale: 1.015 }}
+        whileTap={shouldReduceMotion ? undefined : { scale: 0.985 }}
+        transition={transition}
+      >
+        <span>{group.label}</span>
+        <AnimatePresence initial={false} mode="popLayout">
+          {selectedValues.length > 0 && (
+            <motion.b
+              key={selectedValues.length}
+              aria-label={`${selectedValues.length} selecionado${selectedValues.length > 1 ? 's' : ''}`}
+              initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.55, y: 7 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.55, y: -7 }}
+              transition={shouldReduceMotion ? { duration: 0 } : filterCheckSpring}
+            >
+              {selectedValues.length}
+            </motion.b>
+          )}
+        </AnimatePresence>
+        <motion.span
+          className="explore-filter-group__chevron"
+          aria-hidden="true"
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={transition}
+        >
+          <ChevronDown size={18} strokeWidth={2.2} />
+        </motion.span>
+      </motion.button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            id={contentId}
+            className="explore-filter-group__options"
+            role="group"
+            aria-labelledby={triggerId}
+            initial="closed"
+            animate="open"
+            exit="closed"
+            variants={optionsVariants}
+          >
+            <div>
+              {group.options.map((option) => {
+                const selected = selectedValues.includes(option.value);
+
+                return (
+                  <motion.label
+                    className={selected ? 'is-selected' : ''}
+                    key={option.value}
+                    variants={optionVariants}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => onChange(group.id, option.value)}
+                    />
+                    <motion.span
+                      className="explore-filter-group__checkbox"
+                      aria-hidden="true"
+                      animate={{
+                        backgroundColor: selected ? '#111111' : '#fffef9',
+                        borderColor: selected ? '#111111' : 'rgba(17, 17, 17, 0.25)',
+                      }}
+                      transition={shouldReduceMotion ? { duration: 0 } : filterCheckSpring}
+                    >
+                      <AnimatePresence initial={false}>
+                        {selected && (
+                          <motion.span
+                            className="explore-filter-group__check"
+                            initial={shouldReduceMotion ? false : { opacity: 0, scale: 0, rotate: -45 }}
+                            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0, rotate: 35 }}
+                            transition={shouldReduceMotion ? { duration: 0 } : filterCheckSpring}
+                          >
+                            <Check size={12} strokeWidth={3} />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.span>
+                    {option.label}
+                  </motion.label>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.fieldset>
+  );
+}
+
 function Explore() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [filters, setFilters] = useState(initialFilters);
   const [sort, setSort] = useState('recommended');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [openFilterGroups, setOpenFilterGroups] = useState(['distance']);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const previewTriggerRef = useRef(null);
   const shouldReduceMotion = useReducedMotion();
@@ -81,10 +235,26 @@ function Explore() {
   function toggleFilter(group, value) {
     setFilters((current) => ({
       ...current,
-      [group]: current[group].includes(value)
-        ? current[group].filter((item) => item !== value)
-        : [...current[group], value],
+      [group]: group === 'distance'
+        ? (() => {
+            if (value === 'any') return current.distance.includes('any') ? [] : ['any'];
+            const specificDistances = current.distance.filter((item) => item !== 'any');
+            return specificDistances.includes(value)
+              ? specificDistances.filter((item) => item !== value)
+              : [...specificDistances, value];
+          })()
+        : current[group].includes(value)
+          ? current[group].filter((item) => item !== value)
+          : [...current[group], value],
     }));
+  }
+
+  function toggleFilterGroup(groupId) {
+    setOpenFilterGroups((current) => (
+      current.includes(groupId)
+        ? current.filter((id) => id !== groupId)
+        : [...current, groupId]
+    ));
   }
 
   function clearAll() {
@@ -180,6 +350,8 @@ function Explore() {
           <button
             className="explore-mobile-filter"
             type="button"
+            aria-controls="explore-filters-panel"
+            aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen((open) => !open)}
           >
             Filtros {activeFilterCount > 0 && <b>{activeFilterCount}</b>}
@@ -196,26 +368,24 @@ function Explore() {
         </div>
 
         <div className="explore-layout">
-          <aside className={`explore-filters${filtersOpen ? ' explore-filters--open' : ''}`}>
+          <aside
+            id="explore-filters-panel"
+            className={`explore-filters${filtersOpen ? ' explore-filters--open' : ''}`}
+          >
             <div className="explore-filters__heading">
               <strong>Filtros</strong>
               <button type="button" onClick={clearAll}>Limpar tudo</button>
             </div>
             {filterGroups.map((group) => (
-              <fieldset key={group.id}>
-                <legend>{group.label}</legend>
-                {group.options.map((option) => (
-                  <label key={option.value}>
-                    <input
-                      type="checkbox"
-                      checked={filters[group.id].includes(option.value)}
-                      onChange={() => toggleFilter(group.id, option.value)}
-                    />
-                    <span aria-hidden="true" />
-                    {option.label}
-                  </label>
-                ))}
-              </fieldset>
+              <FilterGroupDisclosure
+                group={group}
+                isOpen={openFilterGroups.includes(group.id)}
+                key={group.id}
+                onChange={toggleFilter}
+                onToggle={toggleFilterGroup}
+                selectedValues={filters[group.id]}
+                shouldReduceMotion={shouldReduceMotion}
+              />
             ))}
             <button
               className="explore-filters__apply"
