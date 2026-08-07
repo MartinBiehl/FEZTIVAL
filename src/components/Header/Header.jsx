@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import BrandLogo from '../BrandLogo/BrandLogo.jsx';
+import ProfileAvatar from '../ProfileAvatar/ProfileAvatar.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './Header.css';
 
 const navigation = [
@@ -11,6 +13,7 @@ const navigation = [
 
 function Header() {
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const isHome = pathname === '/';
@@ -47,8 +50,14 @@ function Header() {
         </nav>
 
         <div className="site-header__actions">
-          <Link className="site-header__login" to="/entrar">Entrar</Link>
-          <Link className="site-header__signup" to="/entrar/contratante">Cadastre-se</Link>
+          {user ? (
+            <ProfileAvatar user={user} />
+          ) : (
+            <>
+              <Link className="site-header__login" to="/entrar">Entrar</Link>
+              <Link className="site-header__signup" to="/cadastro/contratante">Cadastre-se</Link>
+            </>
+          )}
           <button
             className="site-header__menu-toggle"
             type="button"
@@ -69,7 +78,16 @@ function Header() {
           {navigation.map(({ label, to }) => (
             <Link key={to} to={to} onClick={() => setIsMenuOpen(false)}>{label}</Link>
           ))}
-          <Link to="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar ou cadastrar</Link>
+          {user ? (
+            <Link to={user.destination} onClick={() => setIsMenuOpen(false)}>
+              Minha área · {user.notificationCount} pendências
+            </Link>
+          ) : (
+            <>
+              <Link to="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar</Link>
+              <Link to="/cadastro/contratante" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

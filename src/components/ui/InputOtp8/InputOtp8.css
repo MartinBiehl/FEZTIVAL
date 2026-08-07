@@ -1,0 +1,58 @@
+.input-otp-08 {
+  width: min(100%, 19rem);
+  margin-inline: auto;
+}
+
+.input-otp-08__label {
+  display: block;
+  margin-bottom: 1.2rem;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.input-otp-08__group {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.input-otp-08 input {
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0.2rem;
+  border: 0;
+  border-bottom: 2px solid rgba(17, 17, 17, 0.22);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 650;
+  text-align: center;
+  outline: none;
+  transition: border-color 220ms ease, color 220ms ease;
+}
+
+.input-otp-08 input:focus,
+.input-otp-08 input.is-filled {
+  border-bottom-color: var(--recovery-accent, var(--pink));
+  color: var(--ink);
+}
+
+.input-otp-08 input:focus-visible {
+  outline: none;
+  box-shadow: 0 3px 0 -1px color-mix(in srgb, var(--recovery-accent, var(--pink)) 34%, transparent);
+}
+
+@media (max-width: 380px) {
+  .input-otp-08__group {
+    gap: 0.5rem;
+  }
+
+  .input-otp-08 input {
+    width: 2.85rem;
+  }
+}
+

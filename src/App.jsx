@@ -17,6 +17,8 @@ import ArtistDashboard from './pages/ArtistDashboard/ArtistDashboard.jsx';
 import ClientBookings from './pages/ClientBookings/ClientBookings.jsx';
 import Contract from './pages/Contract/Contract.jsx';
 import ChooseLogin from './pages/ChooseLogin/ChooseLogin.jsx';
+import PasswordRecovery from './pages/PasswordRecovery/PasswordRecovery.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 
 function ScrollManager() {
   const { pathname, hash } = useLocation();
@@ -47,20 +49,27 @@ function PublicLayout({ children }) {
 function App() {
   return (
     <BrowserRouter>
-      <ScrollManager />
-      <Routes>
-        <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-        <Route path="/explorar" element={<PublicLayout><Explore /></PublicLayout>} />
-        <Route path="/artistas" element={<Navigate to="/explorar" replace />} />
-        <Route path="/artista/:slug" element={<PublicLayout><ArtistProfile /></PublicLayout>} />
-        <Route path="/reservar/:slug" element={<PublicLayout><Contract /></PublicLayout>} />
-        <Route path="/entrar" element={<ChooseLogin />} />
-        <Route path="/entrar/contratante" element={<Login />} />
-        <Route path="/entrar/artista" element={<ArtistLogin />} />
-        <Route path="/painel" element={<ArtistDashboard />} />
-        <Route path="/minhas-reservas" element={<ClientBookings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AuthProvider>
+        <ScrollManager />
+        <Routes>
+          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+          <Route path="/explorar" element={<PublicLayout><Explore /></PublicLayout>} />
+          <Route path="/artistas" element={<Navigate to="/explorar" replace />} />
+          <Route path="/artista/:slug" element={<PublicLayout><ArtistProfile /></PublicLayout>} />
+          <Route path="/reservar/:slug" element={<PublicLayout><Contract /></PublicLayout>} />
+          <Route path="/entrar" element={<ChooseLogin />} />
+          <Route path="/entrar/contratante" element={<Login mode="login" />} />
+          <Route path="/cadastro/contratante" element={<Login mode="register" />} />
+          <Route path="/entrar/artista" element={<ArtistLogin mode="login" />} />
+          <Route path="/cadastro/artista" element={<ArtistLogin mode="register" />} />
+          <Route path="/recuperar-senha" element={<PasswordRecovery step="email" />} />
+          <Route path="/recuperar-senha/codigo" element={<PasswordRecovery step="code" />} />
+          <Route path="/recuperar-senha/nova-senha" element={<PasswordRecovery step="password" />} />
+          <Route path="/painel" element={<ArtistDashboard />} />
+          <Route path="/minhas-reservas" element={<ClientBookings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

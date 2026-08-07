@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './ClientBookings.css';
 
 const bookings = [
@@ -9,12 +10,31 @@ const bookings = [
 ];
 
 function ClientBookings() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const clientName = user?.role === 'contractor' ? user.name : 'Bernardo';
+  const initials = clientName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
     <div className="bookings-page">
       <header className="bookings-header">
         <BrandLogo />
         <nav><Link to="/explorar">Explorar artistas</Link><Link to="/">Início</Link></nav>
-        <div><span>BM</span><strong>Bernardo</strong></div>
+        <div className="bookings-header__user">
+          <span>{initials}</span>
+          <strong>{clientName}</strong>
+          <button type="button" onClick={handleLogout}>Sair</button>
+        </div>
       </header>
       <main className="bookings-main page-container">
         <div className="bookings-heading">
