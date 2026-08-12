@@ -27,7 +27,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-family: 'Syne', system-ui, sans-serif;
+  font-family: var(--font-numeric);
   font-size: 1.15rem;
   font-weight: 650;
   text-align: center;

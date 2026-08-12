@@ -170,10 +170,9 @@ function ArtistProfile() {
 
           <section className="profile-section" id="servicos">
             <h2>Serviços</h2>
-            <div className="profile-services">
-              {artistProfileDetails.services.map((service, index) => (
-                <article key={service.title}>
-                  <span>0{index + 1}</span>
+            <ul className="profile-services">
+              {artistProfileDetails.services.map((service) => (
+                <li key={service.title}>
                   <div>
                     <h3>{service.title}</h3>
                     <p>{service.detail}</p>
@@ -182,9 +181,9 @@ function ArtistProfile() {
                   <strong>
                     R$ {Math.max(artist.price + service.priceAdjustment, 0).toLocaleString('pt-BR')}
                   </strong>
-                </article>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
 
           <section className="profile-section profile-planning" id="planejamento">

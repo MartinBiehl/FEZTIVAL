@@ -80,6 +80,7 @@
   align-items: center;
   gap: 0.6rem;
   color: var(--text-secondary);
+  font-family: var(--font-numeric);
   font-size: 0.75rem;
 }
 
@@ -114,6 +115,7 @@
 .artist-result-card__footer strong {
   display: block;
   color: var(--ink);
+  font-family: var(--font-numeric);
   font-size: 1rem;
 }
 

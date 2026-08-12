@@ -379,6 +379,7 @@
 
 .home-steps__number {
   color: var(--text-tertiary);
+  font-family: var(--font-numeric);
   font-size: 0.7rem;
   font-weight: 800;
 }

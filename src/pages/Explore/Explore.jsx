@@ -300,7 +300,6 @@ function Explore() {
           style={{ x: blueTranslateX, y: blueTranslateY }}
         />
         <div className="page-container">
-          <p className="eyebrow">A cena local em um só lugar</p>
           <h1>Encontre o som<br /><span>do seu momento.</span></h1>
           <form className="explore-search" onSubmit={(event) => event.preventDefault()}>
             <span aria-hidden="true">⌕</span>

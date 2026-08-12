@@ -159,6 +159,7 @@
   flex-wrap: wrap;
   gap: 0.7rem 1.2rem;
   color: var(--text-secondary);
+  font-family: var(--font-numeric);
   font-size: 0.75rem;
 }
 
@@ -169,7 +170,7 @@
 .artist-preview-dialog__services {
   display: grid;
   margin-top: 1.5rem;
-  gap: 0.7rem;
+  gap: 0.8rem;
 }
 
 .artist-preview-dialog__section-heading {
@@ -188,24 +189,28 @@
   color: var(--text-tertiary);
 }
 
-.artist-preview-dialog__services article {
-  display: grid;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  background: var(--background);
-  grid-template-columns: auto 1fr;
-  gap: 0.8rem;
+.artist-preview-dialog__services ul {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
 }
 
-.artist-preview-dialog__services article > span {
-  display: grid;
-  width: 32px;
-  height: 32px;
+.artist-preview-dialog__services li {
+  position: relative;
+  padding: 0.9rem 0 0.9rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.artist-preview-dialog__services li::before {
+  position: absolute;
+  top: 1.25rem;
+  left: 0;
+  width: 0.4rem;
+  height: 0.4rem;
   border-radius: 50%;
   background: var(--artist-color);
-  font-size: 0.8rem;
-  place-items: center;
+  content: '';
 }
 
 .artist-preview-dialog__services h3 {
