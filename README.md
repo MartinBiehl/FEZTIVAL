@@ -10,5 +10,5 @@ npm install
 npm run dev
 ```
 
-O projeto atual é um frontend React com Vite, React Router, JavaScript e CSS puro.
+O projeto atual é um frontend React com Next.js (App Router), JavaScript e CSS puro.
 Consulte o [AGENTS.md](./AGENTS.md) para arquitetura, rotas e decisões de produto.
