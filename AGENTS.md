@@ -201,6 +201,83 @@ npm run build
 npm run start    # serve o build de produção
 ```
 
+## SEO e metadata
+
+Implementado na Fase 2. O objetivo é que cada página se identifique: antes, a metadata
+era global e os 8 perfis de artista eram indistinguíveis para o buscador.
+
+`src/lib/site.js` é o **único** lugar onde a URL absoluta é definida (`SITE_URL`). Não
+repita o domínio em outros arquivos — o layout raiz declara `metadataBase`, então URLs
+relativas de Open Graph e canonical se resolvem sozinhas.
+
+> **O valor atual de `SITE_URL` é um placeholder** (`https://feztival.example.com`),
+> porque o site ainda não foi publicado. Trocar por lá quando houver domínio real.
+
+O layout raiz define `title.template` (`%s | Feztival`): cada rota declara só o próprio
+título. A landing usa `title.default`, para não duplicar a marca.
+
+`src/lib/artistSeo.js` monta título, descrição e JSON-LD dos perfis a partir dos dados
+reais. Os registros **não têm campo de biografia**, então a descrição usa só categoria,
+gêneros, cidade, nota, número de avaliações e preço inicial. Não escreva texto de
+marketing inventado: se faltar informação, adicione o campo em `src/data` primeiro.
+
+Dois cuidados na redação, que valem para textos futuros:
+
+- A categoria abre a frase como rótulo, em vez de `é ${categoria}`. Como `category` não
+  tem flexão de gênero, "Marina Santos é cantor" sairia errado, e "Samba Ivoti é pagode"
+  descreveria o grupo como se fosse o gênero.
+- `location` mistura bairro e cidade (`'Centro, Ivoti'`); use só a cidade.
+
+### Rotas fora do índice
+
+`/entrar`, `/entrar/contratante`, `/entrar/artista`, `/painel`, `/minhas-reservas` e
+`/reservar/[slug]` declaram `robots: { index: false, follow: false }` na metadata, e as
+mesmas rotas estão em `Disallow` no `robots.txt`. As duas coisas resolvem problemas
+diferentes: o robots.txt evita o rastreamento, a metadata evita a indexação caso a URL
+seja alcançada por um link.
+
+### Sitemap
+
+`src/app/sitemap.js` gera as 10 URLs públicas: a landing, `/explorar` e os 8 perfis.
+Ficam fora as rotas privadas e também `/artistas`, que é redirect para `/explorar` —
+listar as duas sinalizaria conteúdo duplicado.
+
+Não há `lastModified`: os dados não têm data, e usar a hora do build diria ao buscador
+que todas as páginas mudaram a cada deploy. Quando os dados vierem do banco e tiverem
+`updated_at`, o campo passa a fazer sentido.
+
+### Dados estruturados (JSON-LD)
+
+Os perfis renderizam JSON-LD no servidor. O tipo depende da categoria:
+
+| Categoria | Schema |
+|---|---|
+| `Banda`, `Pagode` | `MusicGroup` |
+| `DJ`, `Cantor`, `Músico Solo` | `Person` (com `jobTitle`) |
+
+Schema.org não tem tipo próprio para DJ; usamos `Person` por serem indivíduos com nome
+artístico. `Samba Ivoti` é `MusicGroup` pelo nome, ainda que a categoria descreva o
+gênero — não há campo que informe a formação.
+
+A nota agregada fica dentro do `Service` ofertado, **não** no `Person`/`MusicGroup`:
+schema.org não define `aggregateRating` nesses dois tipos. E não declaramos se o preço
+inclui impostos, porque essa informação não existe nos dados.
+
+`JSON.stringify` é seguido de `.replace(/</g, '\\u003c')` para evitar injeção de HTML,
+conforme a documentação do Next. Hoje os dados são locais, mas na Fase 4 virão do banco.
+
+### Open Graph
+
+Configurado no layout raiz e herdado pelas rotas; `/explorar` e os perfis sobrescrevem
+título e descrição — sem isso, um link de `/explorar` compartilhado mostraria o título
+da home.
+
+> **Não há `og:image`.** O repositório não tem arte de marca (a identidade é tipográfica,
+> montada em JSX pelo `BrandLogo`) e todos os artistas têm `image: null`. Para ativar:
+> coloque a arte em `public/og-default.png` (1200×630) e descomente `OG_IMAGE` em
+> `src/lib/site.js`. O `twitter:card` passa de `summary` para `summary_large_image`
+> automaticamente.
+
 ## Fases seguintes da migração
 
 A Fase 1 cobriu apenas estrutura e rotas. Não junte fases: cada uma tem um tipo de erro
@@ -208,7 +285,7 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 
 | Fase | Escopo |
 |---|---|
-| 2 | SEO: `metadata` por rota, Open Graph, sitemap. Também `next/font` e a decisão sobre DM Sans. |
+| 2 | ~~SEO: `metadata` por rota, Open Graph, sitemap, JSON-LD~~ — concluída |
 | 3 | Server Components: mover a busca de dados para o servidor |
 | 4 | Supabase: substituir `src/data` por banco real (ver a pendência de ISR acima) |
 | 5 | Pagamentos: Route Handlers para Pagar.me e webhooks |
@@ -219,8 +296,14 @@ Pendências abertas da Fase 1:
 - 5 imagens órfãs em `src/images/` (`1.svg`, `band-gig.jpg`, `frat-party.jpg`,
   `house-band.jpg`, `house_party_band.jpg`) não são referenciadas por nenhum código;
   já era assim antes da migração.
-- `metadata` hoje é global, definida só no layout raiz. Cada rota ainda não tem título
-  nem descrição próprios — é o objetivo da Fase 2.
+Pendências abertas da Fase 2:
+
+- `SITE_URL` é placeholder até o domínio real existir.
+- Sem `og:image`, à espera da arte de marca.
+- `next/font` e a decisão sobre DM Sans seguem em aberto — não entraram na Fase 2,
+  que se limitou a metadata.
+- Os artistas não têm biografia em `src/data`, o que limita as descriptions a dados
+  factuais.
 
 ## Momento do projeto
 
