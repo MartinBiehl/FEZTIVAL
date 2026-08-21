@@ -4,7 +4,7 @@ import Footer from '../components/Footer/Footer.jsx';
 import './not-found.css';
 
 /*
- * O App.jsx do Vite redirecionava rotas desconhecidas para "/" com <Navigate>.
+ * A versão anterior em Vite redirecionava rotas desconhecidas para "/".
  * Aqui retornamos um 404 real: redirecionar sinalizaria ao buscador que a URL
  * quebrada é válida e poluiria o índice.
  */

@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 /*
- * Porte do ScrollManager que vivia em src/App.jsx.
+ * Restaura o scroll ao topo em cada navegação, e rola até o hash quando há um.
  * useLocation() do React Router virou usePathname() do Next.
  * O hash não é exposto no servidor, então lemos window.location.hash no cliente.
  */

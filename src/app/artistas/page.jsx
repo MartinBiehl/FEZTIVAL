@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/* Equivalente ao <Navigate to="/explorar" replace /> do App.jsx original. */
+/* Redirect de URL antiga: /artistas passou a ser /explorar. */
 export default function Page() {
   redirect('/explorar');
 }

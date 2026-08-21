@@ -49,11 +49,14 @@ um bloco de instruções ao final deste arquivo, que é mantido à mão. Não re
 
 A migração de Vite para Next.js foi aprovada e executada na Fase 1, motivada por SEO:
 perfis de artista precisam ser indexáveis, e o Vite entregava HTML praticamente vazio.
-Os arquivos do Vite (`index.html`, `src/App.jsx`, `src/main.jsx`, `vite.config.js` e os
-scripts `*:vite`) seguem no repositório temporariamente como rede de segurança, e serão
-removidos depois que a paridade visual for aprovada. Note que o Vite não roda mais
-in-place: as views agora importam `next/link`, então a conferência visual exige um
-worktree no commit anterior à migração.
+O legado do Vite (`index.html`, `src/App.jsx`, `src/main.jsx`, `vite.config.js`, os
+scripts `*:vite` e os pacotes `vite`, `@vitejs/plugin-react` e `react-router-dom`) foi
+removido após a aprovação da paridade visual. Para consultar o projeto original, use um
+worktree no último commit anterior à migração:
+
+```bash
+git worktree add ../feztival-vite c0ba3a4
+```
 
 ## Estrutura
 
@@ -65,8 +68,7 @@ src/
 ├── images/           # imagens locais
 ├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
-├── App.jsx           # legado Vite — a remover
-└── main.jsx          # legado Vite — a remover
+└── hooks/            # hooks compartilhados
 ```
 
 Cada página mantém seu JSX e CSS juntos em `src/views/NomeDaPagina`. Componentes
@@ -82,7 +84,7 @@ animação (`motion`); o resto permanece Server Component.
 As rotas com Header e Footer ficam no Route Group `src/app/(public)/`, que carrega o
 shell `site-shell`. As rotas de acesso (`/entrar*`) e as autenticadas (`/painel`,
 `/minhas-reservas`) ficam fora do grupo, sem shell — preservando a distinção que o
-`App.jsx` fazia com `PublicLayout`.
+`App.jsx` do Vite fazia com `PublicLayout`.
 
 ### Imagens importadas
 
@@ -119,8 +121,8 @@ revisitar em fase futura.
 | Não encontrada | qualquer outra | 404 real, com link para início e catálogo |
 
 São **11 comportamentos de rota**, não 9: as 9 páginas acima mais o redirect de
-`/artistas` e o 404. Os dois últimos existiam no `App.jsx` como `<Navigate>` e não
-estavam documentados.
+`/artistas` e o 404. Os dois últimos existiam no `App.jsx` do Vite como `<Navigate>`
+e não estavam documentados.
 
 O catch-all antes redirecionava para `/`. Hoje retorna 404 real: redirecionar sinaliza
 ao buscador que a URL quebrada é válida e polui o índice — o oposto do objetivo da
@@ -197,12 +199,6 @@ npm install
 npm run dev      # Next.js em http://localhost:3000
 npm run build
 npm run start    # serve o build de produção
-
-# scripts legados do Vite (build:vite, dev:vite) ainda existem, mas `dev:vite`
-# NÃO roda mais: as views importam next/link e next/navigation, que quebram fora
-# do Next ("process is not defined"). Para comparar com o visual original, use um
-# worktree no último commit anterior à migração:
-#   git worktree add ../feztival-vite c0ba3a4
 ```
 
 ## Fases seguintes da migração
@@ -220,8 +216,6 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 Pendências abertas da Fase 1:
 
 - Verificação visual do lightbox da galeria em `/artista/[slug]` (só monta no clique).
-- Remover o legado do Vite (`index.html`, `src/App.jsx`, `src/main.jsx`, `vite.config.js`,
-  scripts `*:vite`, `@vitejs/plugin-react`, `vite` e `react-router-dom`) após aprovação.
 - 5 imagens órfãs em `src/images/` (`1.svg`, `band-gig.jpg`, `frat-party.jpg`,
   `house-band.jpg`, `house_party_band.jpg`) não são referenciadas por nenhum código;
   já era assim antes da migração.
