@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
-import { artistProfileDetails } from '../../data/artistProfileDetails.js';
 import {
   NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
@@ -15,6 +14,7 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
     returnFocusRef,
   });
   const titleId = `artist-preview-title-${artist.id}`;
+  const services = artist.services ?? [];
   const descriptionId = `artist-preview-description-${artist.id}`;
 
   return (
@@ -92,23 +92,26 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
             <span>A partir de <strong>{formatPrice(artist)}</strong></span>
           </div>
 
+          {services.length > 0 && (
           <div className="artist-preview-dialog__services">
             <div className="artist-preview-dialog__section-heading">
               <span>Serviços</span>
-              <small>2 formatos disponíveis</small>
+              <small>
+                {services.length === 1 ? '1 formato disponível' : `${services.length} formatos disponíveis`}
+              </small>
             </div>
             <ul>
-              {artistProfileDetails.services.map((service) => (
+              {services.map((service) => (
                 <li key={service.id}>
                   <div>
                     <h3>{service.title}</h3>
                     <p>{service.detail}</p>
-                    <small>{service.extra}</small>
                   </div>
                 </li>
               ))}
             </ul>
           </div>
+          )}
 
           <Link className="artist-preview-dialog__cta" href={`/artista/${artist.slug}`}>
             Ver perfil completo <span aria-hidden="true">→</span>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Contract from '../../../../views/Contract/Contract.jsx';
-import { artists } from '../../../../data/landingContent.js';
+import { fetchArtistBySlug, fetchArtistSlugs } from '../../../../lib/artistQueries.js';
 
 /*
  * Formulário de proposta, não conteúdo de descoberta: fica fora do índice.
@@ -8,7 +8,7 @@ import { artists } from '../../../../data/landingContent.js';
  */
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const artist = artists.find((item) => item.slug === slug);
+  const artist = await fetchArtistBySlug(slug);
 
   if (!artist) return {};
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const { slug } = await params;
-  const artist = artists.find((item) => item.slug === slug);
+  const artist = await fetchArtistBySlug(slug);
 
   if (!artist) notFound();
 
@@ -32,6 +32,7 @@ export default async function Page({ params }) {
  * Prerender dos perfis no build: HTML estático pronto para indexação,
  * em vez de renderizado sob demanda. Os dados vêm de src/data como hoje.
  */
-export function generateStaticParams() {
-  return artists.map((artist) => ({ slug: artist.slug }));
+export async function generateStaticParams() {
+  const slugs = await fetchArtistSlugs();
+  return slugs.map((slug) => ({ slug }));
 }

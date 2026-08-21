@@ -38,12 +38,16 @@ Tecnologias em uso:
 | Rotas | Roteamento por arquivo do App Router |
 | Linguagem | JavaScript + JSX |
 | Estilos | CSS puro, mobile-first |
-| Dados atuais | módulos JavaScript locais em `src/data` |
-| Banco de dados | PostgreSQL no Supabase — schema criado, **ainda não conectado** |
+| Dados | PostgreSQL no Supabase, lido em Server Components |
+| Cliente do banco | `@supabase/supabase-js`, chave publishable |
 
-O schema do banco existe e está versionado em `supabase/`, mas o site **continua lendo
-de `src/data`**. Ligar o front ao banco é uma fase própria; até lá as duas fontes
-coexistem e `src/data` é a que aparece na tela.
+As telas públicas (`/`, `/explorar`, `/artista/[slug]`, `/reservar/[slug]`) leem do
+banco. `src/data` guarda apenas `brand.js`, com as cores do wordmark — identidade
+visual, que não pertence ao banco.
+
+`/painel` e `/minhas-reservas` **ainda não leem do banco**: dependem de `auth.uid()`
+para saber de quem são as propostas, e sem autenticação a RLS não retorna nada. Seguem
+com dados de exemplo no próprio componente.
 
 Não há autenticação real, TypeScript, Tailwind ou monorepo neste momento. Não introduza
 essas tecnologias como se já fizessem parte do projeto.
@@ -68,12 +72,23 @@ git worktree add ../feztival-vite c0ba3a4
 src/
 ├── app/              # rotas do App Router (layouts, page.jsx, not-found)
 ├── components/       # componentes compartilhados
-├── data/             # conteúdo e dados simulados
+├── data/             # apenas brand.js (identidade visual)
 ├── images/           # imagens locais
 ├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
 └── hooks/            # hooks compartilhados
 ```
+
+`src/lib` concentra o acesso a dados e a formatação:
+
+| Arquivo | Papel |
+|---|---|
+| `supabase.js` | cliente único, chave publishable |
+| `artistQueries.js` | leitura de artistas; converte a linha do banco para a forma das telas |
+| `artistDisplay.js` | formata campos que podem estar vazios (nota, preço, duração) |
+| `artistSeo.js` | título, descrição e JSON-LD dos perfis |
+| `dailyShuffle.js` | embaralhamento estável por dia, da ordenação "Recomendados" |
+| `site.js` | URL absoluta e metadados do site |
 
 Na raiz, fora de `src/`:
 
@@ -323,6 +338,18 @@ para um `alter table` de uma linha.
 | `availability` | Uma linha por data declarada pelo artista |
 | `bookings` | Propostas de contratação e seu ciclo de vida |
 | `reviews` | Uma avaliação por reserva (`booking_id` é único) |
+| `payment_methods` + `artist_payment_methods` | Formas de pagamento aceitas |
+| `venue_types` + `artist_venue_types` | Tipos de local que o artista atende |
+| `artist_service_areas` | Cidades atendidas (o resumo em texto fica em `artists.service_area_summary`) |
+| `artist_infrastructure` | O que o artista leva, negocia ou exige do local |
+| `artist_weekly_hours` | Horário recorrente por dia da semana |
+
+As cinco últimas nasceram de uma varredura nos componentes: eram estruturas escritas no
+JSX, iguais nos 8 perfis, que o artista vai declarar no cadastro. Catálogo mais vínculo
+N:N para listas fechadas que ele seleciona; tabela direta para o que ele escreve.
+
+**`artist_weekly_hours` não é `availability`.** A primeira é a rotina ("segundas, 9h às
+18h"), a segunda é uma data específica ("dia 15 estou livre"). Não confunda as duas.
 
 Decisões que não se leem no schema:
 
@@ -344,6 +371,15 @@ Decisões que não se leem no schema:
   aceite.
 - **`updated_at` com trigger compartilhado** (`set_updated_at`) nas tabelas mutáveis.
   Também é o campo que permite preencher o `lastModified` do sitemap, hoje ausente.
+- **`artists.color`** guarda o token `--artist-color`, usado em seis componentes. É
+  identidade do artista, não decoração aleatória.
+- **`artists.view_count`** é contador simples, incrementado por
+  `increment_artist_view_count` (`security definer`, porque a RLS não concede `UPDATE`
+  anônimo em `artists` e conceder exporia todas as colunas). **A chamada ainda não está
+  ligada:** contar é escrita, e a fase de leitura não a incluiu. Sem histórico por data,
+  não há como calcular variação mensal — o painel perdeu o "↑ 18% este mês".
+- **`artist_services.price` é valor absoluto**, não um delta sobre `base_price`. A
+  interface antiga usava `priceAdjustment`; a modelagem do banco venceu.
 
 ### As duas regras de negócio que vivem no banco
 
@@ -495,6 +531,56 @@ Decisões já tomadas para quando isso for tratado:
     build), a "data" congela no momento do build — então `/explorar` precisa revalidar
     pelo menos uma vez por dia para a semente virar.
 
+### Leitura de dados nas telas
+
+As queries ficam em `src/lib/artistQueries.js` e rodam em **Server Component**. A view
+correspondente segue Client Component e recebe os dados por prop — o mesmo padrão que a
+migração adotou nos perfis.
+
+`toArtist` e `toArtistDetail` convertem a linha do banco para a forma que as telas já
+consumiam. Isso mantém os componentes iguais e concentra num só lugar o que muda quando
+o schema muda.
+
+A listagem (`ARTIST_LIST_COLUMNS`) traz só o que o cartão e o modal de prévia precisam;
+o perfil (`ARTIST_DETAIL_COLUMNS`) traz tudo em **uma consulta com joins**, para não
+disparar uma cascata de requisições.
+
+Toda leitura passa pela RLS com a chave publishable, então **só retorna artistas com
+`is_published = true`**. Não há caminho que ignore isso no front — e não introduza um.
+
+### Campos vazios na interface
+
+O banco permite ausência onde `src/data` sempre tinha valor. `src/lib/artistDisplay.js`
+centraliza o tratamento; use-o em vez de repetir a condicional:
+
+- Sem avaliação → **"Novo na plataforma"** (não "Sem avaliações": mesma informação,
+  enquadramento que não penaliza quem começa)
+- Sem preço → **"Sob consulta"**
+- Sem serviços → a linha de duração é **omitida**
+- Listas vazias → a seção correspondente é **ocultada**, não preenchida com texto
+
+> **Nunca chame `.toFixed()` ou `.toLocaleString()` direto num campo do banco.**
+> `null.toFixed(1)` lança `TypeError` e derruba o componente inteiro, não só o trecho.
+> Uma varredura encontrou 11 usos desprotegidos antes de o banco entrar — o pior deles,
+> `artist.price + service.priceAdjustment`, não quebrava: exibia um preço inventado.
+
+### Textos removidos, e por quê
+
+Estes textos existiam escritos no JSX, iguais para os 8 artistas, e **foram removidos de
+propósito**. Se alguém os reintroduzir sem dado por trás, precisa saber que foi decisão:
+
+| Texto | Por que saiu |
+|---|---|
+| Dois depoimentos ("Carolina M.", "Rafael T.") | Avaliações inventadas exibidas como reais |
+| "Disponível esta semana" | Nenhum dado de agenda sustentava |
+| "Responde em até 2 horas" / "Resposta média" | Contratante forma expectativa; se o artista some por três dias, quem perde credibilidade é a plataforma |
+| Contagens de categoria (240, 89, 52) | Números fictícios; agora vêm do banco |
+| "Melhor avaliação" na ordenação | Sem nota, não reordenava nada |
+| Filtro de distância | Dependia de `distanceKm`, que não existe no banco |
+
+O CSS de `.artist-result-card__available` ficou órfão com a remoção do "Disponível esta
+semana". Não foi apagado para não mexer em estilos.
+
 ## Fases seguintes da migração
 
 A Fase 1 cobriu apenas estrutura e rotas. Não junte fases: cada uma tem um tipo de erro
@@ -504,17 +590,17 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 |---|---|
 | 2 | ~~SEO: `metadata` por rota, Open Graph, sitemap, JSON-LD~~ — concluída |
 | — | ~~Banco de dados: schema, RLS e seed no Supabase~~ — concluída |
-| a seguir | Conectar o front ao banco: substituir `src/data`, mover a busca de dados para Server Components (ver a pendência de ISR acima) |
+| — | ~~Conectar as telas públicas ao banco, em Server Components~~ — concluída |
+| a seguir | Autenticação e escrita: login real, cadastro de perfil, envio de propostas. Desbloqueia `/painel` e `/minhas-reservas` |
 | depois | Pagamentos: Route Handlers para Pagar.me e webhooks |
 
 A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
 tocar no front — as duas coisas passam a acontecer juntas na fase seguinte, já que ler do
 banco em Server Component é o mesmo trabalho.
 
-> **Pré-requisito da próxima fase:** tratar os 7 usos de `artist.rating.toFixed(1)` e
-> `artist.reviews` **antes ou junto** da troca de fonte de dados. Como o banco entra com
-> `reviews` vazia, `null.toFixed()` lança `TypeError` e derruba a página — não é
-> degradação visual, é erro de renderização. Ver a seção do banco para os 7 locais.
+A ordem importou: os campos vazios foram tratados **antes** de trocar a fonte de dados,
+ainda lendo de `src/data`. Fazer o inverso significaria depurar erro de query e erro de
+campo nulo ao mesmo tempo.
 
 Pendências abertas da Fase 1:
 
@@ -522,9 +608,17 @@ Pendências abertas da Fase 1:
 - 5 imagens órfãs em `src/images/` (`1.svg`, `band-gig.jpg`, `frat-party.jpg`,
   `house-band.jpg`, `house_party_band.jpg`) não são referenciadas por nenhum código;
   já era assim antes da migração.
-Pendências abertas do banco de dados:
+Pendências abertas:
 
-- O front ainda não lê do banco; `src/data` continua sendo a fonte da tela.
+- **`/painel` e `/minhas-reservas` usam dados de exemplo** escritos no componente. Só
+  podem ler do banco quando houver autenticação: a RLS filtra por `auth.uid()`.
+- **A contagem de visualizações não está ligada.** A coluna e a função existem; falta
+  chamar o incremento, com cookie para deduplicar, e isso é escrita.
+- **Métricas do painel** (visualizações, receita prevista, perfil 82% completo) seguem
+  fixas no componente. Propostas, shows confirmados e receita são deriváveis de
+  `bookings` quando a autenticação existir.
+- **`Samba Ivoti` aparece como "Banda"**, não "Pagode": o enum tem 3 categorias e
+  `Pagode` mapeia para `band`. O gênero segue correto no perfil e no filtro.
 - `rating` e `reviews` não existem no schema — ver a consequência para a interface e o
   SEO na seção do banco.
 - Se um perfil pode ter mais de um cadastro de artista segue em aberto.

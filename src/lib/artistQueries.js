@@ -44,28 +44,135 @@ function toArtist(row) {
     price: row.base_price == null ? null : Number(row.base_price),
     priceOnRequest: row.price_on_request,
     location: row.city,
+    /* Token --artist-color, usado no cartao, no perfil e nos modais. */
+    color: row.color,
     bioShort: row.bio_short,
     bioLong: row.bio_long,
     coverUrl: row.cover_url,
     // Sem avaliacoes no banco: a interface exibe "Novo na plataforma".
     rating: null,
     reviews: 0,
-    // artist_services esta vazia: a interface oculta a linha de duracao.
-    setMinutes: [],
+    services: mapServices(row),
+    /* Alimenta o filtro de duracao do catalogo e o seletor do formulario. */
+    setMinutes: mapServices(row)
+      .map((service) => service.durationMinutes)
+      .filter((minutes) => minutes != null)
+      .sort((a, b) => a - b),
   };
 }
 
-const ARTIST_COLUMNS = `
+/* Colunas do catalogo: o /explorar so precisa do cartao. */
+/* 0 = domingo, 6 = sabado (convencao de artist_weekly_hours e Date.getDay()). */
+const WEEKDAY_LABEL = [
+  'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+  'Quinta-feira', 'Sexta-feira', 'Sábado',
+];
+
+const INFRASTRUCTURE_LABEL = {
+  included: 'Incluso',
+  negotiable: 'A combinar',
+  required: 'Necessário no local',
+};
+
+/* "09:00:00" -> "09h"; "10:30:00" -> "10h30" */
+function formatTime(value) {
+  if (!value) return null;
+  const [hour, minute] = value.split(':');
+  return minute === '00' ? `${hour}h` : `${hour}h${minute}`;
+}
+
+const bySortOrder = (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
+
+/* Servicos ordenados por duracao, do mais curto ao mais longo. */
+function mapServices(row) {
+  return (row.artist_services ?? [])
+    .map((service) => ({
+      id: service.id,
+      title: service.title,
+      detail: service.description,
+      price: service.price == null ? null : Number(service.price),
+      durationMinutes: service.duration_minutes,
+    }))
+    .sort((a, b) => (a.durationMinutes ?? 0) - (b.durationMinutes ?? 0));
+}
+
+/*
+ * Detalhe do perfil: acrescenta ao cartao tudo que o artista declarou.
+ *
+ * Cada lista pode vir vazia -- as tabelas existem, mas um artista novo nao
+ * preencheu nada. As telas tratam o vazio ocultando a secao correspondente,
+ * em vez de exibir texto de preenchimento.
+ */
+function toArtistDetail(row) {
+  return {
+    ...toArtist(row),
+    bioLong: row.bio_long,
+    viewCount: row.view_count ?? 0,
+    mediaGallery: [...(row.artist_media ?? [])].sort(bySortOrder).map((item) => ({
+      type: item.type,
+      src: item.url,
+      alt: item.caption,
+    })),
+    serviceAreas: {
+      summary: row.service_area_summary,
+      locations: [...(row.artist_service_areas ?? [])].sort(bySortOrder)
+        .map((area) => area.city),
+    },
+    infrastructure: [...(row.artist_infrastructure ?? [])].sort(bySortOrder)
+      .map((item) => ({
+        status: INFRASTRUCTURE_LABEL[item.status] ?? item.status,
+        title: item.title,
+        detail: item.detail,
+      })),
+    weeklyHours: [...(row.artist_weekly_hours ?? [])]
+      .sort((a, b) => a.weekday - b.weekday)
+      .map((entry) => ({
+        day: WEEKDAY_LABEL[entry.weekday] ?? `Dia ${entry.weekday}`,
+        hours: entry.is_available
+          ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}`
+          : 'Não atende',
+        available: entry.is_available,
+      })),
+    paymentMethods: (row.artist_payment_methods ?? [])
+      .map((link) => link.payment_methods)
+      .filter(Boolean)
+      .sort(bySortOrder)
+      .map((method) => ({ name: method.name, detail: method.detail })),
+    venueTypes: (row.artist_venue_types ?? [])
+      .map((link) => link.venue_types)
+      .filter(Boolean)
+      .sort(bySortOrder)
+      .map((venue) => venue.name),
+  };
+}
+
+const ARTIST_LIST_COLUMNS = `
   id, slug, stage_name, category, city, base_price, price_on_request,
-  bio_short, bio_long, cover_url,
-  artist_genres ( genres ( name, slug ) )
+  bio_short, cover_url, color,
+  artist_genres ( genres ( name, slug ) ),
+  artist_services ( id, title, description, price, duration_minutes )
+`;
+
+/*
+ * O perfil carrega tudo que o artista declarou. Uma unica consulta com joins
+ * evita a cascata de requisicoes que separar em varias traria.
+ */
+const ARTIST_DETAIL_COLUMNS = `
+  ${ARTIST_LIST_COLUMNS},
+  bio_long, service_area_summary, view_count,
+  artist_media ( type, url, caption, sort_order ),
+  artist_service_areas ( city, sort_order ),
+  artist_infrastructure ( status, title, detail, sort_order ),
+  artist_weekly_hours ( weekday, is_available, opens_at, closes_at ),
+  artist_payment_methods ( payment_methods ( name, detail, sort_order ) ),
+  artist_venue_types ( venue_types ( name, sort_order ) )
 `;
 
 /* Todos os artistas publicados, para o catalogo. */
 export async function fetchArtists() {
   const { data, error } = await supabase
     .from('artists')
-    .select(ARTIST_COLUMNS)
+    .select(ARTIST_LIST_COLUMNS)
     .eq('is_published', true);
 
   if (error) throw new Error(`Falha ao carregar artistas: ${error.message}`);
@@ -77,7 +184,7 @@ export async function fetchArtists() {
 export async function fetchArtistBySlug(slug) {
   const { data, error } = await supabase
     .from('artists')
-    .select(ARTIST_COLUMNS)
+    .select(ARTIST_DETAIL_COLUMNS)
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -85,7 +192,7 @@ export async function fetchArtistBySlug(slug) {
   if (error) throw new Error(`Falha ao carregar o artista ${slug}: ${error.message}`);
   if (!data) return null;
 
-  return toArtist(data);
+  return toArtistDetail(data);
 }
 
 /* Slugs publicados, usados por generateStaticParams e pelo sitemap. */

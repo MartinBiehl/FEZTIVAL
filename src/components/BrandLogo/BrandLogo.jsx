@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { brandLetters } from '../../data/landingContent.js';
+import { brandLetters } from '../../data/brand.js';
 import './BrandLogo.css';
 
 function BrandLogo({ size = 'medium', asLink = true }) {

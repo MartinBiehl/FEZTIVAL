@@ -1,5 +1,4 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { artistProfileDetails } from '../../data/artistProfileDetails.js';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import './ProposalReviewModal.css';
 
@@ -120,8 +119,8 @@ function ProposalReviewModal({
               <h3 id="accepted-payments-title">Formas de pagamento aceitas</h3>
             </div>
             <ul>
-              {artistProfileDetails.paymentMethods.map((method) => (
-                <li key={method.id}>
+              {(artist.paymentMethods ?? []).map((method) => (
+                <li key={method.name}>
                   <span aria-hidden="true">✓</span>
                   {method.name}
                 </li>

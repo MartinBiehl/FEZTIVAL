@@ -5,7 +5,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Building2, CalendarDays, ChevronDown, CreditCard, MapPin, Zap } from 'lucide-react';
 import Link from 'next/link';
 import MediaLightbox from '../../components/MediaLightbox/MediaLightbox.jsx';
-import { artistProfileDetails } from '../../data/artistProfileDetails.js';
 import {
   NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
   hasRating,
@@ -76,18 +75,18 @@ function ArtistProfile({ artist }) {
     setActiveMediaIndex((current) => (
       current === null
         ? null
-        : (current - 1 + artistProfileDetails.mediaGallery.length)
-          % artistProfileDetails.mediaGallery.length
+        : (current - 1 + artist.mediaGallery.length)
+          % artist.mediaGallery.length
     ));
-  }, []);
+  }, [artist.mediaGallery.length]);
 
   const showNextMedia = useCallback(() => {
     setActiveMediaIndex((current) => (
       current === null
         ? null
-        : (current + 1) % artistProfileDetails.mediaGallery.length
+        : (current + 1) % artist.mediaGallery.length
     ));
-  }, []);
+  }, [artist.mediaGallery.length]);
 
   function openMedia(index, triggerElement) {
     mediaTriggerRef.current = triggerElement;
@@ -156,12 +155,12 @@ function ArtistProfile({ artist }) {
             <h2>Fotos e vídeos</h2>
 
             <div className="profile-media__grid" aria-label="Galeria de fotos e vídeos">
-              {artistProfileDetails.mediaGallery.map((item, index) => (
+              {artist.mediaGallery.map((item, index) => (
                 <button
                   className={item.featured ? 'profile-media-item profile-media-item--featured' : 'profile-media-item'}
                   key={item.id}
                   type="button"
-                  aria-label={`Abrir ${item.type === 'video' ? 'vídeo' : 'foto'} ${index + 1} de ${artistProfileDetails.mediaGallery.length}`}
+                  aria-label={`Abrir ${item.type === 'video' ? 'vídeo' : 'foto'} ${index + 1} de ${artist.mediaGallery.length}`}
                   aria-haspopup="dialog"
                   onClick={(event) => openMedia(index, event.currentTarget)}
                 >
@@ -177,17 +176,16 @@ function ArtistProfile({ artist }) {
           <section className="profile-section" id="servicos">
             <h2>Serviços</h2>
             <ul className="profile-services">
-              {artistProfileDetails.services.map((service) => (
+              {artist.services.map((service) => (
                 <li key={service.title}>
                   <div>
                     <h3>{service.title}</h3>
                     <p>{service.detail}</p>
-                    <small>{service.extra}</small>
                   </div>
                   <strong>
-                    {artist.price == null
+                    {service.price == null
                       ? 'Sob consulta'
-                      : `R$ ${Math.max(artist.price + service.priceAdjustment, 0).toLocaleString('pt-BR')}`}
+                      : `R$ ${service.price.toLocaleString('pt-BR')}`}
                   </strong>
                 </li>
               ))}
@@ -211,7 +209,7 @@ function ArtistProfile({ artist }) {
                 title="Expediente semanal"
               >
                 <dl className="profile-schedule">
-                  {artistProfileDetails.weeklyHours.map((item) => (
+                  {artist.weeklyHours.map((item) => (
                     <div key={item.day} className={item.available ? '' : 'is-unavailable'}>
                       <dt>{item.day}</dt>
                       <dd>{item.hours}</dd>
@@ -229,7 +227,7 @@ function ArtistProfile({ artist }) {
                 title="Formas de pagamento"
               >
                 <ul className="profile-payment-list">
-                  {artistProfileDetails.paymentMethods.map((method) => (
+                  {artist.paymentMethods.map((method) => (
                     <li key={method.id}>
                       <strong>{method.name}</strong>
                       <span>{method.detail}</span>
@@ -247,7 +245,7 @@ function ArtistProfile({ artist }) {
                 title="Onde se apresenta"
               >
                 <div className="profile-chip-list">
-                  {artistProfileDetails.venueTypes.map((venue) => (
+                  {artist.venueTypes.map((venue) => (
                     <span key={venue}>{venue}</span>
                   ))}
                 </div>
@@ -261,9 +259,9 @@ function ArtistProfile({ artist }) {
                 onToggle={toggleInfoPanel}
                 title="Regiões atendidas"
               >
-                <p className="profile-service-area">{artistProfileDetails.serviceAreas.summary}</p>
+                <p className="profile-service-area">{artist.serviceAreas.summary}</p>
                 <div className="profile-chip-list">
-                  {artistProfileDetails.serviceAreas.locations.map((location) => (
+                  {artist.serviceAreas.locations.map((location) => (
                     <span key={location}>{location}</span>
                   ))}
                 </div>
@@ -279,7 +277,7 @@ function ArtistProfile({ artist }) {
                 wide
               >
                 <div className="profile-infrastructure">
-                  {artistProfileDetails.infrastructure.map((item) => (
+                  {artist.infrastructure.map((item) => (
                     <div key={item.id}>
                       <span>{item.status}</span>
                       <div>
@@ -353,7 +351,7 @@ function ArtistProfile({ artist }) {
         {activeMediaIndex !== null && (
           <MediaLightbox
             activeIndex={activeMediaIndex}
-            items={artistProfileDetails.mediaGallery}
+            items={artist.mediaGallery}
             key="artist-media-lightbox"
             onClose={closeMedia}
             onNext={showNextMedia}

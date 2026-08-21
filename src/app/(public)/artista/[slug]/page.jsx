@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ArtistProfile from '../../../../views/ArtistProfile/ArtistProfile.jsx';
-import { artists } from '../../../../data/landingContent.js';
+import { fetchArtistBySlug, fetchArtistSlugs } from '../../../../lib/artistQueries.js';
 import { artistDescription, artistJsonLd, artistTitle } from '../../../../lib/artistSeo.js';
 import { OG_IMAGE, SITE_NAME, SITE_URL } from '../../../../lib/site.js';
 
@@ -10,7 +10,7 @@ import { OG_IMAGE, SITE_NAME, SITE_URL } from '../../../../lib/site.js';
  */
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const artist = artists.find((item) => item.slug === slug);
+  const artist = await fetchArtistBySlug(slug);
 
   // Slug inválido: o próprio Page chama notFound(); aqui só evitamos quebrar.
   if (!artist) return {};
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }) {
  */
 export default async function Page({ params }) {
   const { slug } = await params;
-  const artist = artists.find((item) => item.slug === slug);
+  const artist = await fetchArtistBySlug(slug);
 
   if (!artist) notFound();
 
@@ -83,6 +83,7 @@ export default async function Page({ params }) {
  * Prerender dos perfis no build: HTML estático pronto para indexação,
  * em vez de renderizado sob demanda. Os dados vêm de src/data como hoje.
  */
-export function generateStaticParams() {
-  return artists.map((artist) => ({ slug: artist.slug }));
+export async function generateStaticParams() {
+  const slugs = await fetchArtistSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
