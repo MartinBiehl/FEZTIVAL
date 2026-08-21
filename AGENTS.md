@@ -38,11 +38,15 @@ Tecnologias em uso:
 | Rotas | Roteamento por arquivo do App Router |
 | Linguagem | JavaScript + JSX |
 | Estilos | CSS puro, mobile-first |
-| Dados atuais | módulos JavaScript locais |
+| Dados atuais | módulos JavaScript locais em `src/data` |
+| Banco de dados | PostgreSQL no Supabase — schema criado, **ainda não conectado** |
 
-Não há backend, banco de dados, autenticação real, TypeScript, Tailwind ou monorepo
-neste momento. Não introduza essas tecnologias como se já fizessem parte do projeto.
-Uma API futura deve ser discutida e planejada antes de alterar a estrutura.
+O schema do banco existe e está versionado em `supabase/`, mas o site **continua lendo
+de `src/data`**. Ligar o front ao banco é uma fase própria; até lá as duas fontes
+coexistem e `src/data` é a que aparece na tela.
+
+Não há autenticação real, TypeScript, Tailwind ou monorepo neste momento. Não introduza
+essas tecnologias como se já fizessem parte do projeto.
 
 `next.config.js` traz `agentRules: false`: sem isso o `next dev` anexa automaticamente
 um bloco de instruções ao final deste arquivo, que é mantido à mão. Não remova a flag.
@@ -69,6 +73,16 @@ src/
 ├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
 └── hooks/            # hooks compartilhados
+```
+
+Na raiz, fora de `src/`:
+
+```text
+supabase/
+├── migrations/       # schema versionado, aplicado com db push
+├── tests/            # scripts de verificação, rodados no SQL Editor
+├── seed.sql          # os 8 artistas de demonstração
+└── config.toml
 ```
 
 Cada página mantém seu JSX e CSS juntos em `src/views/NomeDaPagina`. Componentes
@@ -201,6 +215,15 @@ npm run build
 npm run start    # serve o build de produção
 ```
 
+Banco de dados (a CLI roda via `npx`, não está instalada globalmente):
+
+```bash
+npx supabase migration new <nome>   # cria migration vazia em supabase/migrations
+npx supabase db push                # aplica as migrations pendentes no remoto
+npx supabase db push --include-seed  # aplica também o supabase/seed.sql
+npx supabase migration list         # compara migrations locais e remotas
+```
+
 ## SEO e metadata
 
 Implementado na Fase 2. O objetivo é que cada página se identifique: antes, a metadata
@@ -278,6 +301,180 @@ da home.
 > `src/lib/site.js`. O `twitter:card` passa de `summary` para `summary_large_image`
 > automaticamente.
 
+## Banco de dados
+
+PostgreSQL no Supabase (região São Paulo). O schema está criado e com RLS ativa, mas
+**o site ainda lê de `src/data`** — conectar o front é uma fase própria.
+
+Todo o schema vive em `supabase/migrations/`, em arquivos `.sql` versionados. **Não crie
+nem altere tabelas pelo Table Editor do painel:** mudança feita por lá não vai para o
+Git, não é revisável e não se reproduz em outro ambiente. Migration nova sempre, mesmo
+para um `alter table` de uma linha.
+
+### Tabelas
+
+| Tabela | Papel |
+|---|---|
+| `profiles` | Estende `auth.users` 1:1. A PK **é** o `auth.users.id`, para as policies compararem direto com `auth.uid()` |
+| `artists` | Cadastro artístico. `slug` único alimenta `/artista/[slug]` |
+| `genres`, `artist_genres` | Catálogo de gêneros e o vínculo N:N |
+| `artist_media` | Fotos, áudios e vídeos do portfólio |
+| `artist_services` | Serviços ofertados, com preço e duração |
+| `availability` | Uma linha por data declarada pelo artista |
+| `bookings` | Propostas de contratação e seu ciclo de vida |
+| `reviews` | Uma avaliação por reserva (`booking_id` é único) |
+
+Decisões que não se leem no schema:
+
+- **Não existe coluna `role` em `profiles`.** Quem tem linha em `artists` é artista, e a
+  mesma pessoa pode contratar e ser contratada. Não introduza um campo de papel.
+- **`artists.slug` é imutável na prática.** A URL já está publicada e no sitemap; mudar
+  um slug quebra o que o buscador indexou. Há CHECK de formato, mas a imutabilidade é
+  responsabilidade da aplicação.
+- **`base_price` é nullable com `price_on_request`**: o artista escolhe entre exibir
+  valor ou "sob consulta". A exigência de ter um dos dois vale **só para perfis
+  publicados** — rascunho pode ficar incompleto enquanto é preenchido.
+- **`artists.profile_id` tem índice NÃO único**, de propósito. Se um perfil pode ter mais
+  de um cadastro (atuar como DJ solo e também integrar uma banda) é decisão de produto
+  ainda aberta. Adicionar a restrição depois é trivial; removê-la com dados duplicados
+  já existentes, não.
+- **`agreed_price`, `platform_fee` e `artist_payout` são gravados na reserva**, não
+  derivados do serviço em tempo de leitura. Se o artista mudar o preço depois, o
+  histórico e o repasse já acordado não mudam junto. A comissão é de 12%, aplicada no
+  aceite.
+- **`updated_at` com trigger compartilhado** (`set_updated_at`) nas tabelas mutáveis.
+  Também é o campo que permite preencher o `lastModified` do sitemap, hoje ausente.
+
+### As duas regras de negócio que vivem no banco
+
+Por decisão explícita, **apenas duas** regras de negócio são impostas pelo banco. Todo o
+resto fica na aplicação. O critério: lógica no banco é invisível para quem lê só o
+JavaScript, então só entra onde o erro custa dinheiro ou confiança.
+
+**1. `enforce_booking_amounts_immutable`** — trigger `before update` em `bookings`.
+
+Enquanto a reserva está `pending`, os três valores financeiros podem ser ajustados
+(negociação). No instante em que ela sai de `pending`, ficam congelados: qualquer
+`UPDATE` que tente alterá-los levanta exceção.
+
+Existe porque esses campos são a base do repasse ao artista. Regra só na aplicação
+protege contra erro; constraint no banco protege contra tudo, inclusive código futuro
+que atualize `bookings` por um caminho que ninguém previu.
+
+A comparação usa `is distinct from`, e não `<>`: com `<>`, qualquer comparação
+envolvendo `NULL` resulta em `NULL` em vez de `true`, e a alteração passaria sem ser
+detectada.
+
+**2. `enforce_booking_status_transition`** — trigger `before update` em `bookings`.
+
+Valida o fluxo:
+
+```
+pending   -> accepted | declined | cancelled
+accepted  -> confirmed | cancelled
+confirmed -> completed | cancelled
+```
+
+`completed`, `declined` e `cancelled` são **terminais**. Uma reserva nunca retrocede de
+estado nem sai de um desfecho definitivo.
+
+Existe porque uma reserva que volta de `completed` para `pending` destrói a confiança no
+histórico — e no repasse já calculado.
+
+Os dois triggers são cobertos por `supabase/tests/booking_triggers_test.sql`.
+
+### RLS
+
+RLS está habilitada nas **9 tabelas, sem exceção**. Tabela sem RLS no Supabase fica
+legível e gravável por qualquer portador da chave pública. Ao criar tabela nova, habilite
+RLS na mesma migration.
+
+Leitura pública: `profiles`, `genres`, `reviews`, e as tabelas de artista apenas quando
+`is_published`. O dono também vê o próprio rascunho — sem isso o painel do artista não
+teria como editar um perfil não publicado. Escrita sempre restrita ao dono.
+
+`genres` não tem policy de escrita: o catálogo é mantido por administração, via painel ou
+`service_role`, que ignora RLS.
+
+Duas policies merecem destaque:
+
+- **Avaliação é imutável.** `reviews` tem policy de `SELECT` e `INSERT`, e **nenhuma** de
+  `UPDATE` ou `DELETE`. Como o status permanece `completed` para sempre, permitir
+  `UPDATE` daria ao contratante o direito de reescrever a avaliação indefinidamente.
+- **`UPDATE` de `bookings` é separado por papel.** O artista aceita, recusa, confirma e
+  conclui; o contratante apenas cancela. Os triggers validam *se a transição é legal*;
+  as policies controlam *quem pode disparar*. Sem essa separação, o contratante marcaria
+  a própria reserva como `completed` — transição válida, papel errado.
+
+Verificar posse exige consultar `artists` de dentro da policy de outra tabela, o que
+seria filtrado pela RLS de `artists` e causaria recursão. As funções `owns_artist` e
+`artist_is_published` são `security definer` com `search_path` fixo para resolver isso.
+
+Coberto por `supabase/tests/rls_test.sql`, que simula três usuários.
+
+### Seed
+
+`supabase/seed.sql` popula os 8 artistas que hoje vivem em `src/data`, **preservando os
+slugs exatos** — as URLs já estão no sitemap.
+
+É dado de demonstração, identificável de três formas: e-mails em
+`@seed.feztival.local` (domínio reservado, nunca será real), UUIDs fixos começando em
+`5eed0000` / `5eed1111`, e `raw_app_meta_data` com `{"provider":"seed"}`. Para remover
+tudo, sem risco de tocar em cadastro legítimo:
+
+```sql
+delete from auth.users where email like '%@seed.feztival.local';
+```
+
+O seed é idempotente (`on conflict do nothing`) e **não deve rodar em produção com
+cadastros reais**.
+
+### Campos sem equivalente em src/data
+
+O seed deixa nulo o que não tem origem, em vez de inventar. Não preencha esses campos com
+dado plausível:
+
+| Campo | Por que está nulo |
+|---|---|
+| `profiles.full_name`, `phone` | `src/data` só tem nome artístico, que pertence a `artists.stage_name` |
+| `artists.bio_short`, `bio_long` | Os registros não têm biografia |
+| `artists.cover_url` | Todos os artistas têm `image: null` |
+| `artist_media`, `artist_services`, `availability` | Não há mídia, catálogo de serviços nem agenda declarada |
+
+> **`full_name` e `phone` precisam ser obrigatórios no formulário de cadastro real:**
+> artista sem nome e sem telefone não é contratável, e WhatsApp é o canal de contato
+> efetivo no Brasil. As colunas são nullable de propósito — o seed não tem esses dados, e
+> um cadastro em rascunho também não teria — então a obrigatoriedade é da aplicação, não
+> da coluna.
+
+**`distanceKm` de `src/data` não tem equivalente no banco, e não deve ganhar um.** É a
+distância do artista até quem está olhando: um cálculo entre duas localizações, não um
+atributo do artista. Quando a busca por proximidade entrar, vira cálculo em tempo de
+query. `artists.service_radius_km` é outra coisa — o raio que o artista aceita atender —
+e está nulo porque `src/data` não informa isso.
+
+**`rating` e `reviews` também não entram no banco.** No schema a nota deriva de `reviews`
+amarradas a `bookings` reais, e reproduzir "4,9 em 87 avaliações" exigiria inventar 87
+reservas. Artista semeado começa sem avaliação.
+
+Isso tem consequência visível quando o front conectar ao banco. `rating` aparece hoje em
+7 lugares: o card do catálogo, o modal de prévia, três pontos do perfil, o resumo do
+formulário de proposta, e a ordenação do `/explorar` — cuja opção padrão
+("Recomendados") é `rating × reviews`. Além disso, a meta description e o
+`aggregateRating` do JSON-LD usam os dois campos. Todos os usos chamam
+`artist.rating.toFixed(1)` **sem verificação de nulo**, então a página quebra se o campo
+vier vazio.
+
+Decisões já tomadas para quando isso for tratado:
+
+- Artista sem avaliação exibe **"Novo na plataforma"**, não "Sem avaliações" — mesma
+  informação, enquadramento que não penaliza quem está começando.
+- O `aggregateRating` do JSON-LD é **omitido** quando não há avaliação. `aggregateRating`
+  sem avaliação é dado inválido, e o buscador pode penalizar.
+- A ordenação "Recomendados" precisa de outro critério, ainda **não decidido**. Num
+  marketplace, ordem de exibição é distribuição de oportunidade — merece decisão própria,
+  não um `order by` escolhido às pressas.
+
 ## Fases seguintes da migração
 
 A Fase 1 cobriu apenas estrutura e rotas. Não junte fases: cada uma tem um tipo de erro
@@ -286,9 +483,13 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 | Fase | Escopo |
 |---|---|
 | 2 | ~~SEO: `metadata` por rota, Open Graph, sitemap, JSON-LD~~ — concluída |
-| 3 | Server Components: mover a busca de dados para o servidor |
-| 4 | Supabase: substituir `src/data` por banco real (ver a pendência de ISR acima) |
-| 5 | Pagamentos: Route Handlers para Pagar.me e webhooks |
+| — | ~~Banco de dados: schema, RLS e seed no Supabase~~ — concluída |
+| a seguir | Conectar o front ao banco: substituir `src/data`, mover a busca de dados para Server Components (ver a pendência de ISR acima) |
+| depois | Pagamentos: Route Handlers para Pagar.me e webhooks |
+
+A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
+tocar no front — as duas coisas passam a acontecer juntas na fase seguinte, já que ler do
+banco em Server Component é o mesmo trabalho.
 
 Pendências abertas da Fase 1:
 
@@ -296,6 +497,15 @@ Pendências abertas da Fase 1:
 - 5 imagens órfãs em `src/images/` (`1.svg`, `band-gig.jpg`, `frat-party.jpg`,
   `house-band.jpg`, `house_party_band.jpg`) não são referenciadas por nenhum código;
   já era assim antes da migração.
+Pendências abertas do banco de dados:
+
+- O front ainda não lê do banco; `src/data` continua sendo a fonte da tela.
+- `rating` e `reviews` não existem no schema — ver a consequência para a interface e o
+  SEO na seção do banco.
+- Se um perfil pode ter mais de um cadastro de artista segue em aberto.
+- Sem `psql` nem Docker no ambiente, os scripts de `supabase/tests/` são executados à mão
+  no SQL Editor do painel. `brew install libpq` permitiria rodá-los pela linha de comando.
+
 Pendências abertas da Fase 2:
 
 - `SITE_URL` é placeholder até o domínio real existir.
