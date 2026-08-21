@@ -7,7 +7,7 @@ function ChooseLogin() {
   return (
     <section className="choose-login-page">
       <Link className="choose-card choose-card--contratante" href="/entrar/contratante">
-        <div className="choose-card__image" style={{ backgroundImage: `url(${crowdImg})` }}>
+        <div className="choose-card__image" style={{ backgroundImage: `url(${crowdImg.src})` }}>
           <div className="choose-card__icon choose-card__icon--yellow" aria-hidden="true">
             <svg viewBox="0 0 64 64" fill="none">
               <circle cx="32" cy="20" r="10" stroke="currentColor" strokeWidth="3" />
@@ -23,7 +23,7 @@ function ChooseLogin() {
       </div>
 
       <Link className="choose-card choose-card--musico" href="/entrar/artista">
-        <div className="choose-card__image" style={{ backgroundImage: `url(${stageImg})` }}>
+        <div className="choose-card__image" style={{ backgroundImage: `url(${stageImg.src})` }}>
           <div className="choose-card__icon choose-card__icon--blue" aria-hidden="true">
             <svg viewBox="0 0 64 64" fill="none">
               <rect x="22" y="6" width="20" height="32" rx="10" stroke="currentColor" strokeWidth="3" />

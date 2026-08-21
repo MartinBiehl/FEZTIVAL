@@ -39,7 +39,7 @@ function Login() {
         </div>
       </section>
       <aside className="access-page__visual">
-        <img src={crowdImage} alt="Pessoas celebrando em um show" />
+        <img src={crowdImage.src} alt="Pessoas celebrando em um show" />
         <blockquote>“Encontrei o som perfeito para uma noite que ninguém esqueceu.”</blockquote>
         <span>Carolina · Contratante Feztival</span>
       </aside>

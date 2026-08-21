@@ -38,7 +38,7 @@ function ArtistLogin() {
         </div>
       </section>
       <aside className="access-page__visual">
-        <img src={stageImage} alt="Banda se apresentando ao vivo" />
+        <img src={stageImage.src} alt="Banda se apresentando ao vivo" />
         <blockquote>“Mais visibilidade para o seu som. Mais tempo para fazer música.”</blockquote>
         <span>Feztival para artistas</span>
       </aside>

@@ -66,7 +66,7 @@ function Home() {
       <section className="home-hero" aria-labelledby="home-hero-title">
         <motion.img
           className="home-hero__background"
-          src={heroImage}
+          src={heroImage.src}
           alt=""
           initial={shouldReduceMotion ? false : 'hidden'}
           animate="visible"
@@ -111,7 +111,7 @@ function Home() {
 
       <section className="home-manifesto" id="sobre-nos">
         <div className="home-manifesto__image">
-          <img src={crowdImage} alt="Público celebrando em um show" />
+          <img src={crowdImage.src} alt="Público celebrando em um show" />
         </div>
         <div className="home-manifesto__copy">
           <h2>A cena está cheia de talento. O que faltava era um lugar comum para anunciar.</h2>

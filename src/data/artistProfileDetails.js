@@ -6,20 +6,20 @@ export const artistProfileDetails = {
     {
       id: 'show-ao-vivo',
       type: 'video',
-      src: concertStageImage,
+      src: concertStageImage.src,
       alt: 'Banda se apresentando em um palco iluminado',
       featured: true,
     },
     {
       id: 'publico-celebrando',
       type: 'photo',
-      src: crowdPartyImage,
+      src: crowdPartyImage.src,
       alt: 'Público celebrando durante um show',
     },
     {
       id: 'montagem-do-palco',
       type: 'photo',
-      src: concertStageImage,
+      src: concertStageImage.src,
       alt: 'Palco preparado para uma apresentação musical',
     },
   ],
