@@ -86,16 +86,17 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
               <span>Serviços</span>
               <small>2 formatos disponíveis</small>
             </div>
-            {artistProfileDetails.services.map((service) => (
-              <article key={service.id}>
-                <span aria-hidden="true">♫</span>
-                <div>
-                  <h3>{service.title}</h3>
-                  <p>{service.detail}</p>
-                  <small>{service.extra}</small>
-                </div>
-              </article>
-            ))}
+            <ul>
+              {artistProfileDetails.services.map((service) => (
+                <li key={service.id}>
+                  <div>
+                    <h3>{service.title}</h3>
+                    <p>{service.detail}</p>
+                    <small>{service.extra}</small>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <Link className="artist-preview-dialog__cta" href={`/artista/${artist.slug}`}>

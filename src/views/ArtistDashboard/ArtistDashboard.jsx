@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './ArtistDashboard.css';
 
 const proposals = [
@@ -9,6 +13,21 @@ const proposals = [
 ];
 
 function ArtistDashboard() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const artistName = user?.role === 'artist' ? user.name : 'DJ Kauan';
+  const initials = artistName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
   return (
     <div className="dashboard">
       <aside className="dashboard-sidebar">
@@ -21,19 +40,22 @@ function ArtistDashboard() {
           <a href="#avaliacoes"><span>☆</span> Avaliações</a>
         </nav>
         <div className="dashboard-sidebar__user">
-          <span>DK</span>
-          <div><strong>DJ Kauan</strong><small>Perfil 82% completo</small></div>
+          <span>{initials}</span>
+          <div><strong>{artistName}</strong><small>Perfil 82% completo</small></div>
         </div>
-        <Link href="/">Sair do painel</Link>
+        <button className="dashboard-sidebar__logout" type="button" onClick={handleLogout}>Sair do painel</button>
       </aside>
 
       <main className="dashboard-main" id="visao">
         <header className="dashboard-header">
           <div>
             <p>Quinta-feira, 30 de julho</p>
-            <h1>Bom dia, Kauan.</h1>
+            <h1>Bom dia, {artistName}.</h1>
           </div>
-          <Link href="/artista/dj-kauan">Ver perfil público ↗</Link>
+          <div className="dashboard-header__actions">
+            <Link href="/artista/dj-kauan">Ver perfil público ↗</Link>
+            <button type="button" onClick={handleLogout}>Sair</button>
+          </div>
         </header>
 
         <section className="dashboard-profile-alert">

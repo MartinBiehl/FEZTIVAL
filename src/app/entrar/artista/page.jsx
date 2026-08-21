@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import ArtistLogin from '../../../views/ArtistLogin/ArtistLogin.jsx';
 
 export const metadata = {
@@ -7,5 +8,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <ArtistLogin />;
+  return (
+    <Suspense fallback={null}>
+      <ArtistLogin mode="login" />
+    </Suspense>
+  );
 }

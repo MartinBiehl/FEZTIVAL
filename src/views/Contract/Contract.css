@@ -1,67 +1,80 @@
 .contract-page {
-  padding-top: clamp(3rem, 7vw, 7rem);
+  padding-block: clamp(1.5rem, 3vw, 3rem) 5rem;
 }
 
-.contract-heading > a {
-  display: inline-block;
-  margin-bottom: 3rem;
+.contract-back {
+  display: inline-flex;
+  margin-bottom: 1.5rem;
+  padding: 0.65rem 0.9rem 0.65rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
   color: var(--text-secondary);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
+  align-items: center;
+  gap: 0.55rem;
 }
 
-.contract-heading h1 {
-  margin: 0;
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(3.6rem, 7vw, 7.5rem);
-  letter-spacing: -0.085em;
-  line-height: 0.86;
+.contract-back span {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--ink);
+  color: white;
+  font-size: 0.85rem;
+  place-items: center;
 }
 
-.contract-heading h1 span {
-  color: var(--pink);
-}
-
-.contract-heading > p:last-child {
-  max-width: 540px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.contract-back:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  transform: translateX(-2px);
 }
 
 .contract-layout {
   display: grid;
-  margin-top: 4rem;
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 4rem;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 2rem;
 }
 
 .contract-form {
   display: grid;
-  gap: 3rem;
+  gap: 2rem;
 }
 
 .contract-form fieldset {
   margin: 0;
-  padding: 0 0 3rem;
+  padding: 0 0 2rem;
   border: 0;
   border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
 .contract-form legend {
-  width: 100%;
-  margin-bottom: 1.5rem;
+  width: auto;
+  margin: 0 0 1.25rem;
+  padding: 0;
   font-family: 'Syne', sans-serif;
-  font-size: 1.25rem;
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
   font-weight: 800;
 }
 
 .contract-form legend span {
-  margin-right: 1rem;
-  color: var(--text-tertiary);
-  font-family: 'Inter', sans-serif;
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-right: 0.65rem;
+  border-radius: 50%;
+  background: var(--ink);
+  color: white;
+  font-family: var(--font-interface);
   font-size: 0.65rem;
+  vertical-align: middle;
+  place-items: center;
 }
 
 .contract-form__grid {
@@ -72,19 +85,20 @@
 
 .contract-form label {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.55rem;
   color: var(--text-secondary);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .contract-form input,
 .contract-form select,
 .contract-form textarea {
   width: 100%;
-  padding: 0.95rem;
+  min-height: 52px;
+  padding: 1rem;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 12px;
   background: var(--surface);
   color: var(--ink);
   outline: none;
@@ -94,6 +108,8 @@
 .contract-form select:focus,
 .contract-form textarea:focus {
   border-color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.06);
 }
 
 .contract-form textarea {
@@ -107,7 +123,8 @@
 .contract-form__submit {
   display: flex;
   width: 100%;
-  padding: 1.1rem 1.3rem;
+  min-height: 54px;
+  padding: 1rem 1.25rem;
   border: 0;
   border-radius: 12px;
   background: var(--ink);
@@ -122,34 +139,35 @@
 }
 
 .contract-form > small {
-  margin-top: -2.2rem;
+  margin-top: -0.4rem;
   color: var(--text-tertiary);
+  font-size: 0.68rem;
   text-align: center;
 }
 
 .contract-summary {
   position: sticky;
-  top: 7rem;
-  padding: 1.2rem;
-  border-radius: 22px;
+  top: 6rem;
+  padding: 1rem;
+  border-radius: 18px;
   background: var(--ink);
   color: white;
 }
 
 .contract-summary__artist {
   display: grid;
-  min-height: 210px;
-  border-radius: 15px;
+  min-height: 135px;
+  border-radius: 13px;
   background: linear-gradient(135deg, var(--artist-color), #222);
   color: rgba(255, 255, 255, 0.25);
   font-family: 'Syne', sans-serif;
-  font-size: 6rem;
+  font-size: 4rem;
   font-weight: 800;
   place-items: center;
 }
 
 .contract-summary > p {
-  margin: 1.2rem 0 0.3rem;
+  margin: 1rem 0 0.25rem;
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.65rem;
   font-weight: 800;
@@ -159,7 +177,7 @@
 .contract-summary h2 {
   margin: 0;
   font-family: 'Syne', sans-serif;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
 }
 
 .contract-summary__rating {
@@ -253,12 +271,20 @@
   }
 
   .contract-summary {
-    position: static;
-    grid-row: 1;
+    display: none;
   }
 }
 
 @media (max-width: 560px) {
+  .contract-page {
+    padding-top: 1rem;
+  }
+
+  .contract-back {
+    max-width: 100%;
+    margin-bottom: 1rem;
+  }
+
   .contract-form__grid {
     grid-template-columns: 1fr;
   }

@@ -1,14 +1,67 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Building2, CalendarDays, ChevronDown, CreditCard, MapPin, Zap } from 'lucide-react';
 import Link from 'next/link';
 import MediaLightbox from '../../components/MediaLightbox/MediaLightbox.jsx';
 import { artistProfileDetails } from '../../data/artistProfileDetails.js';
 import './ArtistProfile.css';
 
+function ProfileInfoPanel({ category, children, icon: Icon, id, isOpen, onToggle, title, wide = false }) {
+  const shouldReduceMotion = useReducedMotion();
+  const triggerId = `profile-info-trigger-${id}`;
+  const contentId = `profile-info-content-${id}`;
+  const transition = shouldReduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] };
+
+  return (
+    <article className={`profile-info-card${wide ? ' profile-info-card--wide' : ''}${isOpen ? ' is-open' : ''}`}>
+      <button
+        id={triggerId}
+        className="profile-info-card__trigger"
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={isOpen}
+        onClick={() => onToggle(id)}
+      >
+        <span className="profile-info-card__icon" aria-hidden="true"><Icon size={19} strokeWidth={2} /></span>
+        <span className="profile-info-card__title">
+          <small>{category}</small>
+          <strong>{title}</strong>
+        </span>
+        <motion.span
+          className="profile-info-card__chevron"
+          aria-hidden="true"
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={transition}
+        >
+          <ChevronDown size={19} strokeWidth={2.2} />
+        </motion.span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            id={contentId}
+            className="profile-info-card__content"
+            role="region"
+            aria-labelledby={triggerId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={transition}
+          >
+            <div className="profile-info-card__content-inner">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </article>
+  );
+}
+
 function ArtistProfile({ artist }) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(null);
+  const [openInfoId, setOpenInfoId] = useState(null);
   const mediaTriggerRef = useRef(null);
 
   const closeMedia = useCallback(() => {
@@ -35,6 +88,10 @@ function ArtistProfile({ artist }) {
   function openMedia(index, triggerElement) {
     mediaTriggerRef.current = triggerElement;
     setActiveMediaIndex(index);
+  }
+
+  function toggleInfoPanel(id) {
+    setOpenInfoId((current) => (current === id ? null : id));
   }
 
   return (
@@ -110,10 +167,9 @@ function ArtistProfile({ artist }) {
 
           <section className="profile-section" id="servicos">
             <h2>Serviços</h2>
-            <div className="profile-services">
-              {artistProfileDetails.services.map((service, index) => (
-                <article key={service.title}>
-                  <span>0{index + 1}</span>
+            <ul className="profile-services">
+              {artistProfileDetails.services.map((service) => (
+                <li key={service.title}>
                   <div>
                     <h3>{service.title}</h3>
                     <p>{service.detail}</p>
@@ -122,9 +178,9 @@ function ArtistProfile({ artist }) {
                   <strong>
                     R$ {Math.max(artist.price + service.priceAdjustment, 0).toLocaleString('pt-BR')}
                   </strong>
-                </article>
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
 
           <section className="profile-section profile-planning" id="planejamento">
@@ -135,14 +191,14 @@ function ArtistProfile({ artist }) {
             </p>
 
             <div className="profile-planning__grid">
-              <article className="profile-info-card profile-info-card--schedule">
-                <div className="profile-info-card__heading">
-                  <span aria-hidden="true">□</span>
-                  <div>
-                    <small>Disponibilidade</small>
-                    <h3>Expediente semanal</h3>
-                  </div>
-                </div>
+              <ProfileInfoPanel
+                category="Disponibilidade"
+                icon={CalendarDays}
+                id="schedule"
+                isOpen={openInfoId === 'schedule'}
+                onToggle={toggleInfoPanel}
+                title="Expediente semanal"
+              >
                 <dl className="profile-schedule">
                   {artistProfileDetails.weeklyHours.map((item) => (
                     <div key={item.day} className={item.available ? '' : 'is-unavailable'}>
@@ -151,16 +207,16 @@ function ArtistProfile({ artist }) {
                     </div>
                   ))}
                 </dl>
-              </article>
+              </ProfileInfoPanel>
 
-              <article className="profile-info-card">
-                <div className="profile-info-card__heading">
-                  <span aria-hidden="true">R$</span>
-                  <div>
-                    <small>Facilidades</small>
-                    <h3>Formas de pagamento</h3>
-                  </div>
-                </div>
+              <ProfileInfoPanel
+                category="Facilidades"
+                icon={CreditCard}
+                id="payments"
+                isOpen={openInfoId === 'payments'}
+                onToggle={toggleInfoPanel}
+                title="Formas de pagamento"
+              >
                 <ul className="profile-payment-list">
                   {artistProfileDetails.paymentMethods.map((method) => (
                     <li key={method.id}>
@@ -169,47 +225,48 @@ function ArtistProfile({ artist }) {
                     </li>
                   ))}
                 </ul>
-              </article>
+              </ProfileInfoPanel>
 
-              <article className="profile-info-card">
-                <div className="profile-info-card__heading">
-                  <span aria-hidden="true">⌂</span>
-                  <div>
-                    <small>Tipos de ambiente</small>
-                    <h3>Onde se apresenta</h3>
-                  </div>
-                </div>
+              <ProfileInfoPanel
+                category="Tipos de ambiente"
+                icon={Building2}
+                id="venues"
+                isOpen={openInfoId === 'venues'}
+                onToggle={toggleInfoPanel}
+                title="Onde se apresenta"
+              >
                 <div className="profile-chip-list">
                   {artistProfileDetails.venueTypes.map((venue) => (
                     <span key={venue}>{venue}</span>
                   ))}
                 </div>
-              </article>
+              </ProfileInfoPanel>
 
-              <article className="profile-info-card">
-                <div className="profile-info-card__heading">
-                  <span aria-hidden="true">◎</span>
-                  <div>
-                    <small>Deslocamento</small>
-                    <h3>Regiões atendidas</h3>
-                  </div>
-                </div>
+              <ProfileInfoPanel
+                category="Deslocamento"
+                icon={MapPin}
+                id="service-areas"
+                isOpen={openInfoId === 'service-areas'}
+                onToggle={toggleInfoPanel}
+                title="Regiões atendidas"
+              >
                 <p className="profile-service-area">{artistProfileDetails.serviceAreas.summary}</p>
                 <div className="profile-chip-list">
                   {artistProfileDetails.serviceAreas.locations.map((location) => (
                     <span key={location}>{location}</span>
                   ))}
                 </div>
-              </article>
+              </ProfileInfoPanel>
 
-              <article className="profile-info-card profile-info-card--wide">
-                <div className="profile-info-card__heading">
-                  <span aria-hidden="true">⚡</span>
-                  <div>
-                    <small>Montagem</small>
-                    <h3>Estrutura e equipamentos</h3>
-                  </div>
-                </div>
+              <ProfileInfoPanel
+                category="Montagem"
+                icon={Zap}
+                id="infrastructure"
+                isOpen={openInfoId === 'infrastructure'}
+                onToggle={toggleInfoPanel}
+                title="Estrutura e equipamentos"
+                wide
+              >
                 <div className="profile-infrastructure">
                   {artistProfileDetails.infrastructure.map((item) => (
                     <div key={item.id}>
@@ -221,7 +278,7 @@ function ArtistProfile({ artist }) {
                     </div>
                   ))}
                 </div>
-              </article>
+              </ProfileInfoPanel>
             </div>
           </section>
 
@@ -243,6 +300,19 @@ function ArtistProfile({ artist }) {
                 <footer><b>Rafael T.</b><span>Evento corporativo · Abril 2026</span></footer>
               </blockquote>
             </div>
+            <form className="profile-review-form" onSubmit={(event) => event.preventDefault()}>
+              <div>
+                <label htmlFor="review">Conte como foi o show</label>
+              </div>
+              <textarea
+                id="review"
+                name="review"
+                placeholder="Escreva sua avaliação sobre a apresentação..."
+                rows="4"
+                required
+              />
+              <button type="submit">Enviar avaliação</button>
+            </form>
           </section>
 
           <section className="profile-section profile-questions" id="perguntas">

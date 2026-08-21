@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import BrandLogo from '../BrandLogo/BrandLogo.jsx';
+import ProfileAvatar from '../ProfileAvatar/ProfileAvatar.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './Header.css';
 
 const navigation = [
@@ -14,6 +16,7 @@ const navigation = [
 
 function Header() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const isHome = pathname === '/';
@@ -56,8 +59,14 @@ function Header() {
         </nav>
 
         <div className="site-header__actions">
-          <Link className="site-header__login" href="/entrar">Entrar</Link>
-          <Link className="site-header__signup" href="/entrar/contratante">Cadastre-se</Link>
+          {user ? (
+            <ProfileAvatar user={user} />
+          ) : (
+            <>
+              <Link className="site-header__login" href="/entrar">Entrar</Link>
+              <Link className="site-header__signup" href="/cadastro/contratante">Cadastre-se</Link>
+            </>
+          )}
           <button
             className="site-header__menu-toggle"
             type="button"
@@ -78,7 +87,16 @@ function Header() {
           {navigation.map(({ label, to }) => (
             <Link key={to} href={to} onClick={() => setIsMenuOpen(false)}>{label}</Link>
           ))}
-          <Link href="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar ou cadastrar</Link>
+          {user ? (
+            <Link href={user.destination} onClick={() => setIsMenuOpen(false)}>
+              Minha área · {user.notificationCount} pendências
+            </Link>
+          ) : (
+            <>
+              <Link href="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar</Link>
+              <Link href="/cadastro/contratante" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
+            </>
+          )}
         </nav>
       </div>
     </header>

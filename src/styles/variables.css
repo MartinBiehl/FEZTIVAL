@@ -1,4 +1,6 @@
 :root {
+  --font-interface: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-numeric: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   --yellow: #ffd600;
   --orange: #ff6b35;
   --pink: #ff3cac;

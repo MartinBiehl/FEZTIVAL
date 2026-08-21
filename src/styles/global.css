@@ -15,17 +15,30 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-interface);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-body,
 button,
 input,
 select,
 textarea {
   font: inherit;
+}
+
+input[type='number'],
+input[type='date'],
+input[type='time'],
+input[inputmode='numeric'],
+time {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 button,

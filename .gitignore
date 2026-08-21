@@ -15,6 +15,9 @@
 # production
 /build
 
+# build do Vite, que nao existe mais apos a migracao para Next.js
+/dist
+
 # misc
 .DS_Store
 *.pem

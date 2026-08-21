@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import './ClientBookings.css';
 
 const bookings = [
@@ -9,12 +13,31 @@ const bookings = [
 ];
 
 function ClientBookings() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const clientName = user?.role === 'contractor' ? user.name : 'Bernardo';
+  const initials = clientName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
   return (
     <div className="bookings-page">
       <header className="bookings-header">
         <BrandLogo />
         <nav><Link href="/explorar">Explorar artistas</Link><Link href="/">Início</Link></nav>
-        <div><span>BM</span><strong>Bernardo</strong></div>
+        <div className="bookings-header__user">
+          <span>{initials}</span>
+          <strong>{clientName}</strong>
+          <button type="button" onClick={handleLogout}>Sair</button>
+        </div>
       </header>
       <main className="bookings-main page-container">
         <div className="bookings-heading">

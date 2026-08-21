@@ -156,7 +156,7 @@ function Home() {
           <h2>Seu próximo palco pode começar por aqui.</h2>
           <p>Apresente seu trabalho, receba propostas e seja encontrado por quem valoriza a cena local.</p>
         </div>
-        <Link href="/entrar/artista">Quero fazer parte <span>↗</span></Link>
+        <Link href="/cadastro/artista">Quero fazer parte <span>↗</span></Link>
       </section>
 
       <section className="home-final page-container">

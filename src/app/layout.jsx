@@ -1,4 +1,6 @@
+import { AuthProvider } from '../context/AuthContext.jsx';
 import { OG_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '../lib/site.js';
+import '../styles/fonts.css';
 import '../styles/variables.css';
 import '../styles/global.css';
 
@@ -47,19 +49,24 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <head>
         {/*
-          Fontes carregadas por <link>, exatamente como no index.html do Vite.
-          O CSS de páginas e componentes referencia 'Inter' e 'Syne' por nome
-          literal em ~50 declarações; next/font geraria nomes com hash e exigiria
-          reescrever todas elas.
+          Syne (títulos e marca) vem do Google Fonts. O CSS referencia 'Syne'
+          por nome literal em ~44 declarações; next/font geraria nomes com hash
+          e exigiria reescrever todas elas.
+
+          Inter saiu do carregamento: a fonte de interface passou a ser SF Pro,
+          servida localmente por src/styles/fonts.css, e nenhuma regra de CSS
+          referencia 'Inter' mais.
         */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

@@ -44,10 +44,10 @@ function Contract({ artist }) {
   return (
     <div className="contract-page page-container">
       <div className="contract-heading">
-        <Link href={`/artista/${artist.slug}`}>← Voltar ao perfil</Link>
-        <p className="eyebrow">Pedido de contratação</p>
-        <h1>Conte como vai ser<br /><span>esse momento.</span></h1>
-        <p>Envie os detalhes para receber a confirmação e o valor final do artista.</p>
+        <Link className="contract-back" href={`/artista/${artist.slug}`}>
+          <span aria-hidden="true">←</span>
+          Voltar ao perfil de {artist.name}
+        </Link>
       </div>
 
       <div className="contract-layout">
@@ -113,7 +113,7 @@ function Contract({ artist }) {
           </fieldset>
 
           <fieldset>
-            <legend><span>03</span> Conte um pouco mais</legend>
+            <legend><span>03</span> Alguma observação?</legend>
             <label>
               Mensagem para o artista
               <textarea
