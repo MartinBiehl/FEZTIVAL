@@ -10,6 +10,11 @@
  * então a categoria abre a frase como rótulo.
  */
 
+/* Nota exige media E contagem: media sem avaliacao nao significa nada. */
+function hasRating(artist) {
+  return artist.rating != null && artist.reviews > 0;
+}
+
 /* "Centro, Ivoti" e "Bom Jardim, Ivoti" viram "Ivoti"; "Campo Bom" fica igual. */
 export function artistCity(artist) {
   return artist.location.split(',').pop().trim();
@@ -21,14 +26,26 @@ export function artistTitle(artist) {
 
 export function artistDescription(artist) {
   const genres = artist.genres.join(' e ');
-  const rating = artist.rating.toFixed(1).replace('.', ',');
-  const price = artist.price.toLocaleString('pt-BR');
+  const parts = [`${artist.category} em ${artistCity(artist)}, com repertório de ${genres}.`];
 
-  return (
-    `${artist.category} em ${artistCity(artist)}, com repertório de ${genres}. `
-    + `Nota ${rating} em ${artist.reviews} avaliações, shows a partir de R$ ${price}. `
-    + 'Peça uma proposta pelo Feztival.'
-  );
+  /*
+   * Nota e preco entram na frase somente quando existem: artista novo nao tem
+   * avaliacao, e o preco e opcional quando o perfil diz "sob consulta".
+   */
+  const rating = hasRating(artist)
+    ? `Nota ${artist.rating.toFixed(1).replace('.', ',')} em ${artist.reviews} avaliações`
+    : null;
+  const price = artist.price != null
+    ? `shows a partir de R$ ${artist.price.toLocaleString('pt-BR')}`
+    : null;
+
+  const facts = [rating, price].filter(Boolean).join(', ');
+  if (facts) {
+    parts.push(`${facts.charAt(0).toUpperCase()}${facts.slice(1)}.`);
+  }
+
+  parts.push('Peça uma proposta pelo Feztival.');
+  return parts.join(' ');
 }
 
 /*
@@ -75,27 +92,38 @@ export function artistJsonLd(artist, siteUrl) {
     },
     makesOffer: {
       '@type': 'Offer',
-      priceSpecification: {
-        '@type': 'PriceSpecification',
-        /*
-         * `price` é o valor inicial dos dados. Não declaramos se há impostos
-         * inclusos: essa informação não existe em src/data.
-         */
-        price: artist.price,
-        priceCurrency: 'BRL',
-      },
       itemOffered: {
         '@type': 'Service',
         name: `Apresentação musical — ${artist.category}`,
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: artist.rating,
-          reviewCount: artist.reviews,
-          bestRating: 5,
-        },
       },
     },
   };
+
+  /*
+   * Preço só entra quando existe. Não declaramos se há impostos inclusos:
+   * essa informação não existe nos dados.
+   */
+  if (artist.price != null) {
+    schema.makesOffer.priceSpecification = {
+      '@type': 'PriceSpecification',
+      price: artist.price,
+      priceCurrency: 'BRL',
+    };
+  }
+
+  /*
+   * aggregateRating é OMITIDO quando não há avaliação. Declarar nota vazia é
+   * dado estruturado inválido, e o buscador pode penalizar por isso — pior do
+   * que simplesmente não informar.
+   */
+  if (hasRating(artist)) {
+    schema.makesOffer.itemOffered.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: artist.rating,
+      reviewCount: artist.reviews,
+      bestRating: 5,
+    };
+  }
 
   // jobTitle só faz sentido para pessoas; grupos não têm cargo.
   if (type === 'Person') {

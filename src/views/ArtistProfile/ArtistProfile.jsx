@@ -6,6 +6,10 @@ import { Building2, CalendarDays, ChevronDown, CreditCard, MapPin, Zap } from 'l
 import Link from 'next/link';
 import MediaLightbox from '../../components/MediaLightbox/MediaLightbox.jsx';
 import { artistProfileDetails } from '../../data/artistProfileDetails.js';
+import {
+  NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
+  hasRating,
+} from '../../lib/artistDisplay.js';
 import './ArtistProfile.css';
 
 function ProfileInfoPanel({ category, children, icon: Icon, id, isOpen, onToggle, title, wide = false }) {
@@ -111,9 +115,14 @@ function ArtistProfile({ artist }) {
           <h1>{artist.name}</h1>
           <p className="profile-hero__genres">{artist.genres.join(' · ')}</p>
           <div className="profile-hero__proof">
-            <strong>★ {artist.rating.toFixed(1)}</strong>
-            <span>{artist.reviews} avaliações verificadas</span>
-            <span>Responde em até 2 horas</span>
+            {hasRating(artist) ? (
+              <>
+                <strong>★ {formatRating(artist)}</strong>
+                <span>{formatReviewCount(artist)} verificadas</span>
+              </>
+            ) : (
+              <span>{NO_RATING_LABEL}</span>
+            )}
           </div>
         </div>
       </section>
@@ -176,7 +185,9 @@ function ArtistProfile({ artist }) {
                     <small>{service.extra}</small>
                   </div>
                   <strong>
-                    R$ {Math.max(artist.price + service.priceAdjustment, 0).toLocaleString('pt-BR')}
+                    {artist.price == null
+                      ? 'Sob consulta'
+                      : `R$ ${Math.max(artist.price + service.priceAdjustment, 0).toLocaleString('pt-BR')}`}
                   </strong>
                 </li>
               ))}
@@ -287,19 +298,13 @@ function ArtistProfile({ artist }) {
               <div>
                 <h2>Avaliações</h2>
               </div>
-              <strong>{artist.rating.toFixed(1)}<span>★★★★★</span></strong>
+              {hasRating(artist) && (
+                <strong>{formatRating(artist)}<span>★★★★★</span></strong>
+              )}
             </div>
-            <div className="profile-review-grid">
-              <blockquote>
-                “Pontual, profissional e com uma energia incrível. O repertório ficou
-                exatamente como imaginamos.”
-                <footer><b>Carolina M.</b><span>Casamento · Maio 2026</span></footer>
-              </blockquote>
-              <blockquote>
-                “A pista ficou cheia do início ao fim. Comunicação ótima em todas as etapas.”
-                <footer><b>Rafael T.</b><span>Evento corporativo · Abril 2026</span></footer>
-              </blockquote>
-            </div>
+            {!hasRating(artist) && (
+              <p className="profile-reviews__empty">Ainda não há avaliações.</p>
+            )}
             <form className="profile-review-form" onSubmit={(event) => event.preventDefault()}>
               <div>
                 <label htmlFor="review">Conte como foi o show</label>
@@ -328,12 +333,16 @@ function ArtistProfile({ artist }) {
 
         <aside className="profile-booking">
           <span>A partir de</span>
-          <strong>R$ {artist.price.toLocaleString('pt-BR')}</strong>
+          <strong>{formatPrice(artist)}</strong>
           <small>por apresentação</small>
           <dl>
             <div><dt>Local</dt><dd>{artist.location}</dd></div>
-            <div><dt>Duração</dt><dd>{Math.max(...artist.setMinutes) / 60}h disponíveis</dd></div>
-            <div><dt>Avaliação</dt><dd>★ {artist.rating.toFixed(1)}</dd></div>
+            {formatMaxDuration(artist) && (
+              <div><dt>Duração</dt><dd>{formatMaxDuration(artist)} disponíveis</dd></div>
+            )}
+            {hasRating(artist) && (
+              <div><dt>Avaliação</dt><dd>★ {formatRating(artist)}</dd></div>
+            )}
           </dl>
           <Link href={`/reservar/${artist.slug}`}>Pedir proposta <span>→</span></Link>
           <p>Você não paga nada para enviar uma proposta.</p>

@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
 import { artistProfileDetails } from '../../data/artistProfileDetails.js';
+import {
+  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+} from '../../lib/artistDisplay.js';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import './ArtistPreviewModal.css';
 
@@ -77,8 +80,16 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
           </p>
 
           <div className="artist-preview-dialog__proof">
-            <span><strong>★ {artist.rating.toFixed(1)}</strong> {artist.reviews} avaliações</span>
-            <span>A partir de <strong>R$ {artist.price.toLocaleString('pt-BR')}</strong></span>
+            <span>
+              {hasRating(artist) ? (
+                <>
+                  <strong>★ {formatRating(artist)}</strong> {formatReviewCount(artist)}
+                </>
+              ) : (
+                NO_RATING_LABEL
+              )}
+            </span>
+            <span>A partir de <strong>{formatPrice(artist)}</strong></span>
           </div>
 
           <div className="artist-preview-dialog__services">

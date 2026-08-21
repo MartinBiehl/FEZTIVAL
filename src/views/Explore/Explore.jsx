@@ -12,10 +12,22 @@ import {
 import { Check, ChevronDown } from 'lucide-react';
 import ArtistCard from '../../components/ArtistCard/ArtistCard.jsx';
 import ArtistPreviewModal from '../../components/ArtistPreviewModal/ArtistPreviewModal.jsx';
-import { artists, categories, filterGroups } from '../../data/landingContent.js';
 import './Explore.css';
 
-const initialFilters = { distance: [], duration: [], genre: [] };
+/*
+ * O filtro de distancia saiu: dependia de distanceKm, que nao existe no banco
+ * por ser calculo entre duas localizacoes, e nao atributo do artista. Volta
+ * quando houver busca por proximidade.
+ */
+const initialFilters = { duration: [], genre: [] };
+
+const DURATION_OPTIONS = [
+  { label: '30 min', value: '30' },
+  { label: '1 hora', value: '60' },
+  { label: '2 horas', value: '120' },
+  { label: '3 horas', value: '180' },
+  { label: '4+ horas', value: '240' },
+];
 const fastGlowSpring = { stiffness: 150, damping: 24, mass: 0.45 };
 const slowGlowSpring = { stiffness: 65, damping: 20, mass: 0.95 };
 const filterDisclosureSpring = { type: 'spring', stiffness: 240, damping: 22, mass: 0.9 };
@@ -179,7 +191,7 @@ function FilterGroupDisclosure({ group, isOpen, onChange, onToggle, selectedValu
   );
 }
 
-function Explore() {
+function Explore({ artists = [], genres = [] }) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [filters, setFilters] = useState(initialFilters);
@@ -204,6 +216,35 @@ function Explore() {
 
   const activeFilterCount = Object.values(filters).flat().length;
 
+  /*
+   * Categorias e contagens vem dos artistas reais. O banco tem 3 categorias
+   * (dj, band, solo), nao as 5 de antes: "Cantor" e "Musico Solo" eram ambos
+   * solo e nao podiam ser separados por query, e "Pagode" e genero, nao
+   * categoria -- continua disponivel no filtro de generos.
+   */
+  const categories = useMemo(() => {
+    const counts = new Map();
+    for (const artist of artists) {
+      counts.set(artist.category, (counts.get(artist.category) ?? 0) + 1);
+    }
+    return [
+      { name: 'Todos', count: artists.length },
+      ...[...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+        .map(([name, count]) => ({ name, count })),
+    ];
+  }, [artists]);
+
+  /* Generos vem do catalogo do banco, nao de uma lista fixa. */
+  const filterGroups = useMemo(() => [
+    { id: 'duration', label: 'Tempo de set', options: DURATION_OPTIONS },
+    {
+      id: 'genre',
+      label: 'Gênero musical',
+      options: genres.map((genre) => ({ label: genre.name, value: genre.name })),
+    },
+  ], [genres]);
+
   const results = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('pt-BR');
     const filtered = artists.filter((artist) => {
@@ -212,27 +253,36 @@ function Explore() {
         artist.category,
         artist.location,
         ...artist.genres,
-      ].some((value) => value.toLocaleLowerCase('pt-BR').includes(query));
+      ].filter(Boolean).some((value) => value.toLocaleLowerCase('pt-BR').includes(query));
       const categoryMatches = activeCategory === 'Todos' || artist.category === activeCategory;
-      const distanceMatches = !filters.distance.length || filters.distance.some(
-        (distance) => distance === 'any' || artist.distanceKm <= Number(distance),
-      );
       const durationMatches = !filters.duration.length || filters.duration.some(
         (duration) => artist.setMinutes.includes(Number(duration)),
       );
       const genreMatches = !filters.genre.length || filters.genre.some(
         (genre) => artist.genres.includes(genre),
       );
-      return searchMatches && categoryMatches && distanceMatches && durationMatches && genreMatches;
+      return searchMatches && categoryMatches && durationMatches && genreMatches;
     });
 
-    return [...filtered].sort((a, b) => {
-      if (sort === 'price-low') return a.price - b.price;
-      if (sort === 'price-high') return b.price - a.price;
-      if (sort === 'rating') return b.rating - a.rating;
-      return (b.rating * b.reviews) - (a.rating * a.reviews);
-    });
-  }, [activeCategory, filters, search, sort]);
+    /*
+     * "Recomendados" preserva a ordem que o servidor entregou -- embaralhada
+     * com semente diaria. Ordenar aqui por nota nao funciona mais: nenhum
+     * artista tem avaliacao, entao a comparacao daria sempre zero.
+     *
+     * Preco nulo ("sob consulta") vai para o fim das duas ordenacoes de preco,
+     * em vez de ser tratado como zero.
+     */
+    const byPrice = (a, b, direction) => {
+      if (a.price == null && b.price == null) return 0;
+      if (a.price == null) return 1;
+      if (b.price == null) return -1;
+      return direction * (a.price - b.price);
+    };
+
+    if (sort === 'price-low') return [...filtered].sort((a, b) => byPrice(a, b, 1));
+    if (sort === 'price-high') return [...filtered].sort((a, b) => byPrice(a, b, -1));
+    return filtered;
+  }, [activeCategory, artists, filters, search, sort]);
 
   function toggleFilter(group, value) {
     setFilters((current) => ({
@@ -361,7 +411,10 @@ function Explore() {
             <span>Ordenar por</span>
             <select value={sort} onChange={(event) => setSort(event.target.value)}>
               <option value="recommended">Recomendados</option>
-              <option value="rating">Melhor avaliação</option>
+              {/*
+                "Melhor avaliação" saiu: nenhum artista tem nota ainda, então a
+                opção não reordenaria nada. Volta quando houver avaliações.
+              */}
               <option value="price-low">Menor preço</option>
               <option value="price-high">Maior preço</option>
             </select>

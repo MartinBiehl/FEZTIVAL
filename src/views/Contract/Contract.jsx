@@ -4,6 +4,9 @@ import { useCallback, useRef, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
+import {
+  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+} from '../../lib/artistDisplay.js';
 import './Contract.css';
 
 function Contract({ artist }) {
@@ -136,11 +139,14 @@ function Contract({ artist }) {
           </div>
           <p>{artist.category}</p>
           <h2>{artist.name}</h2>
-          <div className="contract-summary__rating">★ {artist.rating.toFixed(1)} · {artist.reviews} avaliações</div>
+          <div className="contract-summary__rating">
+            {hasRating(artist)
+              ? `★ ${formatRating(artist)} · ${formatReviewCount(artist)}`
+              : NO_RATING_LABEL}
+          </div>
           <dl>
-            <div><dt>Valor inicial</dt><dd>R$ {artist.price.toLocaleString('pt-BR')}</dd></div>
+            <div><dt>Valor inicial</dt><dd>{formatPrice(artist)}</dd></div>
             <div><dt>Região</dt><dd>{artist.location}</dd></div>
-            <div><dt>Resposta média</dt><dd>Até 2 horas</dd></div>
           </dl>
           <small>O valor final pode variar conforme duração, deslocamento e estrutura.</small>
         </aside>

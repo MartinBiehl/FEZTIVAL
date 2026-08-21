@@ -763,3 +763,10 @@
     transform: none;
   }
 }
+
+/* Estado vazio da seção de avaliações, exibido quando o artista ainda não
+   recebeu nenhuma. Substitui os depoimentos fictícios que existiam aqui. */
+.profile-reviews__empty {
+  margin: 0;
+  color: var(--text-secondary);
+}

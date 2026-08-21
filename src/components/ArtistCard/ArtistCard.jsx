@@ -1,4 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react';
+import {
+  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+} from '../../lib/artistDisplay.js';
 import './ArtistCard.css';
 
 function ArtistCard({ artist, featured = false, onPreview }) {
@@ -22,17 +25,22 @@ function ArtistCard({ artist, featured = false, onPreview }) {
           {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
         </span>
         <span className="artist-result-card__category">{artist.category}</span>
-        <span className="artist-result-card__available">Disponível esta semana</span>
       </div>
       <div className="artist-result-card__body">
         <div className="artist-result-card__rating">
-          <span>★ {artist.rating.toFixed(1)}</span>
-          <small>{artist.reviews} avaliações</small>
+          {hasRating(artist) ? (
+            <>
+              <span>★ {formatRating(artist)}</span>
+              <small>{formatReviewCount(artist)}</small>
+            </>
+          ) : (
+            <small>{NO_RATING_LABEL}</small>
+          )}
         </div>
         <h3>{artist.name}</h3>
         <p>{artist.genres.join(' · ')} · {artist.location}</p>
         <div className="artist-result-card__footer">
-          <span>A partir de <strong>R$ {artist.price.toLocaleString('pt-BR')}</strong></span>
+          <span>A partir de <strong>{formatPrice(artist)}</strong></span>
           <span className="artist-result-card__preview-icon" aria-hidden="true">↗</span>
         </div>
       </div>
