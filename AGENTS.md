@@ -471,9 +471,29 @@ Decisões já tomadas para quando isso for tratado:
   informação, enquadramento que não penaliza quem está começando.
 - O `aggregateRating` do JSON-LD é **omitido** quando não há avaliação. `aggregateRating`
   sem avaliação é dado inválido, e o buscador pode penalizar.
-- A ordenação "Recomendados" precisa de outro critério, ainda **não decidido**. Num
-  marketplace, ordem de exibição é distribuição de oportunidade — merece decisão própria,
-  não um `order by` escolhido às pressas.
+- A ordenação "Recomendados" passa a ser **aleatória com semente diária**: ordem
+  embaralhada, mas estável dentro do mesmo dia, para o visitante não ver o catálogo
+  pulando entre navegações.
+
+  Num marketplace, ordem de exibição é distribuição de oportunidade. Os outros critérios
+  disponíveis foram descartados: nota não existe (ver acima), data de cadastro trava
+  vantagem permanente para quem chegou primeiro, e proximidade exigiria coordenadas que
+  não temos. Com 8 artistas e nenhum lançamento, o que importa é que ninguém fique
+  invisível — artista que nunca aparece nunca é contratado, nunca é avaliado, e nunca
+  sobe.
+
+  É **decisão de partida**, a ser revista quando houver avaliações e volume real.
+
+  Ao implementar, atenção a dois detalhes:
+
+  - A semente tem de vir da **data**, não de `Math.random()` por requisição, senão a
+    ordem muda a cada navegação e o catálogo "pula".
+  - Embaralhar durante a renderização quebra a hidratação: servidor e cliente
+    produziriam ordens diferentes. Ordene **no servidor** (na query ou no Server
+    Component) e entregue a lista já embaralhada, ou derive a ordem de um valor que os
+    dois lados calculem igual. Em rota estática (`generateStaticParams`, prerender no
+    build), a "data" congela no momento do build — então `/explorar` precisa revalidar
+    pelo menos uma vez por dia para a semente virar.
 
 ## Fases seguintes da migração
 
@@ -490,6 +510,11 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
 tocar no front — as duas coisas passam a acontecer juntas na fase seguinte, já que ler do
 banco em Server Component é o mesmo trabalho.
+
+> **Pré-requisito da próxima fase:** tratar os 7 usos de `artist.rating.toFixed(1)` e
+> `artist.reviews` **antes ou junto** da troca de fonte de dados. Como o banco entra com
+> `reviews` vazia, `null.toFixed()` lança `TypeError` e derruba a página — não é
+> degradação visual, é erro de renderização. Ver a seção do banco para os 7 locais.
 
 Pendências abertas da Fase 1:
 
