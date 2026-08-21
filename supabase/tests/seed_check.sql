@@ -1,6 +1,21 @@
 -- Verificacao do seed. Somente leitura: nenhuma alteracao.
 -- Cole no SQL Editor do painel do Supabase.
 
+--
+-- O SQL Editor mostra o resultado da ULTIMA consulta executada, por isso a
+-- lista de detalhe vem primeiro e a verificacao OK/DIVERGE vem por ultimo.
+-- Para ver a lista, selecione apenas o primeiro bloco e execute a selecao.
+
+-- Detalhe dos 8, para conferencia visual
+select a.slug, a.stage_name, a.category, a.city, a.base_price,
+       string_agg(g.name, ', ' order by g.name) as generos
+from public.artists a
+left join public.artist_genres ag on ag.artist_id = a.id
+left join public.genres g on g.id = ag.genre_id
+group by a.id, a.slug, a.stage_name, a.category, a.city, a.base_price
+order by a.slug;
+
+-- Verificacao: todas as linhas devem dar OK
 select 'contas de seed' as item,
        count(*)::text || ' de 8' as valor,
        case when count(*) = 8 then 'OK' else 'DIVERGE' end as veredito
@@ -37,12 +52,3 @@ select 'campos sem origem estao nulos', count(*)::text || ' de 8',
 from public.artists
 where bio_short is null and bio_long is null and cover_url is null
   and service_radius_km is null;
-
--- Detalhe dos 8, para conferencia visual
-select a.slug, a.stage_name, a.category, a.city, a.base_price,
-       string_agg(g.name, ', ' order by g.name) as generos
-from public.artists a
-left join public.artist_genres ag on ag.artist_id = a.id
-left join public.genres g on g.id = ag.genre_id
-group by a.id, a.slug, a.stage_name, a.category, a.city, a.base_price
-order by a.slug;
