@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import BrandLogo from '../BrandLogo/BrandLogo.jsx';
 import './Footer.css';
 
@@ -12,15 +12,15 @@ function Footer() {
       <div className="site-footer__columns">
         <div>
           <strong>Descobrir</strong>
-          <Link to="/explorar">Explorar artistas</Link>
-          <Link to="/#como-funciona">Como funciona</Link>
-          <Link to="/minhas-reservas">Minhas reservas</Link>
+          <Link href="/explorar">Explorar artistas</Link>
+          <Link href="/#como-funciona">Como funciona</Link>
+          <Link href="/minhas-reservas">Minhas reservas</Link>
         </div>
         <div>
           <strong>Feztival</strong>
-          <Link to="/#sobre">Sobre o projeto</Link>
-          <Link to="/#para-artistas">Para artistas</Link>
-          <Link to="/entrar">Entrar</Link>
+          <Link href="/#sobre">Sobre o projeto</Link>
+          <Link href="/#para-artistas">Para artistas</Link>
+          <Link href="/entrar">Entrar</Link>
         </div>
       </div>
       <div className="site-footer__bottom">

@@ -4,13 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "dev:vite": "vite",
+    "build:vite": "vite build",
+    "preview:vite": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^1.28.0",
     "motion": "^12.43.0",
+    "next": "^16.3.1",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "^7.18.1"

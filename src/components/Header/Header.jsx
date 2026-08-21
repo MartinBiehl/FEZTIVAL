@@ -1,5 +1,8 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import BrandLogo from '../BrandLogo/BrandLogo.jsx';
 import './Header.css';
 
@@ -10,7 +13,7 @@ const navigation = [
 ];
 
 function Header() {
-  const { pathname } = useLocation();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const isHome = pathname === '/';
@@ -42,13 +45,19 @@ function Header() {
 
         <nav className="site-header__nav" aria-label="Navegação principal">
           {navigation.map(({ label, to }) => (
-            <NavLink key={to} to={to}>{label}</NavLink>
+            <Link
+              key={to}
+              href={to}
+              className={to === pathname ? 'active' : undefined}
+            >
+              {label}
+            </Link>
           ))}
         </nav>
 
         <div className="site-header__actions">
-          <Link className="site-header__login" to="/entrar">Entrar</Link>
-          <Link className="site-header__signup" to="/entrar/contratante">Cadastre-se</Link>
+          <Link className="site-header__login" href="/entrar">Entrar</Link>
+          <Link className="site-header__signup" href="/entrar/contratante">Cadastre-se</Link>
           <button
             className="site-header__menu-toggle"
             type="button"
@@ -67,9 +76,9 @@ function Header() {
           aria-label="Navegação móvel"
         >
           {navigation.map(({ label, to }) => (
-            <Link key={to} to={to} onClick={() => setIsMenuOpen(false)}>{label}</Link>
+            <Link key={to} href={to} onClick={() => setIsMenuOpen(false)}>{label}</Link>
           ))}
-          <Link to="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar ou cadastrar</Link>
+          <Link href="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar ou cadastrar</Link>
         </nav>
       </div>
     </header>

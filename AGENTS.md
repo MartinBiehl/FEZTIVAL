@@ -22,8 +22,8 @@ O repositório contém uma única aplicação frontend:
 
 ```text
 Browser
-  └── React 19
-      ├── React Router
+  └── Next.js (App Router) + React 19
+      ├── roteamento por arquivo em src/app
       ├── JavaScript/JSX
       ├── CSS modular por componente/página
       └── dados locais simulados em src/data
@@ -33,32 +33,48 @@ Tecnologias em uso:
 
 | Camada | Tecnologia |
 |---|---|
-| Build/dev server | Vite 6 |
+| Framework / build | Next.js 16 (App Router, Turbopack) |
 | Interface | React |
-| Rotas | React Router DOM |
+| Rotas | Roteamento por arquivo do App Router |
 | Linguagem | JavaScript + JSX |
 | Estilos | CSS puro, mobile-first |
 | Dados atuais | módulos JavaScript locais |
 
-Não há backend, banco de dados, autenticação real, TypeScript, Next.js, Tailwind ou
-monorepo neste momento. Não introduza essas tecnologias como se já fizessem parte do
-projeto. Uma API futura deve ser discutida e planejada antes de alterar a estrutura.
+Não há backend, banco de dados, autenticação real, TypeScript, Tailwind ou monorepo
+neste momento. Não introduza essas tecnologias como se já fizessem parte do projeto.
+Uma API futura deve ser discutida e planejada antes de alterar a estrutura.
+
+A migração de Vite para Next.js foi aprovada e executada na Fase 1, motivada por SEO:
+perfis de artista precisam ser indexáveis, e o Vite entregava HTML praticamente vazio.
+Os arquivos do Vite (`index.html`, `src/App.jsx`, `src/main.jsx`, `vite.config.js` e os
+scripts `*:vite`) seguem no repositório temporariamente como rede de segurança, e serão
+removidos depois que a paridade visual for aprovada. Note que o Vite não roda mais
+in-place: as views agora importam `next/link`, então a conferência visual exige um
+worktree no commit anterior à migração.
 
 ## Estrutura
 
 ```text
 src/
+├── app/              # rotas do App Router (layouts, page.jsx, not-found)
 ├── components/       # componentes compartilhados
 ├── data/             # conteúdo e dados simulados
 ├── images/           # imagens locais
-├── pages/            # uma pasta por página
+├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
-├── App.jsx           # composição das rotas
-└── main.jsx          # bootstrap do React
+├── App.jsx           # legado Vite — a remover
+└── main.jsx          # legado Vite — a remover
 ```
 
-Cada página mantém seu JSX e CSS juntos em `src/pages/NomeDaPagina`. Componentes
+Cada página mantém seu JSX e CSS juntos em `src/views/NomeDaPagina`. Componentes
 reutilizados por mais de uma página ficam em `src/components`.
+
+A pasta foi renomeada de `pages/` para `views/` porque `pages` é nome reservado pelo
+Next.js (Pages Router) e colidia com o App Router, quebrando o build.
+
+Os arquivos em `src/app` são apenas roteamento: cada `page.jsx` importa a view
+correspondente. Marque `'use client'` somente onde há estado, efeitos, handlers ou
+animação (`motion`); o resto permanece Server Component.
 
 ## Rotas do produto
 
@@ -73,10 +89,34 @@ reutilizados por mais de uma página ficam em `src/components`.
 | Login artista | `/entrar/artista` | Acesso do artista |
 | Painel do artista | `/painel` | Gestão de perfil e propostas |
 | Reservas do cliente | `/minhas-reservas` | Acompanhamento de pedidos |
+| Redirect legado | `/artistas` | Redireciona (307) para `/explorar` |
+| Não encontrada | qualquer outra | 404 real, com link para início e catálogo |
+
+São **11 comportamentos de rota**, não 9: as 9 páginas acima mais o redirect de
+`/artistas` e o 404. Os dois últimos existiam no `App.jsx` como `<Navigate>` e não
+estavam documentados.
+
+O catch-all antes redirecionava para `/`. Hoje retorna 404 real: redirecionar sinaliza
+ao buscador que a URL quebrada é válida e polui o índice — o oposto do objetivo da
+migração. Já `/artistas` → `/explorar` é redirect legítimo de URL antiga e continua 307.
+
+Nas rotas dinâmicas (`/artista/[slug]`, `/reservar/[slug]`) o slug é resolvido no
+`page.jsx`, que é Server Component: `await params`, busca em `src/data` e `notFound()`
+se não existir. `notFound()` não funciona em Client Component, e resolver no servidor
+garante o 404 já no HTML inicial. A view recebe o artista por prop.
+
+As duas rotas dinâmicas usam `generateStaticParams`, então os perfis são prerenderizados
+como HTML estático no build — o ponto central do SEO.
+
+> **Pendência para quando os dados vierem de API:** com `generateStaticParams`, um artista
+> novo não aparece até um novo build. Será necessário ISR (`revalidate`) ou renderização
+> sob demanda. Não é problema enquanto os dados estão em `src/data`, mas não pode ser
+> esquecido na fase de integração.
 
 ## Regras de frontend
 
-- Preserve React, Vite, JavaScript e CSS puro até que uma migração seja aprovada.
+- Preserve React, Next.js, JavaScript e CSS puro até que uma migração seja aprovada.
+- Não converta para TypeScript nem introduza Tailwind sem decisão explícita.
 - Prefira componentes pequenos e reutilizáveis a marcação duplicada.
 - Dados simulados devem ficar em `src/data`, não espalhados pelas páginas.
 - Toda nova tela deve funcionar em celular e desktop.
@@ -98,7 +138,9 @@ A marca combina uma base editorial clara com superfícies escuras e acentos vibr
 - texto principal `#111111`
 - fundo quente `#F5F4F0`
 
-Tipografia: **Syne** para títulos e marca; **DM Sans** para interface e texto.
+Tipografia: **Syne** para títulos e marca; **Inter** para interface e texto.
+(DM Sans foi a intenção original de design e não chegou a ser implementada —
+decisão pendente para fase futura.)
 
 ## Limites atuais
 
@@ -113,9 +155,15 @@ Tipografia: **Syne** para títulos e marca; **DM Sans** para interface e texto.
 
 ```bash
 npm install
-npm run dev
+npm run dev      # Next.js em http://localhost:3000
 npm run build
-npm run preview
+npm run start    # serve o build de produção
+
+# scripts legados do Vite (build:vite, dev:vite) ainda existem, mas `dev:vite`
+# NÃO roda mais: as views importam next/link e next/navigation, que quebram fora
+# do Next ("process is not defined"). Para comparar com o visual original, use um
+# worktree no último commit anterior à migração:
+#   git worktree add ../feztival-vite c0ba3a4
 ```
 
 ## Momento do projeto

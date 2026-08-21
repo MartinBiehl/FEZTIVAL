@@ -8,15 +8,15 @@ import {
 } from 'react-router-dom';
 import Header from './components/Header/Header.jsx';
 import Footer from './components/Footer/Footer.jsx';
-import Home from './pages/Home/Home.jsx';
-import Explore from './pages/Explore/Explore.jsx';
-import ArtistProfile from './pages/ArtistProfile/ArtistProfile.jsx';
-import Login from './pages/Login/Login.jsx';
-import ArtistLogin from './pages/ArtistLogin/ArtistLogin.jsx';
-import ArtistDashboard from './pages/ArtistDashboard/ArtistDashboard.jsx';
-import ClientBookings from './pages/ClientBookings/ClientBookings.jsx';
-import Contract from './pages/Contract/Contract.jsx';
-import ChooseLogin from './pages/ChooseLogin/ChooseLogin.jsx';
+import Home from './views/Home/Home.jsx';
+import Explore from './views/Explore/Explore.jsx';
+import ArtistProfile from './views/ArtistProfile/ArtistProfile.jsx';
+import Login from './views/Login/Login.jsx';
+import ArtistLogin from './views/ArtistLogin/ArtistLogin.jsx';
+import ArtistDashboard from './views/ArtistDashboard/ArtistDashboard.jsx';
+import ClientBookings from './views/ClientBookings/ClientBookings.jsx';
+import Contract from './views/Contract/Contract.jsx';
+import ChooseLogin from './views/ChooseLogin/ChooseLogin.jsx';
 
 function ScrollManager() {
   const { pathname, hash } = useLocation();

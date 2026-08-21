@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
 import { artistProfileDetails } from '../../data/artistProfileDetails.js';
 import useModalDialog from '../../hooks/useModalDialog.js';
@@ -98,7 +98,7 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
             ))}
           </div>
 
-          <Link className="artist-preview-dialog__cta" to={`/artista/${artist.slug}`}>
+          <Link className="artist-preview-dialog__cta" href={`/artista/${artist.slug}`}>
             Ver perfil completo <span aria-hidden="true">→</span>
           </Link>
         </motion.div>

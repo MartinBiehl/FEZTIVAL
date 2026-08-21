@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { brandLetters } from '../../data/landingContent.js';
 import './BrandLogo.css';
 
@@ -18,7 +18,7 @@ function BrandLogo({ size = 'medium', asLink = true }) {
   }
 
   return (
-    <Link className="brand-logo__link" to="/" aria-label="Ir para o início da Feztival">
+    <Link className="brand-logo__link" href="/" aria-label="Ir para o início da Feztival">
       {wordmark}
     </Link>
   );
