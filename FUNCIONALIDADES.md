@@ -66,7 +66,7 @@ Página completa, prerenderizada como HTML estático para ser indexável. Seçõ
 | **Serviços** | Pacotes ofertados, com preço e duração |
 | **Mais informações** | Formas de pagamento, tipos de local atendidos, área de atuação, infraestrutura (o que leva, negocia ou exige) e horários |
 | **Avaliações** | Notas de contratações concluídas |
-| **Pergunte antes de contratar** | Perguntas públicas no perfil |
+| **Pergunte antes de contratar** | Perguntas e respostas públicas; perguntar exige login |
 
 ---
 
@@ -137,6 +137,9 @@ mensagem e valor) e próximos shows confirmados. Em cada proposta o artista:
 
 Depois do aceite aparece o link de WhatsApp do contratante. Telefones não são
 públicos: cada usuário só vê o contato da outra parte de uma reserva.
+
+As perguntas feitas no perfil público aparecem em "Perguntas sem resposta", onde o
+artista responde. A resposta fica pública no perfil, junto da pergunta.
 
 Métricas reais: visualizações do perfil, propostas aguardando resposta, shows
 confirmados nos próximos 30 dias e repasse previsto no mês. Exige login; quem não
@@ -240,6 +243,6 @@ encontrados no Google.
 login, recuperação de senha) e o ciclo da contratação — proposta, aceite, confirmação,
 conclusão, cancelamento e avaliação — gravando no banco real.
 
-**Não funciona:** envio de vídeos e áudios, e o formulário "Pergunte antes de contratar", que ainda não grava a pergunta.
+**Não funciona:** envio de vídeos e áudios.
 
 O próximo passo são os **pagamentos**.

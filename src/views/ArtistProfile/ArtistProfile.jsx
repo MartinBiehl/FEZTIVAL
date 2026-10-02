@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Building2, CalendarDays, ChevronDown, CreditCard, MapPin, Zap } from 'lucide-react';
 import Link from 'next/link';
 import MediaLightbox from '../../components/MediaLightbox/MediaLightbox.jsx';
+import useActionSubmit from '../../hooks/useActionSubmit.js';
 import { recordArtistView } from '../../lib/artistActions.js';
+import { askQuestion } from '../../lib/questionActions.js';
 import {
   NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
   hasRating,
@@ -63,6 +65,46 @@ function ProfileInfoPanel({ category, children, icon: Icon, id, isOpen, onToggle
         )}
       </AnimatePresence>
     </article>
+  );
+}
+
+/*
+ * A pagina e estatica e nao sabe se ha alguem logado: o envio responde
+ * needsAuth e o formulario oferece o login, voltando para este perfil.
+ */
+function QuestionForm({ slug }) {
+  const [state, formAction, isPending] = useActionState(askQuestion, null);
+  const submit = useActionSubmit(formAction);
+  const formRef = useRef(null);
+  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/artista/${slug}`)}`;
+
+  // Limpa o campo so quando a pergunta foi publicada; em erro o texto fica.
+  useEffect(() => {
+    if (state?.ok) formRef.current?.reset();
+  }, [state]);
+
+  return (
+    <form ref={formRef} onSubmit={submit}>
+      <input type="hidden" name="slug" value={slug} />
+      <label htmlFor="question">Sua pergunta</label>
+      <textarea
+        id="question"
+        name="body"
+        placeholder="Ex.: Você leva equipamento de som?"
+        rows="3"
+        required
+        minLength={10}
+        maxLength={1000}
+      />
+      <button type="submit" disabled={isPending}>{isPending ? 'Enviando…' : 'Enviar pergunta'}</button>
+      {state?.ok && <p className="profile-questions__feedback" role="status">Pergunta publicada. O artista será avisado no painel.</p>}
+      {state?.needsAuth && (
+        <p className="profile-questions__feedback" role="alert">
+          Para perguntar, <Link href={loginPath}>entre na sua conta</Link>. Sua pergunta fica visível para todos.
+        </p>
+      )}
+      {state?.error && <p className="profile-questions__feedback profile-questions__feedback--error" role="alert">{state.error}</p>}
+    </form>
   );
 }
 
@@ -360,11 +402,24 @@ function ArtistProfile({ artist }) {
           <section className="profile-section profile-questions" id="perguntas">
             <h2>Pergunte antes de contratar</h2>
             <p>As respostas ficam visíveis no perfil e ajudam outros contratantes.</p>
-            <form onSubmit={(event) => event.preventDefault()}>
-              <label htmlFor="question">Sua pergunta</label>
-              <textarea id="question" placeholder="Ex.: Você leva equipamento de som?" rows="3" />
-              <button type="submit">Enviar pergunta</button>
-            </form>
+            {artist.questions.length > 0 && (
+              <ul className="profile-questions__list">
+                {artist.questions.map((question) => (
+                  <li key={question.id}>
+                    <p className="profile-questions__question">{question.body}</p>
+                    <small>{REVIEW_DATE.format(new Date(question.createdAt))}</small>
+                    {question.answer ? (
+                      <p className="profile-questions__answer">
+                        <strong>Resposta de {artist.name}:</strong> {question.answer}
+                      </p>
+                    ) : (
+                      <p className="profile-questions__pending">Aguardando resposta do artista.</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <QuestionForm slug={artist.slug} />
           </section>
         </div>
 

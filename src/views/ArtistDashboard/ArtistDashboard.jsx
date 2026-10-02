@@ -1,7 +1,10 @@
 'use client';
 
+import { useActionState, useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useActionSubmit from '../../hooks/useActionSubmit.js';
+import { answerQuestion } from '../../lib/questionActions.js';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -31,7 +34,30 @@ function proposalSummary(proposal) {
   ].filter(Boolean).join(' · ');
 }
 
-function ArtistDashboard({ artist, proposals, nextShows, metrics, todayLabel, greetingText }) {
+/* Resposta a uma pergunta do perfil. Ao responder, o painel recarrega sem ela. */
+function AnswerForm({ question }) {
+  const [state, formAction, isPending] = useActionState(answerQuestion, null);
+  const submit = useActionSubmit(formAction);
+  const answerId = useId();
+
+  return (
+    <form className="booking-actions" onSubmit={submit} aria-label="Responder pergunta">
+      <input type="hidden" name="questionId" value={question.id} />
+      <label className="booking-actions__comment" htmlFor={answerId}>
+        <span>Sua resposta (pública no perfil)</span>
+        <textarea id={answerId} name="body" rows="2" required minLength={2} maxLength={2000} />
+      </label>
+      <div className="booking-actions__buttons">
+        <button className="booking-actions__primary" type="submit" disabled={isPending}>
+          {isPending ? 'Enviando…' : 'Responder'}
+        </button>
+      </div>
+      {state?.error && <p className="booking-actions__error" role="alert">{state.error}</p>}
+    </form>
+  );
+}
+
+function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics, todayLabel, greetingText }) {
   const router = useRouter();
   const { logout } = useAuth();
 
@@ -48,6 +74,7 @@ function ArtistDashboard({ artist, proposals, nextShows, metrics, todayLabel, gr
         <nav>
           <a className="active" href="#visao"><span>⌂</span> Visão geral</a>
           <a href="#propostas"><span>◇</span> Propostas {metrics.pending > 0 && <b>{metrics.pending}</b>}</a>
+          <a href="#perguntas"><span>?</span> Perguntas {openQuestions.length > 0 && <b>{openQuestions.length}</b>}</a>
           <a href="#agenda"><span>□</span> Agenda</a>
           <Link href="/painel/perfil"><span>○</span> Meu perfil</Link>
         </nav>
@@ -126,6 +153,21 @@ function ArtistDashboard({ artist, proposals, nextShows, metrics, todayLabel, gr
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="dashboard-panel" id="perguntas">
+          <div className="dashboard-panel__heading">
+            <div><p className="eyebrow">Perfil público</p><h2>Perguntas sem resposta</h2></div>
+          </div>
+          {openQuestions.length === 0 && <p className="dashboard-empty">Nenhuma pergunta aguardando resposta.</p>}
+          <div className="dashboard-questions">
+            {openQuestions.map((question) => (
+              <article key={question.id}>
+                <p>“{question.body}”</p>
+                <AnswerForm question={question} />
+              </article>
+            ))}
           </div>
         </section>
 

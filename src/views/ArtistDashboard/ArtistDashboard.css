@@ -541,3 +541,18 @@
     grid-column: 1 / -1;
   }
 }
+
+.dashboard-questions article {
+  display: grid;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  gap: 0.7rem;
+}
+
+.dashboard-questions article > p {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}

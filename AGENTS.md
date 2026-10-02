@@ -95,7 +95,8 @@ src/
 | `account.js` | `ensureAccount` (cria `profiles` e o rascunho em `artists`), `safeNextPath`, `slugify` |
 | `accountActions.js` | Server Actions de login, cadastro e recuperação de senha |
 | `bookingActions.js` | Server Actions de proposta, mudança de status e avaliação |
-| `bookingQueries.js` | leituras do painel e de "Minhas reservas" |
+| `bookingQueries.js` | leituras do painel (propostas e perguntas sem resposta) e de "Minhas reservas" |
+| `questionActions.js` | Server Actions de pergunta pública e resposta do artista |
 | `bookingDisplay.js` | rótulos de status, datas no fuso de São Paulo, valores |
 | `artistActions.js` | contagem de visualização do perfil |
 | `profileEditor.js` | leitura do editor de perfil e catálogos |
@@ -237,10 +238,9 @@ de Syne e apenas 5 de Inter.
 - Os artistas do catálogo são o seed de demonstração (`supabase/seed.sql`).
 - O editor envia só fotos: vídeo e áudio (`artist_media.type`) e a agenda por data
   (`availability`) ainda não têm tela.
-- O formulário "Pergunte antes de contratar" do perfil não grava nada. As tabelas
-  `questions` e `answers` existem no banco remoto, mas não neste repositório (ver
-  "Banco remoto fora do repositório").
-- Pagamentos não estão implementados.
+- Perguntas não têm moderação na interface: nascem `published` e o artista não
+  consegue ocultá-las (`moderation_status` não é gravável pelo navegador).
+- Pagamentos não estão implementados; as tabelas (`payments` e afins) já existem.
 - O produto não inclui chat privado direto; dúvidas podem aparecer como perguntas
   públicas no perfil.
 - Não há aplicativo nativo.
@@ -725,6 +725,18 @@ busca nem no filtro. Horário semanal sem nenhum dia marcado é tratado como nã
 declarado (as linhas são apagadas), em vez de "não atende" nos sete dias.
 
 Ao salvar, o perfil, o formulário de proposta, `/explorar` e o sitemap são revalidados.
+
+### Perguntas públicas
+
+O formulário "Pergunte antes de contratar" do perfil chama `askQuestion`
+(`questionActions.js`). A página é estática e não sabe quem está vendo, então sem
+login a action devolve `needsAuth` e o formulário oferece o acesso, voltando ao
+perfil. Não é possível perguntar ao próprio perfil. A pergunta aparece no perfil na
+hora, sem o autor (`profiles` não é público).
+
+O artista responde em `/painel`, na seção "Perguntas sem resposta"
+(`answerQuestion`). A resposta é única por pergunta e pública. Quem garante isso é a
+RLS de `questions`/`answers`, não o JavaScript.
 
 ### Fotos (Supabase Storage)
 

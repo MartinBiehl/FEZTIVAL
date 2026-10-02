@@ -621,6 +621,67 @@
   font-weight: 800;
 }
 
+.profile-questions button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.profile-questions__list {
+  display: grid;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  gap: 0.8rem;
+  list-style: none;
+}
+
+.profile-questions__list li {
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.profile-questions__list p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.profile-questions__question {
+  font-weight: 700;
+}
+
+.profile-questions__list small {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+}
+
+.profile-questions__list .profile-questions__answer {
+  margin-top: 0.7rem;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--artist-color, var(--ink));
+}
+
+.profile-questions__list .profile-questions__pending {
+  margin-top: 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.profile-questions__feedback {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.profile-questions__feedback a {
+  text-decoration: underline;
+}
+
+.profile-questions__feedback--error {
+  color: #b42318;
+}
+
 .profile-booking {
   position: sticky;
   top: 7rem;

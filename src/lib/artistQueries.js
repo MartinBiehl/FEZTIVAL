@@ -114,6 +114,21 @@ function toArtistDetail(row, summary, reviews) {
     })),
     bioLong: row.bio_long,
     viewCount: row.view_count ?? 0,
+    /*
+     * A RLS so entrega perguntas e respostas publicadas. Sem o autor: profiles
+     * nao e publico. answers e 1:1 (question_id unico), entao vem objeto.
+     */
+    questions: [...(row.questions ?? [])]
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((question) => {
+        const answer = Array.isArray(question.answers) ? question.answers[0] : question.answers;
+        return {
+          id: question.id,
+          body: question.body,
+          createdAt: question.created_at,
+          answer: answer?.body ?? null,
+        };
+      }),
     /* So fotos: o editor ainda nao envia audio nem video, e o lightbox exibe <img>. */
     mediaGallery: [...(row.artist_media ?? [])]
       .filter((item) => item.type === 'photo')
@@ -173,6 +188,7 @@ const ARTIST_DETAIL_COLUMNS = `
   ${ARTIST_LIST_COLUMNS},
   bio_long, service_area_summary, view_count,
   artist_media ( id, type, url, caption, sort_order ),
+  questions ( id, body, created_at, answers ( body ) ),
   artist_service_areas ( city, sort_order ),
   artist_infrastructure ( status, title, detail, sort_order ),
   artist_weekly_hours ( weekday, is_available, opens_at, closes_at ),

@@ -38,6 +38,18 @@ export async function fetchArtistDashboard(supabase, userId) {
 
   if (error) throw new Error(`Falha ao carregar as propostas: ${error.message}`);
 
+  // Perguntas do perfil ainda sem resposta, mais antigas primeiro.
+  const { data: questionRows, error: questionError } = await supabase
+    .from('questions')
+    .select('id, body, created_at, answers ( id )')
+    .eq('artist_id', artist.id)
+    .order('created_at');
+  if (questionError) throw new Error(`Falha ao carregar as perguntas: ${questionError.message}`);
+
+  const openQuestions = (questionRows ?? [])
+    .filter((row) => (Array.isArray(row.answers) ? row.answers.length === 0 : !row.answers))
+    .map((row) => ({ id: row.id, body: row.body, createdAt: row.created_at }));
+
   const bookings = (rows ?? []).map((row) => ({
     id: row.id,
     status: row.status,
@@ -69,6 +81,7 @@ export async function fetchArtistDashboard(supabase, userId) {
     /* Ativas e futuras primeiro; o historico fica fora do painel. */
     proposals: upcoming.filter((booking) => ACTIVE_STATUSES.includes(booking.status)),
     nextShows: upcoming.filter((booking) => booking.status === 'confirmed').slice(0, 3),
+    openQuestions,
     metrics: {
       pending: bookings.filter((booking) => booking.status === 'pending').length,
       confirmedNext30: upcoming.filter(
