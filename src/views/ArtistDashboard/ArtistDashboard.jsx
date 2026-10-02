@@ -3,29 +3,42 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import { BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import {
+  STATUS_LABEL, dateParts, formatCompactMoney, formatEventTime, formatMoney, initials,
+} from '../../lib/bookingDisplay.js';
 import './ArtistDashboard.css';
 
-const proposals = [
-  { client: 'Mariana e Felipe', event: 'Casamento', date: '18 OUT', location: 'Dois Irmãos', value: 'R$ 2.800', status: 'Nova' },
-  { client: 'Studio Aurora', event: 'Evento corporativo', date: '24 OUT', location: 'Estância Velha', value: 'R$ 2.200', status: 'Em conversa' },
-  { client: 'João Pedro', event: 'Aniversário', date: '02 NOV', location: 'Jardim Panorâmico, Ivoti', value: 'R$ 1.800', status: 'Confirmada' },
-];
+/* Classe de cor do status; "Nova" usa o amarelo padrao de .dashboard-status. */
+const STATUS_CLASS = {
+  accepted: 'dashboard-status--em-conversa',
+  confirmed: 'dashboard-status--confirmada',
+};
 
-function ArtistDashboard() {
+const SOUND_LABEL = {
+  venue: 'som do local',
+  artist: 'artista leva o som',
+};
+
+function proposalSummary(proposal) {
+  return [
+    proposal.eventType,
+    formatEventTime(proposal.eventTime),
+    proposal.location,
+    proposal.guestCount ? `${proposal.guestCount} convidados` : null,
+    SOUND_LABEL[proposal.soundStructure],
+  ].filter(Boolean).join(' · ');
+}
+
+function ArtistDashboard({ artist, proposals, nextShows, metrics, todayLabel, greetingText }) {
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const artistName = user?.role === 'artist' ? user.name : 'DJ Kauan';
-  const initials = artistName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push('/');
+    router.refresh();
   };
 
   return (
@@ -34,14 +47,13 @@ function ArtistDashboard() {
         <BrandLogo />
         <nav>
           <a className="active" href="#visao"><span>⌂</span> Visão geral</a>
-          <a href="#propostas"><span>◇</span> Propostas <b>2</b></a>
+          <a href="#propostas"><span>◇</span> Propostas {metrics.pending > 0 && <b>{metrics.pending}</b>}</a>
           <a href="#agenda"><span>□</span> Agenda</a>
-          <a href="#perfil"><span>○</span> Meu perfil</a>
-          <a href="#avaliacoes"><span>☆</span> Avaliações</a>
+          <Link href="/painel/perfil"><span>○</span> Meu perfil</Link>
         </nav>
         <div className="dashboard-sidebar__user">
-          <span>{initials}</span>
-          <div><strong>{artistName}</strong><small>Perfil 82% completo</small></div>
+          <span>{initials(artist.name)}</span>
+          <div><strong>{artist.name}</strong><small>{artist.isPublished ? 'Perfil publicado' : 'Perfil em rascunho'}</small></div>
         </div>
         <button className="dashboard-sidebar__logout" type="button" onClick={handleLogout}>Sair do painel</button>
       </aside>
@@ -49,50 +61,71 @@ function ArtistDashboard() {
       <main className="dashboard-main" id="visao">
         <header className="dashboard-header">
           <div>
-            <p>Quinta-feira, 30 de julho</p>
-            <h1>Bom dia, {artistName}.</h1>
+            <p>{todayLabel}</p>
+            <h1>{greetingText}, {artist.name}.</h1>
           </div>
           <div className="dashboard-header__actions">
-            <Link href="/artista/dj-kauan">Ver perfil público ↗</Link>
+            <Link href="/painel/perfil">Editar perfil</Link>
+            {artist.isPublished && <Link href={`/artista/${artist.slug}`}>Ver perfil público ↗</Link>}
             <button type="button" onClick={handleLogout}>Sair</button>
           </div>
         </header>
 
-        <section className="dashboard-profile-alert">
-          <div>
-            <span>82%</span>
-            <div><strong>Seu perfil está quase pronto</strong><p>Adicione um vídeo e aumente suas chances de contratação.</p></div>
-          </div>
-          <button type="button">Completar perfil</button>
-        </section>
+        {!artist.isPublished && (
+          <section className="dashboard-profile-alert">
+            <div>
+              <span>!</span>
+              <div>
+                <strong>Seu perfil ainda é um rascunho</strong>
+                <p>Complete as informações e publique para aparecer no catálogo e receber propostas.</p>
+              </div>
+            </div>
+            <Link className="dashboard-profile-alert__action" href="/painel/perfil">Completar perfil</Link>
+          </section>
+        )}
 
         <section className="dashboard-metrics">
-          <article><span>Visualizações</span><strong>1.284</strong><small>↑ 18% este mês</small></article>
-          <article><span>Novas propostas</span><strong>12</strong><small>2 aguardando resposta</small></article>
-          <article><span>Shows confirmados</span><strong>04</strong><small>Próximos 30 dias</small></article>
-          <article><span>Receita prevista</span><strong>R$ 8,7k</strong><small>Para este mês</small></article>
+          <article><span>Visualizações</span><strong>{artist.viewCount.toLocaleString('pt-BR')}</strong><small>Desde a publicação</small></article>
+          <article><span>Novas propostas</span><strong>{metrics.pending}</strong><small>Aguardando sua resposta</small></article>
+          <article><span>Shows confirmados</span><strong>{String(metrics.confirmedNext30).padStart(2, '0')}</strong><small>Próximos 30 dias</small></article>
+          <article><span>Receita prevista</span><strong>{formatCompactMoney(metrics.payoutThisMonth)}</strong><small>Repasse deste mês</small></article>
         </section>
 
         <section className="dashboard-panel" id="propostas">
           <div className="dashboard-panel__heading">
-            <div><p className="eyebrow">Oportunidades</p><h2>Propostas recentes</h2></div>
-            <button type="button">Ver todas →</button>
+            <div><p className="eyebrow">Oportunidades</p><h2>Propostas em aberto</h2></div>
           </div>
           <div className="dashboard-proposals">
-            {proposals.map((proposal) => (
-              <article key={`${proposal.client}-${proposal.date}`}>
-                <time><b>{proposal.date.split(' ')[0]}</b><span>{proposal.date.split(' ')[1]}</span></time>
-                <div className="dashboard-proposals__main">
-                  <strong>{proposal.client}</strong>
-                  <span>{proposal.event} · {proposal.location}</span>
-                </div>
-                <b>{proposal.value}</b>
-                <span className={`dashboard-status dashboard-status--${proposal.status.toLowerCase().replace(' ', '-')}`}>
-                  {proposal.status}
-                </span>
-                <button type="button" aria-label={`Abrir proposta de ${proposal.client}`}>→</button>
-              </article>
-            ))}
+            {proposals.length === 0 && <p className="dashboard-empty">Nenhuma proposta em aberto no momento.</p>}
+            {proposals.map((proposal) => {
+              const { day, month } = dateParts(proposal.eventDate);
+              return (
+                <article key={proposal.id}>
+                  <time dateTime={proposal.eventDate}><b>{day}</b><span>{month}</span></time>
+                  <div className="dashboard-proposals__main">
+                    <strong>{proposal.clientName}</strong>
+                    <span>{proposalSummary(proposal)}</span>
+                    {proposal.message && <p className="dashboard-proposals__message">“{proposal.message}”</p>}
+                    {proposal.status !== 'pending' && proposal.clientPhone && (
+                      <a className="dashboard-proposals__contact" href={`https://wa.me/55${proposal.clientPhone}`} target="_blank" rel="noreferrer">
+                        WhatsApp do contratante ↗
+                      </a>
+                    )}
+                  </div>
+                  <b>{formatMoney(proposal.agreedPrice)}</b>
+                  <span className={`dashboard-status ${STATUS_CLASS[proposal.status] ?? ''}`}>
+                    {STATUS_LABEL.artist[proposal.status]}
+                  </span>
+                  <div className="dashboard-proposals__actions">
+                    <BookingStatusActions
+                      booking={proposal}
+                      side="artist"
+                      contextLabel={`Proposta de ${proposal.clientName}`}
+                    />
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -101,17 +134,25 @@ function ArtistDashboard() {
             <div className="dashboard-panel__heading">
               <div><p className="eyebrow">Agenda</p><h2>Próximos shows</h2></div>
             </div>
-            <div className="dashboard-next-show">
-              <span>02<small>AGO</small></span>
-              <div><strong>Festa de aniversário</strong><p>20h · Centro, Ivoti</p></div>
-              <b>Confirmado</b>
-            </div>
+            {nextShows.length === 0 && <p className="dashboard-empty">Nenhum show confirmado ainda.</p>}
+            {nextShows.map((show) => {
+              const { day, month } = dateParts(show.eventDate);
+              return (
+                <div className="dashboard-next-show" key={show.id}>
+                  <span>{day}<small>{month}</small></span>
+                  <div>
+                    <strong>{show.eventType ?? 'Show'}</strong>
+                    <p>{[formatEventTime(show.eventTime), show.location].filter(Boolean).join(' · ')}</p>
+                  </div>
+                  <b>Confirmado</b>
+                </div>
+              );
+            })}
           </section>
           <section className="dashboard-tip">
             <span>♫</span>
             <h3>Dica Feztival</h3>
-            <p>Perfis com vídeo recebem até 3× mais propostas.</p>
-            <button type="button">Adicionar vídeo</button>
+            <p>Responda rápido: quem organiza um evento costuma pedir proposta a mais de um artista.</p>
           </section>
         </div>
       </main>

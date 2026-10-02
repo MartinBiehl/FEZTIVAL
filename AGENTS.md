@@ -26,7 +26,8 @@ Browser
       ├── roteamento por arquivo em src/app
       ├── JavaScript/JSX
       ├── CSS modular por componente/página
-      └── dados locais simulados em src/data
+      ├── Server Actions e Route Handler (escritas e autenticação)
+      └── Supabase: Postgres com RLS + Auth
 ```
 
 Tecnologias em uso:
@@ -39,18 +40,20 @@ Tecnologias em uso:
 | Linguagem | JavaScript + JSX |
 | Estilos | CSS puro, mobile-first |
 | Dados | PostgreSQL no Supabase, lido em Server Components |
-| Cliente do banco | `@supabase/supabase-js`, chave publishable |
+| Cliente do banco | `@supabase/supabase-js` + `@supabase/ssr`, chave publishable |
+| Autenticação | Supabase Auth (e-mail e senha), sessão em cookies |
+| Escrita | Server Actions; um Route Handler para o link de confirmação |
 
-As telas públicas (`/`, `/explorar`, `/artista/[slug]`, `/reservar/[slug]`) leem do
-banco. `src/data` guarda apenas `brand.js`, com as cores do wordmark — identidade
-visual, que não pertence ao banco.
+Não existe backend separado: o Supabase é o backend, e a camada de servidor do
+Next (Server Components, Server Actions, Route Handlers) fala com ele. Não há dado
+simulado no repositório — `src/data` foi removido. As cores do wordmark, únicas
+que restavam ali, vivem no próprio `BrandLogo`, o único consumidor.
 
-`/painel` e `/minhas-reservas` **ainda não leem do banco**: dependem de `auth.uid()`
-para saber de quem são as propostas, e sem autenticação a RLS não retorna nada. Seguem
-com dados de exemplo no próprio componente.
+Todas as telas leem do banco: as públicas com o cliente anônimo, `/painel` e
+`/minhas-reservas` com a sessão do usuário, filtradas pela RLS via `auth.uid()`.
 
-Não há autenticação real, TypeScript, Tailwind ou monorepo neste momento. Não introduza
-essas tecnologias como se já fizessem parte do projeto.
+Não há TypeScript, Tailwind ou monorepo neste momento. Não introduza essas
+tecnologias como se já fizessem parte do projeto.
 
 `next.config.js` traz `agentRules: false`: sem isso o `next dev` anexa automaticamente
 um bloco de instruções ao final deste arquivo, que é mantido à mão. Não remova a flag.
@@ -72,18 +75,31 @@ git worktree add ../feztival-vite c0ba3a4
 src/
 ├── app/              # rotas do App Router (layouts, page.jsx, not-found)
 ├── components/       # componentes compartilhados
-├── data/             # apenas brand.js (identidade visual)
+├── context/          # AuthContext (usuário logado, no navegador)
 ├── images/           # imagens locais
+├── lib/              # acesso a dados, Server Actions e formatação
 ├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
-└── hooks/            # hooks compartilhados
+├── hooks/            # hooks compartilhados
+└── proxy.js          # renova a sessão Supabase a cada requisição
 ```
 
 `src/lib` concentra o acesso a dados e a formatação:
 
 | Arquivo | Papel |
 |---|---|
-| `supabase.js` | cliente único, chave publishable |
+| `supabaseConfig.js` | URL e chave do projeto, lidas uma vez |
+| `supabase.js` | cliente **anônimo**, sem cookies, para as leituras públicas |
+| `supabaseServer.js` | cliente com a sessão do usuário (Server Components, Actions, Route Handlers) |
+| `supabaseBrowser.js` | cliente do navegador, usado só pelo `AuthContext` |
+| `account.js` | `ensureAccount` (cria `profiles` e o rascunho em `artists`), `safeNextPath`, `slugify` |
+| `accountActions.js` | Server Actions de login, cadastro e recuperação de senha |
+| `bookingActions.js` | Server Actions de proposta, mudança de status e avaliação |
+| `bookingQueries.js` | leituras do painel e de "Minhas reservas" |
+| `bookingDisplay.js` | rótulos de status, datas no fuso de São Paulo, valores |
+| `artistActions.js` | contagem de visualização do perfil |
+| `profileEditor.js` | leitura do editor de perfil e catálogos |
+| `profileActions.js` | Server Action que salva o perfil do artista |
 | `artistQueries.js` | leitura de artistas; converte a linha do banco para a forma das telas |
 | `artistDisplay.js` | formata campos que podem estar vazios (nota, preço, duração) |
 | `artistSeo.js` | título, descrição e JSON-LD dos perfis |
@@ -126,7 +142,7 @@ No Vite, `import foto from './foto.png'` devolvia uma **string**. No Next devolv
 <img src={foto} />                                      // vira "[object Object]" e dá 404
 ```
 
-Vale também para imagens guardadas em módulos de `src/data`: resolva `.src` no próprio
+Vale também para imagens guardadas em módulos de dados: resolva `.src` no próprio
 módulo, para que todos os consumidores recebam string. Essa diferença causou uma
 regressão em que nenhuma imagem carregava, em 5 rotas e 3 padrões diferentes.
 
@@ -144,8 +160,12 @@ revisitar em fase futura.
 | Escolha de acesso | `/entrar` | Escolha entre contratante e artista |
 | Login contratante | `/entrar/contratante` | Acesso do cliente |
 | Login artista | `/entrar/artista` | Acesso do artista |
-| Painel do artista | `/painel` | Gestão de perfil e propostas |
-| Reservas do cliente | `/minhas-reservas` | Acompanhamento de pedidos |
+| Cadastro | `/cadastro/contratante`, `/cadastro/artista` | Criação de conta |
+| Recuperação de senha | `/recuperar-senha`, `/codigo`, `/nova-senha` | E-mail → código → nova senha |
+| Painel do artista | `/painel` | Propostas recebidas e agenda (exige login) |
+| Editor de perfil | `/painel/perfil` | Cadastro público do artista e publicação (exige login) |
+| Reservas do cliente | `/minhas-reservas` | Acompanhamento de pedidos (exige login) |
+| Confirmação de e-mail | `/auth/confirm` | Route Handler: abre a sessão do link enviado no cadastro |
 | Redirect legado | `/artistas` | Redireciona (307) para `/explorar` |
 | Não encontrada | qualquer outra | 404 real, com link para início e catálogo |
 
@@ -158,17 +178,15 @@ ao buscador que a URL quebrada é válida e polui o índice — o oposto do obje
 migração. Já `/artistas` → `/explorar` é redirect legítimo de URL antiga e continua 307.
 
 Nas rotas dinâmicas (`/artista/[slug]`, `/reservar/[slug]`) o slug é resolvido no
-`page.jsx`, que é Server Component: `await params`, busca em `src/data` e `notFound()`
+`page.jsx`, que é Server Component: `await params`, busca no banco e `notFound()`
 se não existir. `notFound()` não funciona em Client Component, e resolver no servidor
 garante o 404 já no HTML inicial. A view recebe o artista por prop.
 
 As duas rotas dinâmicas usam `generateStaticParams`, então os perfis são prerenderizados
 como HTML estático no build — o ponto central do SEO.
 
-> **Pendência para quando os dados vierem de API:** com `generateStaticParams`, um artista
-> novo não aparece até um novo build. Será necessário ISR (`revalidate`) ou renderização
-> sob demanda. Não é problema enquanto os dados estão em `src/data`, mas não pode ser
-> esquecido na fase de integração.
+As duas rotas declaram `revalidate = 3600` (ISR): um slug criado depois do build é
+renderizado no primeiro acesso, e os perfis já gerados se atualizam em até uma hora.
 
 ## Regras de frontend
 
@@ -178,7 +196,8 @@ como HTML estático no build — o ponto central do SEO.
 - `next/link` não marca o item de navegação ativo, como o `NavLink` do React Router
   fazia. O `Header` compara `usePathname()` e aplica a classe `active` à mão, porque
   `Header.css` estiliza `.site-header__nav a.active`.
-- Dados simulados devem ficar em `src/data`, não espalhados pelas páginas.
+- Não reintroduza dados simulados: o que a tela exibe vem do banco, e o que não
+  existe nele é omitido ou tratado como vazio (ver "Campos vazios na interface").
 - Toda nova tela deve funcionar em celular e desktop.
 - Elementos interativos precisam de estados de foco, rótulos acessíveis e navegação
   por teclado.
@@ -214,8 +233,9 @@ de Syne e apenas 5 de Inter.
 
 ## Limites atuais
 
-- Os dados são demonstrações locais, sem persistência.
-- Login e contratação são somente interfaces até existir uma API.
+- Os artistas do catálogo são o seed de demonstração (`supabase/seed.sql`).
+- O editor de perfil não envia arquivos: a foto principal é um endereço https, e a
+  galeria (`artist_media`) e a agenda por data (`availability`) ainda não têm tela.
 - Pagamentos não estão implementados.
 - O produto não inclui chat privado direto; dúvidas podem aparecer como perguntas
   públicas no perfil.
@@ -257,7 +277,7 @@ título. A landing usa `title.default`, para não duplicar a marca.
 `src/lib/artistSeo.js` monta título, descrição e JSON-LD dos perfis a partir dos dados
 reais. Os registros **não têm campo de biografia**, então a descrição usa só categoria,
 gêneros, cidade, nota, número de avaliações e preço inicial. Não escreva texto de
-marketing inventado: se faltar informação, adicione o campo em `src/data` primeiro.
+marketing inventado: se faltar informação, adicione o campo no banco (migration) primeiro.
 
 Dois cuidados na redação, que valem para textos futuros:
 
@@ -318,8 +338,8 @@ da home.
 
 ## Banco de dados
 
-PostgreSQL no Supabase (região São Paulo). O schema está criado e com RLS ativa, mas
-**o site ainda lê de `src/data`** — conectar o front é uma fase própria.
+PostgreSQL no Supabase (região São Paulo). O schema está criado, com RLS ativa, e é a
+única fonte de dados do site.
 
 Todo o schema vive em `supabase/migrations/`, em arquivos `.sql` versionados. **Não crie
 nem altere tabelas pelo Table Editor do painel:** mudança feita por lá não vai para o
@@ -375,9 +395,10 @@ Decisões que não se leem no schema:
   identidade do artista, não decoração aleatória.
 - **`artists.view_count`** é contador simples, incrementado por
   `increment_artist_view_count` (`security definer`, porque a RLS não concede `UPDATE`
-  anônimo em `artists` e conceder exporia todas as colunas). **A chamada ainda não está
-  ligada:** contar é escrita, e a fase de leitura não a incluiu. Sem histórico por data,
-  não há como calcular variação mensal — o painel perdeu o "↑ 18% este mês".
+  anônimo em `artists` e conceder exporia todas as colunas). É chamada por
+  `recordArtistView` ao abrir o perfil, no máximo uma vez por visitante a cada 24h
+  (cookie `fz_view_<slug>`). Sem histórico por data, não há como calcular variação
+  mensal — o painel perdeu o "↑ 18% este mês".
 - **`artist_services.price` é valor absoluto**, não um delta sobre `base_price`. A
   interface antiga usava `priceAdjustment`; a modelagem do banco venceu.
 
@@ -425,8 +446,9 @@ RLS está habilitada nas **9 tabelas, sem exceção**. Tabela sem RLS no Supabas
 legível e gravável por qualquer portador da chave pública. Ao criar tabela nova, habilite
 RLS na mesma migration.
 
-Leitura pública: `profiles`, `genres`, `reviews`, e as tabelas de artista apenas quando
-`is_published`. O dono também vê o próprio rascunho — sem isso o painel do artista não
+Leitura pública: `genres`, `reviews`, os catálogos, e as tabelas de artista apenas quando
+`is_published`. `profiles` **não** é público: guarda nome e WhatsApp, então cada um lê o
+próprio perfil e o da outra parte de uma reserva (`is_booking_counterparty`). O dono também vê o próprio rascunho — sem isso o painel do artista não
 teria como editar um perfil não publicado. Escrita sempre restrita ao dono.
 
 `genres` não tem policy de escrita: o catálogo é mantido por administração, via painel ou
@@ -446,11 +468,17 @@ Verificar posse exige consultar `artists` de dentro da policy de outra tabela, o
 seria filtrado pela RLS de `artists` e causaria recursão. As funções `owns_artist` e
 `artist_is_published` são `security definer` com `search_path` fixo para resolver isso.
 
+A nota pública dos artistas vem de duas funções `security definer`,
+`artist_review_summary()` (média e contagem) e `artist_reviews(slug)` (nota, comentário,
+tipo de evento e data). Elas existem porque a nota deriva de `bookings`, que o público não
+lê — e não deve ler: ali estão endereço, valores e mensagens. Nenhuma devolve quem
+avaliou nem outro dado da reserva.
+
 Coberto por `supabase/tests/rls_test.sql`, que simula três usuários.
 
 ### Seed
 
-`supabase/seed.sql` popula os 8 artistas que hoje vivem em `src/data`, **preservando os
+`supabase/seed.sql` popula os 8 artistas que viviam no antigo `src/data`, **preservando os
 slugs exatos** — as URLs já estão no sitemap.
 
 É dado de demonstração, identificável de três formas: e-mails em
@@ -465,7 +493,7 @@ delete from auth.users where email like '%@seed.feztival.local';
 O seed é idempotente (`on conflict do nothing`) e **não deve rodar em produção com
 cadastros reais**.
 
-### Campos sem equivalente em src/data
+### Campos sem equivalente no antigo src/data
 
 O seed deixa nulo o que não tem origem, em vez de inventar. Não preencha esses campos com
 dado plausível:
@@ -581,6 +609,98 @@ propósito**. Se alguém os reintroduzir sem dado por trás, precisa saber que f
 O CSS de `.artist-result-card__available` ficou órfão com a remoção do "Disponível esta
 semana". Não foi apagado para não mexer em estilos.
 
+## Autenticação e escrita
+
+### Sessão
+
+Supabase Auth com e-mail e senha. A sessão fica em cookies (`@supabase/ssr`), lidos
+pelos três lados:
+
+- **`src/proxy.js`** (o antigo `middleware` do Next 16) renova o token a cada
+  requisição. Server Component não grava cookie; sem o proxy, a sessão expiraria.
+  Não autoriza nada.
+- **Servidor** (`createServerSupabase`): `/painel`, `/minhas-reservas`, as Server
+  Actions e `/auth/confirm`. Sempre `getUser()`, que valida o token no Auth — nunca
+  confie em `getSession()` no servidor.
+- **Navegador** (`AuthContext`): só para o Header saber quem está logado.
+
+**O layout raiz não lê cookies, de propósito.** Ler a sessão ali tornaria todas as
+rotas dinâmicas e o prerender dos perfis — o motivo da migração para Next — se
+perderia. Por isso o usuário do Header é carregado no navegador, e as telas de login
+chamam `refresh()` do contexto antes de navegar.
+
+As páginas públicas continuam usando o cliente anônimo de `supabase.js`, sem cookies,
+pelo mesmo motivo.
+
+### Contas
+
+`signUp` grava os dados do formulário em `user_metadata`; `ensureAccount` cria a linha
+de `profiles` (e, no cadastro de artista, o rascunho em `artists`) quando a sessão
+existe — no primeiro login ou em `/auth/confirm`. Não é feito no próprio `signUp`
+porque, com confirmação de e-mail ligada, ainda não há sessão e a RLS recusaria o
+INSERT. Nenhum trigger em `auth.users`: mantém a regra de só duas regras no banco.
+
+`user_metadata.signup_as` é só a intenção do cadastro, **não** um papel. Quem tem linha
+em `artists` vai para `/painel`; os demais, para `/minhas-reservas`.
+
+O cadastro de artista exige nome artístico, nome completo, WhatsApp e categoria. O
+slug é gerado uma única vez, a partir do nome artístico; em colisão recebe um sufixo
+curto. O artista nasce com `is_published = false`.
+
+`?next=` só aceita caminho interno (`safeNextPath`): `//site.com` e URLs absolutas são
+descartados, para o login não virar redirecionamento aberto.
+
+### Recuperação de senha
+
+Três passos: `resetPasswordForEmail` → `verifyOtp({ type: 'recovery' })` com o código
+de 6 dígitos → `updateUser({ password })`, seguido de `signOut` para pedir login com a
+senha nova. A resposta ao pedir o código é sempre a mesma, exista ou não a conta.
+
+> **Configuração no painel do Supabase:** o template de e-mail "Reset Password" precisa
+> exibir `{{ .Token }}` — o conteúdo pronto está em `supabase/templates/recovery.html`
+> (o ambiente local já o lê pelo `config.toml`). O padrão envia só um link. O
+> tamanho do código (`otp_length`) precisa ser 6, igual a `CODE_LENGTH` em
+> `PasswordRecovery.jsx`. Em **Authentication → URL Configuration**, inclua
+> `<domínio>/auth/confirm` nas Redirect URLs.
+
+### Propostas e reservas
+
+`createBooking` grava a proposta como `pending`, com `agreed_price` igual à estimativa
+exibida (preço do serviço da duração escolhida, ou `base_price`, ou nulo). No aceite o
+artista informa o valor final, e `updateBookingStatus` grava junto a comissão (12%) e o
+repasse — depois disso o trigger congela os três valores.
+
+As Server Actions validam para dar mensagem clara, mas **não são a proteção**: a chave
+publishable permite chamar o PostgREST direto. Quem barra é a RLS (papel) e os triggers
+(transição e valores). Não duplique essas regras no JavaScript.
+
+O contratante avalia uma reserva `completed` uma única vez (`createReview`), em
+"Minhas reservas". O perfil público só lista as avaliações; não há formulário ali.
+
+### Editor de perfil (`/painel/perfil`)
+
+`saveArtistProfile` grava o cadastro do artista do usuário logado — o formulário não
+envia id de artista. O slug não é editável.
+
+As listas são sincronizadas **por diferença** (apaga o que saiu, grava o que entrou), e
+não apagando tudo para regravar: se uma etapa falhar no meio, o perfil não fica sem
+gêneros ou serviços, e salvar de novo completa. Não é transacional — são várias chamadas
+ao PostgREST. Serviços e itens de estrutura mantêm o id, porque `bookings.service_id`
+aponta para o serviço escolhido na proposta.
+
+Publicar exige cidade, ao menos um gênero e preço ou "sob consulta". O banco só impõe a
+última; as duas primeiras são da aplicação, porque sem elas o artista não aparece na
+busca nem no filtro. Horário semanal sem nenhum dia marcado é tratado como não
+declarado (as linhas são apagadas), em vez de "não atende" nos sete dias.
+
+Ao salvar, o perfil, o formulário de proposta, `/explorar` e o sitemap são revalidados.
+
+### Formulários
+
+Os formulários com Server Action usam `onSubmit` via `useActionSubmit`, e não
+`<form action={...}>`: com `action`, o React 19 limpa os campos ao fim do envio, e um
+login com senha errada apagaria o e-mail digitado.
+
 ## Fases seguintes da migração
 
 A Fase 1 cobriu apenas estrutura e rotas. Não junte fases: cada uma tem um tipo de erro
@@ -591,7 +711,9 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 | 2 | ~~SEO: `metadata` por rota, Open Graph, sitemap, JSON-LD~~ — concluída |
 | — | ~~Banco de dados: schema, RLS e seed no Supabase~~ — concluída |
 | — | ~~Conectar as telas públicas ao banco, em Server Components~~ — concluída |
-| a seguir | Autenticação e escrita: login real, cadastro de perfil, envio de propostas. Desbloqueia `/painel` e `/minhas-reservas` |
+| — | ~~Autenticação e escrita: login, cadastro, propostas, painel e reservas~~ — concluída |
+| — | ~~Editor de perfil, privacidade de `profiles` e nota pública~~ — concluída |
+| a seguir | Upload de mídia (Supabase Storage) para foto principal e galeria |
 | depois | Pagamentos: Route Handlers para Pagar.me e webhooks |
 
 A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
@@ -610,16 +732,11 @@ Pendências abertas da Fase 1:
   já era assim antes da migração.
 Pendências abertas:
 
-- **`/painel` e `/minhas-reservas` usam dados de exemplo** escritos no componente. Só
-  podem ler do banco quando houver autenticação: a RLS filtra por `auth.uid()`.
-- **A contagem de visualizações não está ligada.** A coluna e a função existem; falta
-  chamar o incremento, com cookie para deduplicar, e isso é escrita.
-- **Métricas do painel** (visualizações, receita prevista, perfil 82% completo) seguem
-  fixas no componente. Propostas, shows confirmados e receita são deriváveis de
-  `bookings` quando a autenticação existir.
+- **A métrica "Perfil X% completo" saiu do painel.** Não havia critério definido; o
+  painel mostra só se o perfil está publicado ou em rascunho.
 - **`Samba Ivoti` aparece como "Banda"**, não "Pagode": o enum tem 3 categorias e
   `Pagode` mapeia para `band`. O gênero segue correto no perfil e no filtro.
-- `rating` e `reviews` não existem no schema — ver a consequência para a interface e o
+- `rating` e `reviews` não são colunas: vêm de `artist_review_summary` — ver a interface e o
   SEO na seção do banco.
 - Se um perfil pode ter mais de um cadastro de artista segue em aberto.
 - Sem `psql` nem Docker no ambiente, os scripts de `supabase/tests/` são executados à mão
@@ -631,11 +748,12 @@ Pendências abertas da Fase 2:
 - Sem `og:image`, à espera da arte de marca.
 - `next/font` e a decisão sobre DM Sans seguem em aberto — não entraram na Fase 2,
   que se limitou a metadata.
-- Os artistas não têm biografia em `src/data`, o que limita as descriptions a dados
+- Os artistas do seed não têm biografia, o que limita as descriptions a dados
   factuais.
 
 ## Momento do projeto
 
-O foco atual é definir e validar a experiência completa do frontend. A landing
-institucional e a página de exploração devem deixar clara a diferença entre conhecer
-a empresa e usar o marketplace. Integrações reais serão uma etapa posterior.
+O fluxo central está ligado ao banco: explorar, cadastrar, enviar
+proposta, aceitar, confirmar, concluir e avaliar. O que falta para lançar é o upload de
+mídia e os pagamentos. A landing institucional e a página de exploração
+devem deixar clara a diferença entre conhecer a empresa e usar o marketplace.

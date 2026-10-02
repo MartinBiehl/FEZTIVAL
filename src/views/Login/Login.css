@@ -138,7 +138,8 @@
   font-weight: 650;
 }
 
-.access-card input:not([type='checkbox']) {
+.access-card input:not([type='checkbox']),
+.access-card select {
   width: 100%;
   padding: 0.9rem 1.15rem;
   border: 1px solid rgba(17, 17, 17, 0.13);
@@ -153,7 +154,8 @@
   color: #aaa9a3;
 }
 
-.access-card input:not([type='checkbox']):focus {
+.access-card input:not([type='checkbox']):focus,
+.access-card select:focus {
   border-color: var(--access-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--access-accent) 16%, transparent);
   outline: none;
@@ -356,4 +358,19 @@
   .access-card__role-link:hover span {
     transform: none;
   }
+}
+
+.access-card__error {
+  margin: 0 0 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.85rem;
+  background: rgba(166, 35, 35, 0.08);
+  color: #a62323;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.access-card__submit:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }

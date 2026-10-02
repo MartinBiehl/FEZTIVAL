@@ -1,31 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_KEY, SUPABASE_URL } from './supabaseConfig.js';
 
 /*
- * Cliente Supabase, criado em um unico lugar.
+ * Cliente anonimo das leituras publicas (catalogo, perfis, sitemap).
  *
- * Usa apenas a chave publishable, que respeita RLS: nenhuma leitura desta fase
- * precisa ignorar as policies. NAO introduza a service_role aqui -- ela ignora
- * RLS por completo e nao deve sair do servidor em nenhuma hipotese.
+ * Nao le cookies de proposito: as paginas publicas sao prerenderizadas, e ler a
+ * sessao as tornaria dinamicas -- perdendo o HTML estatico que sustenta o SEO.
+ * O que depende de usuario logado usa createServerSupabase, de
+ * supabaseServer.js.
  *
- * As variaveis sao NEXT_PUBLIC_* porque a chave publishable e publica por
- * design; a protecao dos dados vem da RLS, nao do sigilo da chave.
+ * Usa apenas a chave publishable, que respeita RLS. NAO introduza a
+ * service_role aqui -- ela ignora RLS por completo e nao deve sair do servidor
+ * em nenhuma hipotese.
  */
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'Supabase nao configurado: defina NEXT_PUBLIC_SUPABASE_URL e '
-    + 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY em .env.local.',
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
-    /*
-     * Esta fase e somente leitura e roda em Server Component: nao ha sessao
-     * para persistir nem token para renovar.
-     */
     persistSession: false,
     autoRefreshToken: false,
   },

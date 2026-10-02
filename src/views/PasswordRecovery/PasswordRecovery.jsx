@@ -1,13 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState, useEffect, useState, useTransition } from 'react';
+import useActionSubmit from '../../hooks/useActionSubmit.js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, Mail } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import InputOtp8 from '../../components/ui/InputOtp8/InputOtp8.jsx';
+import {
+  requestPasswordReset, updatePassword, verifyRecoveryCode,
+} from '../../lib/accountActions.js';
 import './PasswordRecovery.css';
+
+/*
+ * Igual a auth.email.otp_length do Supabase (6 em supabase/config.toml). O
+ * template "Reset Password" do projeto precisa exibir {{ .Token }}; o padrao
+ * envia so um link.
+ */
+const CODE_LENGTH = 6;
+
+const stepActions = {
+  email: requestPasswordReset,
+  code: verifyRecoveryCode,
+  password: updatePassword,
+};
 
 const stepContent = {
   email: {
@@ -20,7 +37,7 @@ const stepContent = {
     icon: KeyRound,
     step: 'Etapa 2 de 3',
     title: 'Confira seu e-mail',
-    description: 'Digite o código de quatro dígitos para confirmar sua identidade.',
+    description: 'Digite o código de seis dígitos que enviamos para confirmar sua identidade.',
   },
   password: {
     icon: CheckCircle2,
@@ -50,8 +67,11 @@ function PasswordRecovery({ step = 'email' }) {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
-  const [error, setError] = useState('');
   const [resendMessage, setResendMessage] = useState('');
+  const [state, formAction, isPending] = useActionState(stepActions[step], null);
+  const submit = useActionSubmit(formAction);
+  const [isResending, startResend] = useTransition();
+  const error = state?.error ?? '';
 
   const backPath = step === 'email'
     ? loginPath
@@ -59,30 +79,22 @@ function PasswordRecovery({ step = 'email' }) {
       ? `/recuperar-senha${query}`
       : `/recuperar-senha/codigo${query}`;
 
-  const handleEmailSubmit = (event) => {
-    event.preventDefault();
-    router.push(`/recuperar-senha/codigo${query}&email=${encodeURIComponent(email)}`);
-  };
-
-  const handleCodeSubmit = (event) => {
-    event.preventDefault();
-    if (code.length !== 4) return;
-    router.push(`/recuperar-senha/nova-senha${query}&email=${encodeURIComponent(email)}`);
-  };
-
-  const handlePasswordSubmit = (event) => {
-    event.preventDefault();
-    if (password !== confirmation) {
-      setError('As senhas precisam ser iguais.');
-      return;
-    }
-    setError('');
-    router.replace(`${loginPath}?senhaRedefinida=1`);
-  };
+  useEffect(() => {
+    if (!state?.ok) return;
+    const emailParam = `&email=${encodeURIComponent(email)}`;
+    if (step === 'email') router.push(`/recuperar-senha/codigo${query}${emailParam}`);
+    if (step === 'code') router.push(`/recuperar-senha/nova-senha${query}${emailParam}`);
+    if (step === 'password') router.replace(`${loginPath}?senhaRedefinida=1`);
+  }, [email, loginPath, query, router, state, step]);
 
   const handleResend = () => {
     setCode('');
-    setResendMessage('Novo código simulado gerado. Use qualquer combinação de quatro dígitos.');
+    startResend(async () => {
+      const formData = new FormData();
+      formData.set('email', email);
+      const result = await requestPasswordReset(null, formData);
+      setResendMessage(result.error ?? 'Se o e-mail estiver cadastrado, um novo código chegará em instantes.');
+    });
   };
 
   return (
@@ -108,11 +120,12 @@ function PasswordRecovery({ step = 'email' }) {
         <p className="recovery-card__description">{content.description}</p>
 
         {step === 'email' && (
-          <form onSubmit={handleEmailSubmit}>
+          <form onSubmit={submit}>
             <label htmlFor="recovery-email">
               <span>E-mail</span>
               <input
                 id="recovery-email"
+                name="email"
                 type="email"
                 autoComplete="email"
                 required
@@ -121,7 +134,8 @@ function PasswordRecovery({ step = 'email' }) {
                 placeholder="voce@email.com"
               />
             </label>
-            <button className="recovery-card__submit" type="submit">
+            {error && <p className="recovery-card__error" role="alert">{error}</p>}
+            <button className="recovery-card__submit" type="submit" disabled={isPending} aria-busy={isPending}>
               <span>Enviar código</span>
               <ArrowRight size={18} aria-hidden="true" />
             </button>
@@ -129,27 +143,35 @@ function PasswordRecovery({ step = 'email' }) {
         )}
 
         {step === 'code' && (
-          <form onSubmit={handleCodeSubmit}>
+          <form onSubmit={submit}>
+            <input type="hidden" name="email" value={email} />
+            <input type="hidden" name="code" value={code} />
             <p className="recovery-card__destination">Código destinado a <strong>{maskEmail(email)}</strong></p>
-            <InputOtp8 value={code} onChange={setCode} />
-            <p className="recovery-card__demo">
-              Demonstração: nenhum e-mail real será enviado. Use qualquer código de quatro dígitos.
-            </p>
-            <button className="recovery-card__submit" type="submit" disabled={code.length !== 4}>
+            <InputOtp8 length={CODE_LENGTH} value={code} onChange={setCode} />
+            {error && <p className="recovery-card__error" role="alert">{error}</p>}
+            <button
+              className="recovery-card__submit"
+              type="submit"
+              disabled={code.length !== CODE_LENGTH || isPending}
+              aria-busy={isPending}
+            >
               <span>Confirmar código</span>
               <ArrowRight size={18} aria-hidden="true" />
             </button>
-            <button className="recovery-card__secondary" type="button" onClick={handleResend}>Enviar outro código</button>
+            <button className="recovery-card__secondary" type="button" onClick={handleResend} disabled={isResending}>
+              Enviar outro código
+            </button>
             <p className="recovery-card__live" aria-live="polite">{resendMessage}</p>
           </form>
         )}
 
         {step === 'password' && (
-          <form onSubmit={handlePasswordSubmit}>
+          <form onSubmit={submit}>
             <label htmlFor="recovery-password">
               <span>Nova senha</span>
               <input
                 id="recovery-password"
+                name="password"
                 type="password"
                 autoComplete="new-password"
                 required
@@ -163,6 +185,7 @@ function PasswordRecovery({ step = 'email' }) {
               <span>Confirmar nova senha</span>
               <input
                 id="recovery-password-confirmation"
+                name="confirmation"
                 type="password"
                 autoComplete="new-password"
                 required
@@ -173,7 +196,7 @@ function PasswordRecovery({ step = 'email' }) {
               />
             </label>
             {error && <p className="recovery-card__error" role="alert">{error}</p>}
-            <button className="recovery-card__submit" type="submit">
+            <button className="recovery-card__submit" type="submit" disabled={isPending} aria-busy={isPending}>
               <span>Salvar nova senha</span>
               <ArrowRight size={18} aria-hidden="true" />
             </button>

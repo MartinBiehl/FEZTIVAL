@@ -89,7 +89,7 @@ function Header() {
           ))}
           {user ? (
             <Link href={user.destination} onClick={() => setIsMenuOpen(false)}>
-              Minha área · {user.notificationCount} pendências
+              Minha área{user.notificationCount > 0 ? ` · ${user.notificationCount} pendências` : ''}
             </Link>
           ) : (
             <>

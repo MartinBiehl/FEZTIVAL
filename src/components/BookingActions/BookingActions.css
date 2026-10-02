@@ -1,0 +1,90 @@
+.booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.booking-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+}
+
+.booking-actions input,
+.booking-actions select,
+.booking-actions textarea {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.booking-actions__price input {
+  width: 8.5rem;
+}
+
+.booking-actions__comment {
+  flex: 1 1 14rem;
+}
+
+.booking-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.booking-actions button {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.booking-actions button.booking-actions__primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: white;
+}
+
+.booking-actions button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.booking-actions button:focus-visible,
+.booking-actions input:focus-visible,
+.booking-actions select:focus-visible,
+.booking-actions textarea:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.booking-actions__hint {
+  flex-basis: 100%;
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+}
+
+.booking-actions__error,
+.booking-actions__done {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.booking-actions__error {
+  color: #a62323;
+}
+
+.booking-actions__done {
+  color: #126c39;
+}

@@ -1,30 +1,58 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import {
   NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
+import { createBooking } from '../../lib/bookingActions.js';
+import { todayIso } from '../../lib/bookingDisplay.js';
 import './Contract.css';
 
 function Contract({ artist }) {
+  const router = useRouter();
+  const { user } = useAuth();
   const [sent, setSent] = useState(false);
   const [reviewData, setReviewData] = useState(null);
+  const [error, setError] = useState('');
+  const [isSending, startSending] = useTransition();
+  // Definida apos montar: a pagina e prerenderizada, e a data do build divergiria da do visitante.
+  const [minDate, setMinDate] = useState(undefined);
   const reviewTriggerRef = useRef(null);
+  useEffect(() => setMinDate(todayIso()), []);
+  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
 
   const closeReview = useCallback(() => {
     setReviewData(null);
   }, []);
 
   const confirmProposal = useCallback(() => {
-    setReviewData(null);
-    setSent(true);
-  }, []);
+    startSending(async () => {
+      const formData = new FormData();
+      Object.entries(reviewData ?? {}).forEach(([key, value]) => formData.set(key, value));
+      formData.set('slug', artist.slug);
+
+      const result = await createBooking(formData);
+      if (result.needsAuth) {
+        router.push(loginPath);
+        return;
+      }
+      setReviewData(null);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSent(true);
+    });
+  }, [artist.slug, loginPath, reviewData, router]);
 
   function reviewProposal(event) {
     event.preventDefault();
+    setError('');
     const formData = new FormData(event.currentTarget);
     setReviewData(Object.fromEntries(formData.entries()));
   }
@@ -55,6 +83,13 @@ function Contract({ artist }) {
 
       <div className="contract-layout">
         <form className="contract-form" onSubmit={reviewProposal}>
+          {!user && (
+            <p className="contract-form__notice">
+              Para enviar a proposta você precisa de uma conta.{' '}
+              <Link href={loginPath}>Entre ou cadastre-se</Link> antes de preencher.
+            </p>
+          )}
+
           <fieldset>
             <legend><span>01</span> Sobre o evento</legend>
             <div className="contract-form__grid">
@@ -75,7 +110,7 @@ function Contract({ artist }) {
               </label>
               <label>
                 Data
-                <input name="date" type="date" required />
+                <input name="date" type="date" min={minDate} required />
               </label>
               <label>
                 Horário
@@ -127,6 +162,8 @@ function Contract({ artist }) {
             </label>
           </fieldset>
 
+          {error && <p className="contract-form__error" role="alert">{error}</p>}
+
           <button ref={reviewTriggerRef} className="contract-form__submit" type="submit">
             Revisar proposta para {artist.name} <span>→</span>
           </button>
@@ -160,6 +197,7 @@ function Contract({ artist }) {
             proposal={reviewData}
             onClose={closeReview}
             onConfirm={confirmProposal}
+            isSending={isSending}
             returnFocusRef={reviewTriggerRef}
           />
         )}

@@ -16,7 +16,7 @@ create temporary table resultado (
 -- A tabela temporaria pertence ao papel que criou a sessao. Como o teste troca
 -- para `authenticated` mais adiante, esse papel precisa poder gravar aqui --
 -- caso contrario os inserts de resultado falham por permissao, e nao por RLS.
-grant insert, select on resultado to authenticated;
+grant insert, select on resultado to authenticated, anon;
 
 -- Cenario -------------------------------------------------------------------
 -- ana   = artista com perfil publicado
@@ -204,6 +204,39 @@ begin
 exception when insufficient_privilege then
   insert into resultado values (9, 'genres somente leitura', 'PASSOU');
 end $$;
+
+-- 11. Terceiro nao le o perfil (nome e WhatsApp) de outro usuario.
+set local request.jwt.claims = '{"sub":"cccc0000-0000-0000-0000-000000000003","role":"authenticated"}';
+do $$
+declare n int;
+begin
+  select count(*) into n from public.profiles
+    where id = 'bbbb0000-0000-0000-0000-000000000002';
+  insert into resultado values (11, 'perfil alheio invisivel para terceiro',
+    case when n = 0 then 'PASSOU' else 'FALHOU: terceiro leu o perfil' end);
+end $$;
+
+-- 12. O artista le o perfil de quem pediu proposta a ele.
+set local request.jwt.claims = '{"sub":"aaaa0000-0000-0000-0000-000000000001","role":"authenticated"}';
+do $$
+declare n int;
+begin
+  select count(*) into n from public.profiles
+    where id = 'bbbb0000-0000-0000-0000-000000000002';
+  insert into resultado values (12, 'artista ve o contratante da reserva',
+    case when n = 1 then 'PASSOU' else 'FALHOU: artista nao viu o contratante' end);
+end $$;
+
+-- 13. Visitante anonimo nao le nenhum perfil.
+set local role anon;
+do $$
+declare n int;
+begin
+  select count(*) into n from public.profiles;
+  insert into resultado values (13, 'anonimo nao lista perfis',
+    case when n = 0 then 'PASSOU' else format('FALHOU: anonimo leu %s perfis', n) end);
+end $$;
+set local role authenticated;
 
 -- 10. RLS habilitada nas 9 tabelas.
 reset role;

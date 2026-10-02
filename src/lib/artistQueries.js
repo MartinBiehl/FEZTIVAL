@@ -26,11 +26,11 @@ export function categoryLabel(value) {
 /*
  * Converte a linha do banco na forma que as telas consomem.
  *
- * rating e reviews ficam nulos/zero: a nota deriva de avaliacoes reais, e
- * nenhum artista tem avaliacao ainda. setMinutes fica vazio porque
- * artist_services nao tem registros. Os componentes tratam ambos os casos.
+ * rating e reviews vem do resumo de artist_review_summary (null/0 quando o
+ * artista ainda nao foi avaliado). setMinutes fica vazio quando o artista nao
+ * cadastrou servicos. Os componentes tratam ambos os casos.
  */
-function toArtist(row) {
+function toArtist(row, summary) {
   return {
     id: row.id,
     slug: row.slug,
@@ -49,9 +49,9 @@ function toArtist(row) {
     bioShort: row.bio_short,
     bioLong: row.bio_long,
     coverUrl: row.cover_url,
-    // Sem avaliacoes no banco: a interface exibe "Novo na plataforma".
-    rating: null,
-    reviews: 0,
+    // Sem avaliacao a interface exibe "Novo na plataforma".
+    rating: summary ? Number(summary.rating_avg) : null,
+    reviews: summary?.rating_count ?? 0,
     services: mapServices(row),
     /* Alimenta o filtro de duracao do catalogo e o seletor do formulario. */
     setMinutes: mapServices(row)
@@ -103,9 +103,15 @@ function mapServices(row) {
  * preencheu nada. As telas tratam o vazio ocultando a secao correspondente,
  * em vez de exibir texto de preenchimento.
  */
-function toArtistDetail(row) {
+function toArtistDetail(row, summary, reviews) {
   return {
-    ...toArtist(row),
+    ...toArtist(row, summary),
+    reviewList: (reviews ?? []).map((review) => ({
+      rating: review.rating,
+      comment: review.comment,
+      eventType: review.event_type,
+      createdAt: review.created_at,
+    })),
     bioLong: row.bio_long,
     viewCount: row.view_count ?? 0,
     mediaGallery: [...(row.artist_media ?? [])].sort(bySortOrder).map((item) => ({
@@ -168,16 +174,27 @@ const ARTIST_DETAIL_COLUMNS = `
   artist_venue_types ( venue_types ( name, sort_order ) )
 `;
 
+/*
+ * Nota media e contagem por artista. Vem de uma funcao security definer
+ * porque a nota deriva de bookings, que o publico nao le (ver a migration
+ * private_contacts_and_artist_ratings).
+ */
+async function fetchReviewSummaries() {
+  const { data, error } = await supabase.rpc('artist_review_summary');
+  if (error) throw new Error(`Falha ao carregar avaliacoes: ${error.message}`);
+  return new Map((data ?? []).map((row) => [row.artist_id, row]));
+}
+
 /* Todos os artistas publicados, para o catalogo. */
 export async function fetchArtists() {
-  const { data, error } = await supabase
-    .from('artists')
-    .select(ARTIST_LIST_COLUMNS)
-    .eq('is_published', true);
+  const [{ data, error }, summaries] = await Promise.all([
+    supabase.from('artists').select(ARTIST_LIST_COLUMNS).eq('is_published', true),
+    fetchReviewSummaries(),
+  ]);
 
   if (error) throw new Error(`Falha ao carregar artistas: ${error.message}`);
 
-  return (data ?? []).map(toArtist);
+  return (data ?? []).map((row) => toArtist(row, summaries.get(row.id)));
 }
 
 /* Um artista por slug, ou null quando nao existe (a rota responde 404). */
@@ -192,7 +209,13 @@ export async function fetchArtistBySlug(slug) {
   if (error) throw new Error(`Falha ao carregar o artista ${slug}: ${error.message}`);
   if (!data) return null;
 
-  return toArtistDetail(data);
+  const [summaries, { data: reviews, error: reviewsError }] = await Promise.all([
+    fetchReviewSummaries(),
+    supabase.rpc('artist_reviews', { target_slug: slug }),
+  ]);
+  if (reviewsError) throw new Error(`Falha ao carregar avaliacoes de ${slug}: ${reviewsError.message}`);
+
+  return toArtistDetail(data, summaries.get(data.id), reviews);
 }
 
 /* Slugs publicados, usados por generateStaticParams e pelo sitemap. */

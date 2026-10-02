@@ -299,3 +299,27 @@
     text-align: center;
   }
 }
+
+.contract-form__notice,
+.contract-form__error {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.contract-form__notice {
+  background: #fff3b0;
+}
+
+.contract-form__notice a {
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.contract-form__error {
+  background: rgba(166, 35, 35, 0.08);
+  color: #a62323;
+  font-weight: 650;
+}

@@ -72,7 +72,7 @@ Página completa, prerenderizada como HTML estático para ser indexável. Seçõ
 
 ## 2. Contratação
 
-### Formulário de proposta (`/reservar/:slug`) ⚠️
+### Formulário de proposta (`/reservar/:slug`) ✅
 
 Três etapas, com resumo antes do envio:
 
@@ -80,8 +80,10 @@ Três etapas, com resumo antes do envio:
 2. **Local e duração** — endereço, tempo de set e estrutura de som disponível
 3. **Observações** — mensagem livre para o artista
 
-**Limitação:** o formulário valida e exibe a tela de "Proposta enviada", mas
-**nada é gravado no banco**. Depende da autenticação.
+A proposta é gravada no banco como "aguardando resposta", com o valor estimado
+exibido ao contratante. Enviar exige conta: sem login, o formulário avisa e leva ao
+acesso, voltando depois para o mesmo artista. Não é possível pedir proposta ao
+próprio perfil nem para data passada.
 
 ### Ciclo de vida da reserva ✅ *(no banco)*
 
@@ -109,23 +111,40 @@ já acordado não mudam junto.
 
 ## 3. Áreas autenticadas
 
-### Painel do artista (`/painel`) ⚠️
+### Editor de perfil (`/painel/perfil`) ✅
 
-Reúne propostas recebidas (com cliente, evento, data, local, valor e status),
-próximos shows confirmados e métricas de desempenho.
+O artista edita nome artístico, categoria, cidade, cor, resumo, biografia, foto
+principal (link), preço ou "sob consulta", gêneros, serviços (título, duração, preço,
+descrição), formas de pagamento, tipos de evento, área de atendimento, estrutura (o
+que leva, negocia ou exige) e horário semanal — e publica ou despublica o perfil.
+Publicar exige cidade, ao menos um gênero e preço ou "sob consulta". O endereço do
+perfil não muda depois de criado.
 
-**Limitação:** os dados são exemplos escritos no componente. As métricas
-(visualizações, receita prevista, completude do perfil) são fixas.
+### Painel do artista (`/painel`) ✅
 
-### Minhas reservas (`/minhas-reservas`) ⚠️
+Propostas em aberto (cliente, evento, data, local, convidados, estrutura de som,
+mensagem e valor) e próximos shows confirmados. Em cada proposta o artista:
 
-Acompanhamento dos pedidos do contratante, com artista, evento, data e status
-(`Confirmada`, `Aguardando resposta`, `Proposta recebida`).
+- **aceita**, informando o valor final — a comissão de 12% e o repasse são
+  calculados e congelados nesse momento — ou **recusa**;
+- depois **confirma** o show e, por fim, **marca como realizado**; pode cancelar
+  antes disso.
 
-**Limitação:** mesma situação — dados de exemplo no componente.
+Depois do aceite aparece o link de WhatsApp do contratante. Telefones não são
+públicos: cada usuário só vê o contato da outra parte de uma reserva.
 
-> Ambas as telas só podem ler do banco quando houver autenticação: a segurança
-> por linha (RLS) filtra tudo pelo usuário logado, e sem sessão não retorna nada.
+Métricas reais: visualizações do perfil, propostas aguardando resposta, shows
+confirmados nos próximos 30 dias e repasse previsto no mês. Exige login; quem não
+tem cadastro artístico é levado para "Minhas reservas".
+
+### Minhas reservas (`/minhas-reservas`) ✅
+
+Pedidos do contratante em três abas — em andamento, concluídas e canceladas —
+com artista, evento, data, valor e status. O contratante pode cancelar um pedido
+ainda não concluído e avaliar uma reserva concluída. Exige login.
+
+> As duas telas leem com a sessão do usuário: a segurança por linha (RLS) só
+> devolve as reservas em que ele é contratante ou dono do artista.
 
 ---
 
@@ -135,8 +154,16 @@ Telas existentes: escolha de perfil (`/entrar`), login de contratante e de
 artista, cadastro para os dois públicos e recuperação de senha em três passos
 (pedido → código → nova senha).
 
-**Estado: ⚠️ só interface.** Não há uma única chamada de autenticação no código.
-O login usa uma sessão simulada que apenas redireciona.
+**Estado: ✅ funcionando**, com Supabase Auth (e-mail e senha).
+
+- **Cadastro de contratante:** nome completo, e-mail e senha.
+- **Cadastro de artista:** nome artístico, nome completo, WhatsApp e categoria
+  (DJ, banda, músico solo). Cria o perfil artístico como **rascunho**, fora do
+  catálogo até ser publicado.
+- Se a confirmação de e-mail estiver ligada no Supabase, a conta só entra depois
+  do clique no link.
+- **Recuperação de senha:** código de 6 dígitos por e-mail, depois a nova senha.
+- "Continuar com Google" segue desativado.
 
 Uma decisão de modelagem que vale registrar: **não existe campo de "papel"**.
 Quem tem cadastro artístico é artista, e a mesma pessoa pode contratar e ser
@@ -153,6 +180,10 @@ indefinidamente.
 
 Artista sem avaliação exibe **"Novo na plataforma"** — mesma informação que "sem
 avaliações", com enquadramento que não penaliza quem está começando.
+
+**Estado: ✅ funcionando.** O contratante avalia em "Minhas reservas"; a média
+aparece no catálogo, no perfil e no Google (JSON-LD), e o perfil lista as avaliações
+com nota, comentário, tipo de evento e mês — sem o nome de quem avaliou.
 
 ---
 
@@ -188,21 +219,22 @@ encontrados no Google.
 
 | Funcionalidade | Situação |
 |---|---|
-| **Autenticação real** | Bloqueia painel, reservas e envio de propostas |
-| **Envio de proposta ao banco** | O formulário não persiste |
+| **Upload de fotos e vídeos** | A foto principal é um link https; a galeria ainda não tem tela |
+| **Agenda por data** | Só o horário semanal é editável; datas livres específicas não |
 | **Pagamentos** | Fase posterior |
+| **Login com Google** | Botão desativado |
 | **Chat privado** | Fora do escopo — dúvidas são perguntas públicas no perfil |
 | **Aplicativo nativo** | Não previsto |
-| **Contagem de visualizações** | Coluna e função existem, a chamada não está ligada |
 | **Busca por proximidade** | Exigiria coordenadas que ainda não temos |
 
 ---
 
 ## Estado geral
 
-**Funciona hoje:** todo o lado público — landing, catálogo com busca e filtros,
-perfis e formulário de proposta, lendo do banco real.
+**Funciona hoje:** o lado público (landing, catálogo, perfis), o acesso (cadastro,
+login, recuperação de senha) e o ciclo da contratação — proposta, aceite, confirmação,
+conclusão, cancelamento e avaliação — gravando no banco real.
 
-**Não funciona:** qualquer coisa que exija estar logado ou gravar dados.
+**Não funciona:** envio de fotos e vídeos pelo site.
 
-O próximo passo que destrava o resto é a **autenticação**.
+O próximo passo é o **upload de mídia**; depois, **pagamentos**.

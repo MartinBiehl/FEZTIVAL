@@ -1,94 +1,90 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-
-const STORAGE_KEY = 'feztival.authSession';
-
-const demoProfiles = {
-  contractor: {
-    name: 'Bernardo',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&h=160&q=85',
-    notificationCount: 3,
-    destination: '/minhas-reservas',
-  },
-  artist: {
-    name: 'DJ Kauan',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=160&h=160&q=85',
-    notificationCount: 12,
-    destination: '/painel',
-  },
-};
+import { getBrowserSupabase } from '../lib/supabaseBrowser.js';
 
 const AuthContext = createContext(null);
 
-function normalizeStoredUser(value) {
-  if (!value || !demoProfiles[value.role]) return null;
+/*
+ * Monta o usuario exibido no Header a partir da sessao Supabase.
+ *
+ * "role" aqui e so apresentacao: quem tem linha em artists ve o painel, o
+ * resto ve as proprias reservas. Nao existe papel gravado no banco.
+ */
+async function loadSessionUser(supabase) {
+  const { data } = await supabase.auth.getUser();
+  const authUser = data?.user;
+  if (!authUser) return null;
 
-  const profile = demoProfiles[value.role];
-  return {
-    role: value.role,
-    name: typeof value.name === 'string' && value.name.trim() ? value.name.trim() : profile.name,
-    avatarUrl: typeof value.avatarUrl === 'string' ? value.avatarUrl : profile.avatarUrl,
-    notificationCount: Number.isFinite(value.notificationCount)
-      ? value.notificationCount
-      : profile.notificationCount,
-    destination: profile.destination,
-  };
-}
+  const [{ data: profile }, { data: artist }] = await Promise.all([
+    supabase.from('profiles').select('full_name, avatar_url').eq('id', authUser.id).maybeSingle(),
+    supabase
+      .from('artists')
+      .select('id, stage_name')
+      .eq('profile_id', authUser.id)
+      .order('created_at')
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-function readStoredUser() {
-  try {
-    return normalizeStoredUser(JSON.parse(window.localStorage.getItem(STORAGE_KEY)));
-  } catch {
-    return null;
+  // Pendencia do artista: propostas aguardando resposta.
+  let notificationCount = 0;
+  if (artist) {
+    const { count } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('artist_id', artist.id)
+      .eq('status', 'pending');
+    notificationCount = count ?? 0;
   }
+
+  return {
+    role: artist ? 'artist' : 'contractor',
+    name: artist?.stage_name || profile?.full_name || authUser.user_metadata?.full_name || authUser.email,
+    avatarUrl: profile?.avatar_url ?? null,
+    notificationCount,
+    destination: artist ? '/painel' : '/minhas-reservas',
+  };
 }
 
 export function AuthProvider({ children }) {
   /*
-   * O estado inicial é nulo mesmo quando há sessão salva: no servidor não existe
-   * window.localStorage, e ler durante a renderização faria o HTML sair deslogado
-   * enquanto o cliente hidrataria logado — um mismatch de hidratação.
-   * A sessão é restaurada no primeiro efeito, já no cliente.
+   * A sessao e lida no navegador, e nao no layout raiz: ler cookies no servidor
+   * tornaria todas as paginas dinamicas, perdendo o prerender dos perfis.
+   * O estado comeca nulo e e preenchido no primeiro efeito.
    */
   const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    setUser(readStoredUser());
-  }, []);
-
-  const completeAuth = useCallback(({ role, name }) => {
-    const profile = demoProfiles[role];
-    if (!profile) throw new Error('Tipo de perfil inválido.');
-
-    const nextUser = {
-      role,
-      name: name?.trim() || profile.name,
-      avatarUrl: profile.avatarUrl,
-      notificationCount: profile.notificationCount,
-      destination: profile.destination,
-    };
-
+  const refresh = useCallback(async () => {
+    const nextUser = await loadSessionUser(getBrowserSupabase());
     setUser(nextUser);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
-    } catch {
-      // A navegação continua funcionando mesmo quando o armazenamento local está indisponível.
-    }
-
     return nextUser;
   }, []);
 
-  const logout = useCallback(() => {
+  useEffect(() => {
+    const supabase = getBrowserSupabase();
+    refresh();
+
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Fora do callback: chamar o Supabase dentro dele pode travar o cliente.
+        setTimeout(refresh, 0);
+      }
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [refresh]);
+
+  const logout = useCallback(async () => {
+    await getBrowserSupabase().auth.signOut();
     setUser(null);
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Sem ação adicional: a sessão em memória já foi encerrada.
-    }
   }, []);
 
-  const value = useMemo(() => ({ user, completeAuth, logout }), [completeAuth, logout, user]);
+  const value = useMemo(() => ({ user, refresh, logout }), [logout, refresh, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -98,4 +94,3 @@ export function useAuth() {
   if (!context) throw new Error('useAuth deve ser usado dentro de AuthProvider.');
   return context;
 }
-

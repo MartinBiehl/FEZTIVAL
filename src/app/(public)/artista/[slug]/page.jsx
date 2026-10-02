@@ -81,8 +81,13 @@ export default async function Page({ params }) {
 
 /*
  * Prerender dos perfis no build: HTML estático pronto para indexação,
- * em vez de renderizado sob demanda. Os dados vêm de src/data como hoje.
+ * em vez de renderizado sob demanda.
+ *
+ * Slugs que surgirem depois do build (artista publicado pelo cadastro) são
+ * renderizados no primeiro acesso, e revalidate atualiza os já gerados.
  */
+export const revalidate = 3600;
+
 export async function generateStaticParams() {
   const slugs = await fetchArtistSlugs();
   return slugs.map((slug) => ({ slug }));

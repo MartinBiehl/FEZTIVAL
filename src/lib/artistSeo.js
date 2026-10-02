@@ -1,6 +1,6 @@
 /*
  * Monta título e descrição dos perfis de artista a partir dos dados reais de
- * src/data — sem texto de marketing inventado.
+ * cadastro no banco — sem texto de marketing inventado.
  *
  * Os registros não têm biografia, então a descrição usa só os campos existentes:
  * categoria, gêneros, cidade, nota, número de avaliações e preço inicial.
@@ -66,7 +66,7 @@ export function artistSchemaType(artist) {
 }
 
 /*
- * JSON-LD do perfil. Declara apenas o que existe em src/data — sem foto
+ * JSON-LD do perfil. Declara apenas o que existe no cadastro do artista — sem foto
  * (image: null em todos) e sem campos inventados.
  *
  * A oferta descreve o preço inicial do show, comunicando que o artista é

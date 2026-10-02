@@ -1,5 +1,8 @@
 import { motion, useReducedMotion } from 'motion/react';
 import useModalDialog from '../../hooks/useModalDialog.js';
+import {
+  NO_RATING_LABEL, formatPrice, formatRating, hasRating,
+} from '../../lib/artistDisplay.js';
 import './ProposalReviewModal.css';
 
 function formatDate(value) {
@@ -13,6 +16,8 @@ function formatDate(value) {
 
 function formatDuration(value) {
   const minutes = Number(value);
+  // Artista sem servicos cadastrados nao oferece duracao para escolher.
+  if (!value || !Number.isFinite(minutes)) return 'A combinar';
   if (minutes < 60) return `${minutes} min`;
   const hours = minutes / 60;
   return `${hours.toLocaleString('pt-BR')} ${hours === 1 ? 'hora' : 'horas'}`;
@@ -24,6 +29,7 @@ function ProposalReviewModal({
   onClose,
   onConfirm,
   returnFocusRef,
+  isSending = false,
 }) {
   const shouldReduceMotion = useReducedMotion();
   const { dialogRef, initialFocusRef } = useModalDialog({
@@ -84,7 +90,9 @@ function ProposalReviewModal({
             <div>
               <small>{artist.category}</small>
               <strong>{artist.name}</strong>
-              <p>{artist.genres.join(' · ')} · ★ {artist.rating.toFixed(1)}</p>
+              <p>
+                {[...artist.genres, hasRating(artist) ? `★ ${formatRating(artist)}` : NO_RATING_LABEL].join(' · ')}
+              </p>
             </div>
           </div>
 
@@ -109,7 +117,7 @@ function ProposalReviewModal({
 
           <div className="proposal-review-price">
             <span>Valor inicial estimado</span>
-            <strong>R$ {artist.price.toLocaleString('pt-BR')}</strong>
+            <strong>{formatPrice(artist)}</strong>
             <small>O valor final será confirmado pelo artista.</small>
           </div>
 
@@ -137,8 +145,8 @@ function ProposalReviewModal({
 
         <footer className="proposal-review-dialog__footer">
           <button type="button" onClick={onClose}>← Voltar e editar</button>
-          <button type="button" onClick={onConfirm}>
-            Enviar proposta <span aria-hidden="true">→</span>
+          <button type="button" onClick={onConfirm} disabled={isSending} aria-busy={isSending}>
+            {isSending ? 'Enviando…' : 'Enviar proposta'} <span aria-hidden="true">→</span>
           </button>
         </footer>
       </motion.section>

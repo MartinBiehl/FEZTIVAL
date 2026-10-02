@@ -1,0 +1,11 @@
+<!--
+  Template "Reset Password" do Supabase Auth.
+
+  A tela /recuperar-senha/codigo pede o CODIGO de 6 digitos ({{ .Token }}), nao
+  um link. Cole este conteudo em Authentication -> Email Templates -> Reset
+  Password no painel do projeto (o ambiente local le via config.toml).
+-->
+<h2>Recuperação de senha — Feztival</h2>
+<p>Use o código abaixo para criar uma nova senha:</p>
+<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ .Token }}</p>
+<p>O código vale por 1 hora. Se você não pediu a recuperação, ignore este e-mail.</p>

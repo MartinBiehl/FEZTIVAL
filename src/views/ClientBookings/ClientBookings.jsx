@@ -1,31 +1,40 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import { BookingReviewForm, BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import {
+  STATUS_LABEL, formatEventTime, formatMoney, formatShortDate, initials,
+} from '../../lib/bookingDisplay.js';
 import './ClientBookings.css';
 
-const bookings = [
-  { artist: 'DJ Kauan', initials: 'DK', event: 'Aniversário de 30 anos', date: '02 AGO 2026', status: 'Confirmada', color: '#FFD600' },
-  { artist: 'Marina Santos', initials: 'MS', event: 'Recepção de casamento', date: '18 OUT 2026', status: 'Aguardando resposta', color: '#FF3CAC' },
-  { artist: 'Banda Nativus', initials: 'BN', event: 'Confraternização da empresa', date: '05 DEZ 2026', status: 'Proposta recebida', color: '#FF6B35' },
+const TABS = [
+  { id: 'active', label: 'Em andamento', statuses: ['pending', 'accepted', 'confirmed'] },
+  { id: 'completed', label: 'Concluídas', statuses: ['completed'] },
+  { id: 'cancelled', label: 'Canceladas', statuses: ['declined', 'cancelled'] },
 ];
 
-function ClientBookings() {
-  const router = useRouter();
-  const { user, logout } = useAuth();
-  const clientName = user?.role === 'contractor' ? user.name : 'Bernardo';
-  const initials = clientName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+const EMPTY_MESSAGE = {
+  active: 'Nenhum pedido em andamento.',
+  completed: 'Nenhuma reserva concluída ainda.',
+  cancelled: 'Nenhuma reserva cancelada ou recusada.',
+};
 
-  const handleLogout = () => {
-    logout();
+function ClientBookings({ clientName, bookings }) {
+  const router = useRouter();
+  const { logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('active');
+  const name = clientName || 'Contratante';
+  const tab = TABS.find((item) => item.id === activeTab);
+  const visible = bookings.filter((booking) => tab.statuses.includes(booking.status));
+
+  const handleLogout = async () => {
+    await logout();
     router.push('/');
+    router.refresh();
   };
 
   return (
@@ -34,8 +43,8 @@ function ClientBookings() {
         <BrandLogo />
         <nav><Link href="/explorar">Explorar artistas</Link><Link href="/">Início</Link></nav>
         <div className="bookings-header__user">
-          <span>{initials}</span>
-          <strong>{clientName}</strong>
+          <span>{initials(name)}</span>
+          <strong>{name}</strong>
           <button type="button" onClick={handleLogout}>Sair</button>
         </div>
       </header>
@@ -44,25 +53,51 @@ function ClientBookings() {
           <div><p className="eyebrow">Área do contratante</p><h1>Minhas reservas</h1></div>
           <Link href="/explorar">Encontrar outro artista <span>↗</span></Link>
         </div>
-        <div className="bookings-tabs">
-          <button className="active" type="button">Em andamento <span>3</span></button>
-          <button type="button">Concluídas</button>
-          <button type="button">Canceladas</button>
+        <div className="bookings-tabs" role="tablist" aria-label="Filtrar reservas">
+          {TABS.map((item) => {
+            const count = bookings.filter((booking) => item.statuses.includes(booking.status)).length;
+            return (
+              <button
+                key={item.id}
+                className={item.id === activeTab ? 'active' : undefined}
+                type="button"
+                role="tab"
+                aria-selected={item.id === activeTab}
+                onClick={() => setActiveTab(item.id)}
+              >
+                {item.label} {count > 0 && <span>{count}</span>}
+              </button>
+            );
+          })}
         </div>
-        <section className="bookings-list">
-          {bookings.map((booking) => (
-            <article key={booking.artist}>
-              <div className="bookings-list__avatar" style={{ '--booking-color': booking.color }}>{booking.initials}</div>
-              <div className="bookings-list__artist"><span>{booking.event}</span><h2>{booking.artist}</h2></div>
-              <div><span>Data</span><strong>{booking.date}</strong></div>
-              <div><span>Status</span><strong className="bookings-list__status">{booking.status}</strong></div>
-              <button type="button">Ver detalhes →</button>
+        <section className="bookings-list" role="tabpanel" aria-label={tab.label}>
+          {visible.length === 0 && <p className="bookings-list__empty">{EMPTY_MESSAGE[activeTab]}</p>}
+          {visible.map((booking) => (
+            <article key={booking.id}>
+              <div className="bookings-list__avatar" style={{ '--booking-color': booking.artistColor ?? 'var(--yellow)' }}>
+                {initials(booking.artistName)}
+              </div>
+              <div className="bookings-list__artist">
+                <span>{[booking.eventType, booking.location].filter(Boolean).join(' · ')}</span>
+                <h2>{booking.artistName}</h2>
+              </div>
+              <div>
+                <span>Data</span>
+                <strong>{[formatShortDate(booking.eventDate), formatEventTime(booking.eventTime)].filter(Boolean).join(' · ')}</strong>
+              </div>
+              <div>
+                <span>Status · {formatMoney(booking.agreedPrice)}</span>
+                <strong className="bookings-list__status">{STATUS_LABEL.client[booking.status]}</strong>
+              </div>
+              {booking.artistSlug
+                ? <Link className="bookings-list__link" href={`/artista/${booking.artistSlug}`}>Ver artista →</Link>
+                : <span />}
+              <div className="bookings-list__actions">
+                <BookingStatusActions booking={booking} side="client" contextLabel={`Pedido para ${booking.artistName}`} />
+                {booking.status === 'completed' && !booking.reviewed && <BookingReviewForm booking={booking} />}
+              </div>
             </article>
           ))}
-        </section>
-        <section className="bookings-help">
-          <div><span>?</span><div><strong>Precisa de ajuda?</strong><p>Nossa equipe acompanha você antes, durante e depois do evento.</p></div></div>
-          <button type="button">Falar com a Feztival</button>
         </section>
       </main>
     </div>

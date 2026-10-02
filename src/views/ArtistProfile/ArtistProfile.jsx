@@ -1,15 +1,19 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Building2, CalendarDays, ChevronDown, CreditCard, MapPin, Zap } from 'lucide-react';
 import Link from 'next/link';
 import MediaLightbox from '../../components/MediaLightbox/MediaLightbox.jsx';
+import { recordArtistView } from '../../lib/artistActions.js';
 import {
   NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
   hasRating,
 } from '../../lib/artistDisplay.js';
 import './ArtistProfile.css';
+
+/* "outubro de 2026", fixo em UTC para servidor e navegador renderizarem igual. */
+const REVIEW_DATE = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 function ProfileInfoPanel({ category, children, icon: Icon, id, isOpen, onToggle, title, wide = false }) {
   const shouldReduceMotion = useReducedMotion();
@@ -66,6 +70,11 @@ function ArtistProfile({ artist }) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(null);
   const [openInfoId, setOpenInfoId] = useState(null);
   const mediaTriggerRef = useRef(null);
+
+  // A pagina e estatica: a visualizacao e contada pelo navegador, uma vez por visita.
+  useEffect(() => {
+    recordArtistView(artist.slug).catch(() => {});
+  }, [artist.slug]);
 
   const closeMedia = useCallback(() => {
     setActiveMediaIndex(null);
@@ -303,19 +312,28 @@ function ArtistProfile({ artist }) {
             {!hasRating(artist) && (
               <p className="profile-reviews__empty">Ainda não há avaliações.</p>
             )}
-            <form className="profile-review-form" onSubmit={(event) => event.preventDefault()}>
-              <div>
-                <label htmlFor="review">Conte como foi o show</label>
-              </div>
-              <textarea
-                id="review"
-                name="review"
-                placeholder="Escreva sua avaliação sobre a apresentação..."
-                rows="4"
-                required
-              />
-              <button type="submit">Enviar avaliação</button>
-            </form>
+            {/*
+              Só quem contratou avalia, a partir de "Minhas reservas", depois do
+              show concluído. Por isso aqui não há formulário.
+            */}
+            {artist.reviewList.length > 0 && (
+              <ul className="profile-reviews__list">
+                {artist.reviewList.map((review) => (
+                  <li key={review.createdAt}>
+                    <div>
+                      <strong aria-label={`Nota ${review.rating} de 5`}>
+                        {'★'.repeat(review.rating)}<span aria-hidden="true">{'★'.repeat(5 - review.rating)}</span>
+                      </strong>
+                      <small>
+                        {[review.eventType, REVIEW_DATE.format(new Date(review.createdAt))].filter(Boolean).join(' · ')}
+                      </small>
+                    </div>
+                    {review.comment && <p>{review.comment}</p>}
+                    <small>Contratação verificada pela Feztival</small>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="profile-section profile-questions" id="perguntas">

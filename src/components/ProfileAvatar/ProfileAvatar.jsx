@@ -20,13 +20,14 @@ function ProfileAvatar({ user }) {
   useEffect(() => setImageFailed(false), [user.avatarUrl]);
 
   const roleLabel = user.role === 'artist' ? 'painel do artista' : 'minhas reservas';
-  const countLabel = user.notificationCount === 1 ? '1 pendência' : `${user.notificationCount} pendências`;
+  const count = user.notificationCount ?? 0;
+  const countLabel = count === 1 ? '1 pendência' : `${count} pendências`;
 
   return (
     <Link
       className="profile-avatar"
       href={user.destination}
-      aria-label={`Abrir ${roleLabel}. ${countLabel}.`}
+      aria-label={count > 0 ? `Abrir ${roleLabel}. ${countLabel}.` : `Abrir ${roleLabel}.`}
       title={`Abrir ${roleLabel}`}
     >
       <span className="profile-avatar__image">
@@ -36,7 +37,7 @@ function ProfileAvatar({ user }) {
           <span className="profile-avatar__fallback" aria-hidden="true">{getInitials(user.name)}</span>
         )}
       </span>
-      <span className="profile-avatar__badge" aria-hidden="true">{user.notificationCount}</span>
+      {count > 0 && <span className="profile-avatar__badge" aria-hidden="true">{count}</span>}
     </Link>
   );
 }

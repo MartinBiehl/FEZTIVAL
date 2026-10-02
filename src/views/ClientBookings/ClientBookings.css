@@ -269,3 +269,36 @@
     gap: 1rem;
   }
 }
+
+.bookings-list__link {
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.bookings-list article > .bookings-list__actions {
+  grid-column: 2 / -1;
+}
+
+.bookings-list__actions:empty {
+  display: none;
+}
+
+.bookings-list__empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .bookings-list article > .bookings-list__actions {
+    grid-column: 1 / -1;
+  }
+}

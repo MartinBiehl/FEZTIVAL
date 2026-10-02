@@ -1,12 +1,14 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useActionState, useEffect, useId } from 'react';
+import useActionSubmit from '../../hooks/useActionSubmit.js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, MailCheck } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { signIn, signUp } from '../../lib/accountActions.js';
 import crowdImage from '../../images/crowd_party.png';
 import stageImage from '../../images/concert_stage.png';
 import './Login.css';
@@ -75,19 +77,26 @@ function Login({ role = 'contractor', mode = 'login' }) {
   const shouldReduceMotion = useReducedMotion();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeAuth } = useAuth();
-  const [name, setName] = useState('');
+  const { refresh } = useAuth();
+  const [state, formAction, isPending] = useActionState(isRegister ? signUp : signIn, null);
+  const submit = useActionSubmit(formAction);
   const idPrefix = useId().replace(/:/g, '');
+  const next = searchParams.get('next') ?? '';
 
-  const loginRoute = `/entrar/${isArtist ? 'artista' : 'contratante'}`;
-  const registerRoute = `/cadastro/${isArtist ? 'artista' : 'contratante'}`;
-  const alternateRoute = `${isRegister ? '/cadastro' : '/entrar'}/${isArtist ? 'contratante' : 'artista'}`;
+  // Preserva o destino (?next=) ao alternar entre login e cadastro.
+  const withNext = (path) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
+  const loginRoute = withNext(`/entrar/${isArtist ? 'artista' : 'contratante'}`);
+  const registerRoute = withNext(`/cadastro/${isArtist ? 'artista' : 'contratante'}`);
+  const alternateRoute = withNext(`${isRegister ? '/cadastro' : '/entrar'}/${isArtist ? 'contratante' : 'artista'}`);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const session = completeAuth({ role, name: isRegister ? name : undefined });
-    router.push(session.destination);
-  };
+  /*
+   * A Server Action grava a sessao nos cookies; o AuthContext precisa reler
+   * antes de navegar, senao o Header seguiria mostrando "Entrar".
+   */
+  useEffect(() => {
+    if (!state?.ok || !state.destination) return;
+    refresh().then(() => router.push(state.destination));
+  }, [refresh, router, state]);
 
   return (
     <main className={`access-page${isArtist ? ' access-page--artist' : ''}`} style={{ '--access-accent': content.accent }}>
@@ -121,6 +130,19 @@ function Login({ role = 'contractor', mode = 'login' }) {
               </motion.div>
             )}
 
+            {searchParams.get('erro') === 'link' && !isRegister && (
+              <motion.p className="access-card__error" role="alert" variants={itemVariants}>
+                O link de confirmação expirou ou já foi usado. Entre com seu e-mail e senha.
+              </motion.p>
+            )}
+
+            {state?.needsConfirmation && (
+              <motion.div className="access-card__success" role="status" variants={itemVariants}>
+                <MailCheck size={17} aria-hidden="true" />
+                Conta criada. Confirme pelo link que enviamos ao seu e-mail para entrar.
+              </motion.div>
+            )}
+
             <motion.button
               className="access-card__google"
               type="button"
@@ -139,26 +161,74 @@ function Login({ role = 'contractor', mode = 'login' }) {
               <span />
             </motion.div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={submit}>
+              <input type="hidden" name="next" value={next} />
+              {isRegister && <input type="hidden" name="signupAs" value={role} />}
+
               {isRegister && (
                 <motion.label htmlFor={`${idPrefix}-name`} variants={itemVariants}>
                   <span>{content.nameLabel}</span>
                   <input
                     id={`${idPrefix}-name`}
+                    name={isArtist ? 'stageName' : 'fullName'}
                     type="text"
-                    autoComplete="name"
+                    autoComplete={isArtist ? 'off' : 'name'}
                     required
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    minLength={2}
+                    maxLength={isArtist ? 80 : 120}
                     placeholder={content.namePlaceholder}
                   />
                 </motion.label>
+              )}
+
+              {/*
+                Artista sem nome e sem telefone não é contratável: o WhatsApp é o
+                canal de contato efetivo. A categoria define o perfil público.
+              */}
+              {isRegister && isArtist && (
+                <>
+                  <motion.label htmlFor={`${idPrefix}-full-name`} variants={itemVariants}>
+                    <span>Nome completo</span>
+                    <input
+                      id={`${idPrefix}-full-name`}
+                      name="fullName"
+                      type="text"
+                      autoComplete="name"
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      placeholder="Responsável pelas contratações"
+                    />
+                  </motion.label>
+                  <motion.label htmlFor={`${idPrefix}-phone`} variants={itemVariants}>
+                    <span>WhatsApp</span>
+                    <input
+                      id={`${idPrefix}-phone`}
+                      name="phone"
+                      type="tel"
+                      autoComplete="tel"
+                      inputMode="tel"
+                      required
+                      placeholder="(51) 99999-9999"
+                    />
+                  </motion.label>
+                  <motion.label htmlFor={`${idPrefix}-category`} variants={itemVariants}>
+                    <span>Categoria</span>
+                    <select id={`${idPrefix}-category`} name="category" required defaultValue="">
+                      <option value="" disabled>Selecione</option>
+                      <option value="dj">DJ</option>
+                      <option value="band">Banda</option>
+                      <option value="solo">Músico solo</option>
+                    </select>
+                  </motion.label>
+                </>
               )}
 
               <motion.label htmlFor={`${idPrefix}-email`} variants={itemVariants}>
                 <span>E-mail</span>
                 <input
                   id={`${idPrefix}-email`}
+                  name="email"
                   type="email"
                   autoComplete="email"
                   required
@@ -170,6 +240,7 @@ function Login({ role = 'contractor', mode = 'login' }) {
                 <span>Senha</span>
                 <input
                   id={`${idPrefix}-password`}
+                  name="password"
                   type="password"
                   autoComplete={isRegister ? 'new-password' : 'current-password'}
                   required
@@ -180,7 +251,7 @@ function Login({ role = 'contractor', mode = 'login' }) {
 
               {isRegister && (
                 <motion.label className="access-card__terms" htmlFor={`${idPrefix}-terms`} variants={itemVariants}>
-                  <input id={`${idPrefix}-terms`} type="checkbox" required />
+                  <input id={`${idPrefix}-terms`} name="terms" type="checkbox" required />
                   <span>Concordo com os Termos de Uso e a Política de Privacidade.</span>
                 </motion.label>
               )}
@@ -193,7 +264,11 @@ function Login({ role = 'contractor', mode = 'login' }) {
                 </motion.div>
               )}
 
-              <motion.button className="access-card__submit" type="submit" variants={itemVariants}>
+              {state?.error && (
+                <p className="access-card__error" role="alert">{state.error}</p>
+              )}
+
+              <motion.button className="access-card__submit" type="submit" disabled={isPending} aria-busy={isPending} variants={itemVariants}>
                 <span>{isRegister ? (isArtist ? 'Criar perfil artístico' : 'Criar minha conta') : (isArtist ? 'Entrar no painel' : 'Entrar')}</span>
                 <ArrowRight size={18} aria-hidden="true" />
               </motion.button>
