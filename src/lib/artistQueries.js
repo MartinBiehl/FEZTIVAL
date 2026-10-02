@@ -114,11 +114,17 @@ function toArtistDetail(row, summary, reviews) {
     })),
     bioLong: row.bio_long,
     viewCount: row.view_count ?? 0,
-    mediaGallery: [...(row.artist_media ?? [])].sort(bySortOrder).map((item) => ({
-      type: item.type,
-      src: item.url,
-      alt: item.caption,
-    })),
+    /* So fotos: o editor ainda nao envia audio nem video, e o lightbox exibe <img>. */
+    mediaGallery: [...(row.artist_media ?? [])]
+      .filter((item) => item.type === 'photo')
+      .sort(bySortOrder)
+      .map((item, index) => ({
+        id: item.id,
+        type: item.type,
+        src: item.url,
+        alt: item.caption || `${row.stage_name}, foto ${index + 1}`,
+        featured: index === 0,
+      })),
     serviceAreas: {
       summary: row.service_area_summary,
       locations: [...(row.artist_service_areas ?? [])].sort(bySortOrder)
@@ -166,7 +172,7 @@ const ARTIST_LIST_COLUMNS = `
 const ARTIST_DETAIL_COLUMNS = `
   ${ARTIST_LIST_COLUMNS},
   bio_long, service_area_summary, view_count,
-  artist_media ( type, url, caption, sort_order ),
+  artist_media ( id, type, url, caption, sort_order ),
   artist_service_areas ( city, sort_order ),
   artist_infrastructure ( status, title, detail, sort_order ),
   artist_weekly_hours ( weekday, is_available, opens_at, closes_at ),

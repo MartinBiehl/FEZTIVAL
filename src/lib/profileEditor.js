@@ -21,7 +21,8 @@ const EDITOR_COLUMNS = `
   artist_service_areas ( city, sort_order ),
   artist_weekly_hours ( weekday, is_available, opens_at, closes_at ),
   artist_services ( id, title, description, price, duration_minutes ),
-  artist_infrastructure ( id, status, title, detail, sort_order )
+  artist_infrastructure ( id, status, title, detail, sort_order ),
+  artist_media ( id, type, url, sort_order )
 `;
 
 const bySortOrder = (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
@@ -31,6 +32,7 @@ function toEditable(row) {
   const hours = new Map((row.artist_weekly_hours ?? []).map((entry) => [entry.weekday, entry]));
 
   return {
+    id: row.id,
     slug: row.slug,
     stageName: row.stage_name,
     category: row.category,
@@ -72,19 +74,31 @@ function toEditable(row) {
       title: item.title,
       detail: item.detail ?? '',
     })),
+    gallery: [...(row.artist_media ?? [])]
+      .filter((item) => item.type === 'photo')
+      .sort(bySortOrder)
+      .map((item) => ({ id: item.id, url: item.url })),
   };
+}
+
+/*
+ * Cadastro artistico do usuario. Se houver mais de um (decisao de produto em
+ * aberto), vale o mais antigo -- o mesmo no editor e nas Server Actions.
+ */
+export function selectOwnArtist(supabase, userId, columns) {
+  return supabase
+    .from('artists')
+    .select(columns)
+    .eq('profile_id', userId)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
 }
 
 /* Cadastro artistico do usuario e os catalogos, ou null sem cadastro. */
 export async function fetchProfileEditor(supabase, userId) {
   const [{ data: row, error }, genres, paymentMethods, venueTypes] = await Promise.all([
-    supabase
-      .from('artists')
-      .select(EDITOR_COLUMNS)
-      .eq('profile_id', userId)
-      .order('created_at')
-      .limit(1)
-      .maybeSingle(),
+    selectOwnArtist(supabase, userId, EDITOR_COLUMNS),
     supabase.from('genres').select('id, name').order('name'),
     supabase.from('payment_methods').select('id, name').order('sort_order'),
     supabase.from('venue_types').select('id, name').order('sort_order'),

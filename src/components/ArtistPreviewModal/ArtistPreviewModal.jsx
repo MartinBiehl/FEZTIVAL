@@ -55,12 +55,15 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
         </button>
 
         <div className="artist-preview-dialog__visual">
-          <span className="artist-preview-dialog__monogram" aria-hidden="true">
-            {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
-          </span>
+          {artist.coverUrl ? (
+            <img className="artist-preview-dialog__cover" src={artist.coverUrl} alt="" />
+          ) : (
+            <span className="artist-preview-dialog__monogram" aria-hidden="true">
+              {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+            </span>
+          )}
           <div className="artist-preview-dialog__visual-meta">
             <span>{artist.category}</span>
-            <small>Disponível esta semana</small>
           </div>
         </div>
 

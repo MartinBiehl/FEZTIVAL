@@ -6,6 +6,7 @@ import Link from 'next/link';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { saveArtistProfile } from '../../lib/profileActions.js';
 import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from '../../lib/profileEditor.js';
+import MediaManager from './MediaManager.jsx';
 import './ProfileEditor.css';
 
 const WEEKDAY_LABEL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -83,6 +84,8 @@ function ProfileEditor({ profile, catalogs }) {
           </p>
         </div>
 
+        <MediaManager artistId={profile.id} initialCover={profile.coverUrl} initialGallery={profile.gallery} />
+
         <form className="profile-editor__form" onSubmit={submit}>
           <fieldset>
             <legend>Apresentação</legend>
@@ -112,10 +115,6 @@ function ProfileEditor({ profile, catalogs }) {
               <label className="profile-editor__full">
                 Sobre
                 <textarea name="bioLong" rows="6" maxLength={3000} defaultValue={profile.bioLong} />
-              </label>
-              <label className="profile-editor__full">
-                Foto principal (endereço https da imagem)
-                <input name="coverUrl" type="url" pattern="https://.*" maxLength={500} defaultValue={profile.coverUrl} placeholder="https://..." />
               </label>
             </div>
           </fieldset>

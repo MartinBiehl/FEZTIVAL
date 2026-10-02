@@ -91,7 +91,7 @@ src/
 | `supabaseConfig.js` | URL e chave do projeto, lidas uma vez |
 | `supabase.js` | cliente **anônimo**, sem cookies, para as leituras públicas |
 | `supabaseServer.js` | cliente com a sessão do usuário (Server Components, Actions, Route Handlers) |
-| `supabaseBrowser.js` | cliente do navegador, usado só pelo `AuthContext` |
+| `supabaseBrowser.js` | cliente do navegador: `AuthContext` e envio de imagens ao Storage |
 | `account.js` | `ensureAccount` (cria `profiles` e o rascunho em `artists`), `safeNextPath`, `slugify` |
 | `accountActions.js` | Server Actions de login, cadastro e recuperação de senha |
 | `bookingActions.js` | Server Actions de proposta, mudança de status e avaliação |
@@ -99,7 +99,8 @@ src/
 | `bookingDisplay.js` | rótulos de status, datas no fuso de São Paulo, valores |
 | `artistActions.js` | contagem de visualização do perfil |
 | `profileEditor.js` | leitura do editor de perfil e catálogos |
-| `profileActions.js` | Server Action que salva o perfil do artista |
+| `profileActions.js` | Server Actions do perfil do artista: salvar o formulário, foto principal e galeria |
+| `artistMedia.js` | Bucket de imagens: caminhos, URL pública e redução da foto no navegador |
 | `artistQueries.js` | leitura de artistas; converte a linha do banco para a forma das telas |
 | `artistDisplay.js` | formata campos que podem estar vazios (nota, preço, duração) |
 | `artistSeo.js` | título, descrição e JSON-LD dos perfis |
@@ -234,8 +235,11 @@ de Syne e apenas 5 de Inter.
 ## Limites atuais
 
 - Os artistas do catálogo são o seed de demonstração (`supabase/seed.sql`).
-- O editor de perfil não envia arquivos: a foto principal é um endereço https, e a
-  galeria (`artist_media`) e a agenda por data (`availability`) ainda não têm tela.
+- O editor envia só fotos: vídeo e áudio (`artist_media.type`) e a agenda por data
+  (`availability`) ainda não têm tela.
+- O formulário "Pergunte antes de contratar" do perfil não grava nada. As tabelas
+  `questions` e `answers` existem no banco remoto, mas não neste repositório (ver
+  "Banco remoto fora do repositório").
 - Pagamentos não estão implementados.
 - O produto não inclui chat privado direto; dúvidas podem aparecer como perguntas
   públicas no perfil.
@@ -346,6 +350,32 @@ Todo o schema vive em `supabase/migrations/`, em arquivos `.sql` versionados. **
 nem altere tabelas pelo Table Editor do painel:** mudança feita por lá não vai para o
 Git, não é revisável e não se reproduz em outro ambiente. Migration nova sempre, mesmo
 para um `alter table` de uma linha.
+
+### Banco remoto fora do repositório
+
+> **Situação em 02/10/2026.** O projeto remoto recebeu em 11/09 quatro migrations
+> aplicadas fora do Git: `fix_rls_security`, `add_questions_and_payments`,
+> `harden_policy_commands` e `support_booking_duration`. Os arquivos foram trazidos
+> para `supabase/migrations/` com `supabase migration fetch` (as cinco anteriores
+> conferem com o repositório, a menos de formatação).
+> Entre outras coisas, elas moveram as funções de trigger para o schema `private`,
+> removeram `owns_artist` e `artist_is_published` (as policies passaram a usar
+> `exists (...)` direto), criaram `questions`, `answers` e as tabelas de pagamento e
+> instalaram um trigger `handle_new_user` em `auth.users`. Esse trigger contraria a
+> decisão de não ter trigger em `auth.users` (ver "Contas") e motivou o passo do
+> telefone em `ensureAccount`.
+>
+> Além disso, `20261001120000_private_contacts_and_artist_ratings` aparece como não
+> aplicada no histórico, embora tudo o que ela cria já exista no remoto (conferido:
+> funções, permissões e a policy de `profiles`). Antes do próximo `db push`, marque-a
+> como aplicada — senão o push tenta rodá-la de novo e falha no `drop policy`:
+>
+> ```bash
+> npx supabase migration repair --linked --status applied 20261001120000
+> npx supabase db push --dry-run   # deve listar só as migrations novas
+> ```
+>
+> Migrations novas não devem depender de `owns_artist`.
 
 ### Tabelas
 
@@ -696,6 +726,27 @@ declarado (as linhas são apagadas), em vez de "não atende" nos sete dias.
 
 Ao salvar, o perfil, o formulário de proposta, `/explorar` e o sitemap são revalidados.
 
+### Fotos (Supabase Storage)
+
+Foto principal (`artists.cover_url`) e galeria (`artist_media`, tipo `photo`, até 12)
+são enviadas na seção "Fotos" do editor, que fica **fora** do formulário: cada envio ou
+remoção vale na hora.
+
+- O arquivo vai do navegador **direto ao Storage**, no bucket público `artist-media`,
+  em `<artists.id>/<uuid>.jpg`. Não passa pelo servidor do Next (Server Action tem
+  limite de corpo de 1 MB).
+- Antes do envio, `prepareImage` reduz a foto a 2000 px e regrava como JPEG. Isso
+  mantém o arquivo abaixo de 5 MB e **descarta o EXIF, inclusive o GPS** — não
+  remova esse passo.
+- Depois do envio, `setArtistCover` / `addArtistPhoto` recebem **só o caminho**,
+  conferem que ele está na pasta do artista do usuário e gravam a URL pública. Se o
+  registro falhar, o navegador apaga o arquivo enviado.
+- Trocar ou remover uma foto apaga o arquivo antigo do bucket. Foto principal antiga
+  que era link externo é só desvinculada.
+- Quem barra é o banco: o bucket limita tamanho (5 MiB) e tipo (JPEG, PNG, WEBP), e as
+  policies de `storage.objects` só deixam gravar e apagar na pasta de um artista do
+  próprio usuário (migration `artist_media_storage`).
+
 ### Formulários
 
 Os formulários com Server Action usam `onSubmit` via `useActionSubmit`, e não
@@ -714,8 +765,8 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 | — | ~~Conectar as telas públicas ao banco, em Server Components~~ — concluída |
 | — | ~~Autenticação e escrita: login, cadastro, propostas, painel e reservas~~ — concluída |
 | — | ~~Editor de perfil, privacidade de `profiles` e nota pública~~ — concluída |
-| a seguir | Upload de mídia (Supabase Storage) para foto principal e galeria |
-| depois | Pagamentos: Route Handlers para Pagar.me e webhooks |
+| — | ~~Upload de fotos (Supabase Storage): foto principal e galeria~~ — concluída |
+| a seguir | Pagamentos: Route Handlers para Pagar.me e webhooks |
 
 A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
 tocar no front — as duas coisas passam a acontecer juntas na fase seguinte, já que ler do
@@ -755,6 +806,6 @@ Pendências abertas da Fase 2:
 ## Momento do projeto
 
 O fluxo central está ligado ao banco: explorar, cadastrar, enviar
-proposta, aceitar, confirmar, concluir e avaliar. O que falta para lançar é o upload de
-mídia e os pagamentos. A landing institucional e a página de exploração
+proposta, aceitar, confirmar, concluir e avaliar, com fotos enviadas pelo artista. O que
+falta para lançar são os pagamentos. A landing institucional e a página de exploração
 devem deixar clara a diferença entre conhecer a empresa e usar o marketplace.

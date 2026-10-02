@@ -93,6 +93,21 @@ export async function ensureAccount(supabase, user) {
     );
   if (profileError) throw new Error(`Falha ao criar o perfil: ${profileError.message}`);
 
+  /*
+   * Se a linha ja existia, o upsert acima nao grava nada. O banco remoto tem um
+   * trigger em auth.users (handle_new_user, aplicado fora deste repositorio)
+   * que cria profiles no cadastro sem o telefone -- sem este passo o WhatsApp
+   * informado no formulario se perderia. So preenche o que esta vazio.
+   */
+  if (meta.phone) {
+    const { error: phoneError } = await supabase
+      .from('profiles')
+      .update({ phone: meta.phone })
+      .eq('id', user.id)
+      .is('phone', null);
+    if (phoneError) throw new Error(`Falha ao gravar o telefone: ${phoneError.message}`);
+  }
+
   let artist = await findOwnArtist(supabase, user.id);
 
   if (!artist && meta.signup_as === 'artist' && meta.stage_name && ARTIST_CATEGORIES.includes(meta.category)) {

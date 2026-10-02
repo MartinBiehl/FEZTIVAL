@@ -61,8 +61,8 @@ Página completa, prerenderizada como HTML estático para ser indexável. Seçõ
 
 | Seção | Conteúdo |
 |---|---|
-| **Sobre** | Apresentação do artista |
-| **Fotos e vídeos** | Galeria com lightbox navegável |
+| **Sobre** | Biografia escrita pelo artista e gêneros |
+| **Fotos** | Galeria enviada pelo artista, com lightbox navegável |
 | **Serviços** | Pacotes ofertados, com preço e duração |
 | **Mais informações** | Formas de pagamento, tipos de local atendidos, área de atuação, infraestrutura (o que leva, negocia ou exige) e horários |
 | **Avaliações** | Notas de contratações concluídas |
@@ -113,12 +113,17 @@ já acordado não mudam junto.
 
 ### Editor de perfil (`/painel/perfil`) ✅
 
-O artista edita nome artístico, categoria, cidade, cor, resumo, biografia, foto
-principal (link), preço ou "sob consulta", gêneros, serviços (título, duração, preço,
+O artista edita nome artístico, categoria, cidade, cor, resumo, biografia,
+preço ou "sob consulta", gêneros, serviços (título, duração, preço,
 descrição), formas de pagamento, tipos de evento, área de atendimento, estrutura (o
 que leva, negocia ou exige) e horário semanal — e publica ou despublica o perfil.
 Publicar exige cidade, ao menos um gênero e preço ou "sob consulta". O endereço do
 perfil não muda depois de criado.
+
+Na seção **Fotos** o artista envia a foto principal (aparece no topo do perfil, no
+catálogo e na prévia) e até 12 fotos de galeria, em JPG, PNG ou WEBP. As fotos são
+reduzidas no navegador antes do envio, e a localização gravada pelo celular é
+descartada. Enviar ou remover vale na hora, sem precisar salvar o perfil.
 
 ### Painel do artista (`/painel`) ✅
 
@@ -219,7 +224,7 @@ encontrados no Google.
 
 | Funcionalidade | Situação |
 |---|---|
-| **Upload de fotos e vídeos** | A foto principal é um link https; a galeria ainda não tem tela |
+| **Upload de vídeos e áudios** | Só fotos são enviadas; `artist_media` já prevê os outros tipos |
 | **Agenda por data** | Só o horário semanal é editável; datas livres específicas não |
 | **Pagamentos** | Fase posterior |
 | **Login com Google** | Botão desativado |
@@ -235,6 +240,6 @@ encontrados no Google.
 login, recuperação de senha) e o ciclo da contratação — proposta, aceite, confirmação,
 conclusão, cancelamento e avaliação — gravando no banco real.
 
-**Não funciona:** envio de fotos e vídeos pelo site.
+**Não funciona:** envio de vídeos e áudios, e o formulário "Pergunte antes de contratar", que ainda não grava a pergunta.
 
-O próximo passo é o **upload de mídia**; depois, **pagamentos**.
+O próximo passo são os **pagamentos**.

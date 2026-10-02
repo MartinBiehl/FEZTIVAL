@@ -35,6 +35,19 @@
   content: '';
 }
 
+/* Decorativa (alt vazio): o nome do artista ja esta no cartao. */
+.artist-result-card__cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.artist-result-card__visual:has(.artist-result-card__cover)::after {
+  content: none;
+}
+
 .artist-result-card__monogram {
   position: absolute;
   right: 1rem;

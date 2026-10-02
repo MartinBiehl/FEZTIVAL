@@ -3,7 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { createServerSupabase, getCurrentUser } from './supabaseServer.js';
 import { ARTIST_CATEGORIES } from './account.js';
-import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from './profileEditor.js';
+import {
+  MAX_GALLERY_PHOTOS, MEDIA_BUCKET, isArtistObjectPath, objectPathFromUrl, publicUrl,
+} from './artistMedia.js';
+import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS, selectOwnArtist } from './profileEditor.js';
 
 /*
  * Salva o perfil do artista a partir do editor (/painel/perfil).
@@ -52,14 +55,10 @@ function uuids(formData, name) {
 function parseProfile(formData) {
   const stageName = text(formData, 'stageName', 80);
   const category = text(formData, 'category', 10);
-  const coverUrl = text(formData, 'coverUrl', 500);
   const color = text(formData, 'color', 7);
 
   if (stageName.length < 2) throw new ValidationError('Informe o nome artístico.');
   if (!ARTIST_CATEGORIES.includes(category)) throw new ValidationError('Escolha a categoria.');
-  if (coverUrl && !/^https:\/\/\S+$/.test(coverUrl)) {
-    throw new ValidationError('A foto principal precisa ser um endereço https://.');
-  }
   if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) throw new ValidationError('Cor inválida.');
 
   const cities = [...new Set(
@@ -135,7 +134,6 @@ function parseProfile(formData) {
     base_price: optionalPrice(text(formData, 'basePrice', 12), 'preço inicial'),
     price_on_request: formData.get('priceOnRequest') === 'on',
     color: color || null,
-    cover_url: coverUrl || null,
     service_area_summary: text(formData, 'serviceAreaSummary', 300) || null,
     is_published: formData.get('isPublished') === 'on',
   };
@@ -216,13 +214,7 @@ export async function saveArtistProfile(_prevState, formData) {
   const user = await getCurrentUser(supabase);
   if (!user) return { error: 'Sua sessão expirou. Entre novamente.' };
 
-  const { data: artist, error: artistError } = await supabase
-    .from('artists')
-    .select('id, slug')
-    .eq('profile_id', user.id)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle();
+  const { data: artist, error: artistError } = await selectOwnArtist(supabase, user.id, 'id, slug');
   if (artistError || !artist) return { error: 'Cadastro artístico não encontrado.' };
 
   try {
@@ -266,13 +258,131 @@ export async function saveArtistProfile(_prevState, formData) {
     return { error: 'Não foi possível salvar tudo. Confira os dados e salve de novo.' };
   }
 
-  // Perfil, formulario de proposta, catalogo e sitemap saem do cache.
-  revalidatePath(`/artista/${artist.slug}`);
-  revalidatePath(`/reservar/${artist.slug}`);
-  revalidatePath('/explorar');
+  revalidateArtistPages(artist.slug);
   revalidatePath('/sitemap.xml');
-  revalidatePath('/painel');
-  revalidatePath('/painel/perfil');
 
   return { ok: true, isPublished: input.artist.is_published, slug: artist.slug };
+}
+
+/* Perfil, formulario de proposta, catalogo e painel saem do cache. */
+function revalidateArtistPages(slug) {
+  revalidatePath(`/artista/${slug}`);
+  revalidatePath(`/reservar/${slug}`);
+  revalidatePath('/explorar');
+  revalidatePath('/painel');
+  revalidatePath('/painel/perfil');
+}
+
+/*
+ * Imagens: o navegador envia o arquivo direto ao Storage (bucket
+ * artist-media, na pasta do artista) e chama as actions abaixo so com o
+ * caminho, para registrar no banco. O arquivo nao passa pelo servidor do Next.
+ *
+ * O caminho vem do cliente, entao e conferido: precisa ter o formato gerado
+ * por newObjectPath e ficar na pasta do artista do usuario logado. As policies
+ * do bucket e a RLS de artists/artist_media barram o resto.
+ */
+
+async function ownArtistContext() {
+  const supabase = await createServerSupabase();
+  const user = await getCurrentUser(supabase);
+  if (!user) return { error: 'Sua sessão expirou. Entre novamente.' };
+
+  const { data: artist, error } = await selectOwnArtist(supabase, user.id, 'id, slug, cover_url');
+  if (error || !artist) return { error: 'Cadastro artístico não encontrado.' };
+  return { supabase, artist };
+}
+
+/* Apaga do bucket uma imagem que deixou de ser usada. Se falhar, sobra so um arquivo orfao. */
+async function removeStoredImage(supabase, artistId, url) {
+  const path = objectPathFromUrl(url);
+  if (!path || !isArtistObjectPath(path, artistId)) return;
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).remove([path]);
+  if (error) console.error('Remocao de imagem falhou', error.message);
+}
+
+/* Define (caminho) ou remove (null) a foto principal. */
+export async function setArtistCover(path) {
+  const context = await ownArtistContext();
+  if (context.error) return context;
+  const { supabase, artist } = context;
+
+  if (path !== null && !isArtistObjectPath(path, artist.id)) return { error: 'Imagem inválida.' };
+  const url = path === null ? null : publicUrl(path);
+
+  const { error } = await supabase.from('artists').update({ cover_url: url }).eq('id', artist.id);
+  if (error) {
+    console.error('setArtistCover falhou', error.message);
+    return { error: 'Não foi possível salvar a foto principal.' };
+  }
+
+  if (artist.cover_url && artist.cover_url !== url) {
+    await removeStoredImage(supabase, artist.id, artist.cover_url);
+  }
+  revalidateArtistPages(artist.slug);
+  return { ok: true, url };
+}
+
+export async function addArtistPhoto(path) {
+  const context = await ownArtistContext();
+  if (context.error) return context;
+  const { supabase, artist } = context;
+
+  if (!isArtistObjectPath(path, artist.id)) return { error: 'Imagem inválida.' };
+
+  const { data: photos, error: listError } = await supabase
+    .from('artist_media')
+    .select('sort_order')
+    .eq('artist_id', artist.id)
+    .eq('type', 'photo');
+  if (listError) {
+    console.error('addArtistPhoto falhou', listError.message);
+    return { error: 'Não foi possível adicionar a foto.' };
+  }
+  if (photos.length >= MAX_GALLERY_PHOTOS) {
+    return { error: `A galeria aceita até ${MAX_GALLERY_PHOTOS} fotos.` };
+  }
+
+  const { data: photo, error } = await supabase
+    .from('artist_media')
+    .insert({
+      artist_id: artist.id,
+      type: 'photo',
+      url: publicUrl(path),
+      sort_order: Math.max(-1, ...photos.map((item) => item.sort_order)) + 1,
+    })
+    .select('id, url')
+    .single();
+  if (error) {
+    console.error('addArtistPhoto falhou', error.message);
+    return { error: 'Não foi possível adicionar a foto.' };
+  }
+
+  revalidateArtistPages(artist.slug);
+  return { ok: true, photo };
+}
+
+export async function removeArtistPhoto(id) {
+  if (typeof id !== 'string' || !UUID.test(id)) return { error: 'Foto inválida.' };
+
+  const context = await ownArtistContext();
+  if (context.error) return context;
+  const { supabase, artist } = context;
+
+  // O filtro por artista importa: a RLS deixa ler a galeria de qualquer perfil publicado.
+  const { data: removed, error } = await supabase
+    .from('artist_media')
+    .delete()
+    .eq('id', id)
+    .eq('artist_id', artist.id)
+    .select('url')
+    .maybeSingle();
+  if (error || !removed) {
+    if (error) console.error('removeArtistPhoto falhou', error.message);
+    return { error: 'Não foi possível remover a foto.' };
+  }
+
+  await removeStoredImage(supabase, artist.id, removed.url);
+  revalidateArtistPages(artist.slug);
+  return { ok: true };
 }

@@ -21,9 +21,13 @@ function ArtistCard({ artist, featured = false, onPreview }) {
       transition={{ duration: 0.18 }}
     >
       <div className="artist-result-card__visual">
-        <span className="artist-result-card__monogram" aria-hidden="true">
-          {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
-        </span>
+        {artist.coverUrl ? (
+          <img className="artist-result-card__cover" src={artist.coverUrl} alt="" loading="lazy" />
+        ) : (
+          <span className="artist-result-card__monogram" aria-hidden="true">
+            {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+          </span>
+        )}
         <span className="artist-result-card__category">{artist.category}</span>
       </div>
       <div className="artist-result-card__body">
