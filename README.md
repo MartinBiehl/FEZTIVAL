@@ -6,6 +6,7 @@ em Ivoti e região.
 ## Desenvolvimento
 
 ```bash
+cp .env.example .env.local   # preencha com a URL e a publishable key do Supabase
 npm install
 npm run dev
 ```

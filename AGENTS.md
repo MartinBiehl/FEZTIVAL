@@ -244,6 +244,7 @@ de Syne e apenas 5 de Inter.
 ## Comandos
 
 ```bash
+cp .env.example .env.local   # URL e publishable key do Supabase
 npm install
 npm run dev      # Next.js em http://localhost:3000
 npm run build
