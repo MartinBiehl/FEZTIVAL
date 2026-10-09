@@ -33,8 +33,13 @@ export const NO_RATING_LABEL = 'Novo na plataforma';
 
 /* "R$ 2.500", ou "Sob consulta" quando o artista nao publica valor. */
 export function formatPrice(artist) {
-  if (artist.price == null) return 'Sob consulta';
-  return `R$ ${artist.price.toLocaleString('pt-BR')}`;
+  return formatMoney(artist.price);
+}
+
+/* Mesmo formato para um valor solto (estimativa da proposta). */
+export function formatMoney(value) {
+  if (value == null) return 'Sob consulta';
+  return `R$ ${value.toLocaleString('pt-BR')}`;
 }
 
 /*

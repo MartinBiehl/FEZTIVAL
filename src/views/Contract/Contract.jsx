@@ -4,20 +4,93 @@ import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Check } from 'lucide-react';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatMoney, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
 import { createBooking } from '../../lib/bookingActions.js';
-import { todayIso } from '../../lib/bookingDisplay.js';
+import { estimatePrice, todayIso } from '../../lib/bookingDisplay.js';
 import './Contract.css';
+
+/* Os valores precisam bater com EVENT_TYPES de bookingActions.js. */
+const EVENT_TYPES = ['Casamento', 'Aniversário', 'Evento corporativo', 'Bar ou restaurante', 'Outro'];
+
+/* Os valores precisam bater com SOUND_STRUCTURE de bookingActions.js. */
+const SOUND_OPTIONS = [
+  { value: 'local', title: 'O local já tem som', detail: 'Caixas e mesa ficam por conta do espaço.' },
+  { value: 'artista', title: 'O artista leva o som', detail: 'Pode alterar o valor final.' },
+  { value: 'nao-sei', title: 'Ainda não sei', detail: 'Vocês combinam depois.' },
+];
+
+function formatMinutes(minutes) {
+  if (minutes < 60) return `${minutes} min`;
+  return `${(minutes / 60).toLocaleString('pt-BR')}h`;
+}
+
+function formatEventDate(value) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  }).format(new Date(`${value}T12:00:00`));
+}
+
+function initials(name) {
+  return name.split(' ').map((part) => part[0]).join('').slice(0, 2);
+}
+
+/* Ingresso que se preenche enquanto o formulario e digitado. */
+function ProposalTicket({ artist, draft }) {
+  const estimate = estimatePrice(artist, draft.duration);
+  const rows = [
+    ['Evento', draft.eventType],
+    ['Data', formatEventDate(draft.date)],
+    ['Horário', draft.time],
+    ['Local', draft.location],
+    ['Duração', draft.duration ? formatMinutes(Number(draft.duration)) : null],
+    ['Convidados', draft.guestCount],
+  ];
+
+  return (
+    <aside className="proposal-ticket" style={{ '--artist-color': artist.color || 'var(--yellow)' }} aria-label="Resumo da proposta">
+      <div className="proposal-ticket__head">
+        <div className="proposal-ticket__media" aria-hidden="true">
+          {artist.coverUrl ? <img src={artist.coverUrl} alt="" /> : <span>{initials(artist.name)}</span>}
+        </div>
+        <div>
+          <p>{artist.category}{artist.location ? ` em ${artist.location}` : ''}</p>
+          <h2>{artist.name}</h2>
+          <small>
+            {hasRating(artist) ? `★ ${formatRating(artist)} (${formatReviewCount(artist)})` : NO_RATING_LABEL}
+          </small>
+        </div>
+      </div>
+
+      <dl className="proposal-ticket__rows">
+        {rows.map(([label, value]) => (
+          <div key={label} className={value ? 'is-filled' : undefined}>
+            <dt>{label}</dt>
+            <dd>{value || 'A preencher'}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="proposal-ticket__price">
+        <span>Valor estimado</span>
+        <strong>{formatMoney(estimate)}</strong>
+        <small>O artista confirma o valor final ao aceitar.</small>
+      </div>
+    </aside>
+  );
+}
 
 function Contract({ artist }) {
   const router = useRouter();
   const { user } = useAuth();
   const [sent, setSent] = useState(false);
   const [reviewData, setReviewData] = useState(null);
+  const [draft, setDraft] = useState({ duration: artist.setMinutes[0] ?? '', soundStructure: 'nao-sei' });
   const [error, setError] = useState('');
   const [isSending, startSending] = useTransition();
   // Definida apos montar: a pagina e prerenderizada, e a data do build divergiria da do visitante.
@@ -50,6 +123,10 @@ function Contract({ artist }) {
     });
   }, [artist.slug, loginPath, reviewData, router]);
 
+  function updateDraft(event) {
+    setDraft(Object.fromEntries(new FormData(event.currentTarget).entries()));
+  }
+
   function reviewProposal(event) {
     event.preventDefault();
     setError('');
@@ -60,10 +137,12 @@ function Contract({ artist }) {
   if (sent) {
     return (
       <section className="contract-success page-container">
-        <span aria-hidden="true">✓</span>
-        <p className="eyebrow">Proposta enviada</p>
-        <h1>Agora é com<br />{artist.name}.</h1>
-        <p>Você receberá uma resposta assim que o artista analisar os detalhes do evento.</p>
+        <span aria-hidden="true"><Check size={28} strokeWidth={2.5} /></span>
+        <h1>Proposta enviada para {artist.name}.</h1>
+        <p>
+          O artista vê os detalhes do evento e responde com o valor final. Você acompanha tudo
+          em Minhas reservas.
+        </p>
         <div>
           <Link href="/minhas-reservas">Acompanhar proposta</Link>
           <Link href="/explorar">Continuar explorando</Link>
@@ -74,119 +153,124 @@ function Contract({ artist }) {
 
   return (
     <div className="contract-page page-container">
-      <div className="contract-heading">
-        <Link className="contract-back" href={`/artista/${artist.slug}`}>
-          <span aria-hidden="true">←</span>
-          Voltar ao perfil de {artist.name}
-        </Link>
-      </div>
+      <Link className="contract-back" href={`/artista/${artist.slug}`}>
+        <ArrowLeft size={16} aria-hidden="true" />
+        Perfil de {artist.name}
+      </Link>
+
+      <header className="contract-heading">
+        <h1>Pedir proposta</h1>
+        <p>
+          Conte como vai ser o evento. {artist.name} recebe o pedido e responde com o valor
+          final. Enviar não gera cobrança.
+        </p>
+      </header>
+
+      {!user && (
+        <div className="contract-notice">
+          <p>Você precisa de uma conta de contratante para enviar. Entre antes de preencher para não perder o que digitou.</p>
+          <Link href={loginPath}>Entrar ou criar conta</Link>
+        </div>
+      )}
 
       <div className="contract-layout">
-        <form className="contract-form" onSubmit={reviewProposal}>
-          {!user && (
-            <p className="contract-form__notice">
-              Para enviar a proposta você precisa de uma conta.{' '}
-              <Link href={loginPath}>Entre ou cadastre-se</Link> antes de preencher.
-            </p>
-          )}
+        <form className="contract-form" onSubmit={reviewProposal} onChange={updateDraft}>
+          <fieldset className="contract-step">
+            <legend><span aria-hidden="true">1</span>Sobre o evento</legend>
 
-          <fieldset>
-            <legend><span>01</span> Sobre o evento</legend>
-            <div className="contract-form__grid">
-              <label>
-                Tipo de evento
-                <select name="eventType" required defaultValue="">
-                  <option value="" disabled>Selecione</option>
-                  <option>Casamento</option>
-                  <option>Aniversário</option>
-                  <option>Evento corporativo</option>
-                  <option>Bar ou restaurante</option>
-                  <option>Outro</option>
-                </select>
-              </label>
-              <label>
-                Número de convidados
-                <input name="guestCount" type="number" min="1" placeholder="Ex.: 120" required />
-              </label>
-              <label>
-                Data
+            <fieldset className="contract-field">
+              <legend>Tipo de evento</legend>
+              <div className="contract-chips">
+                {EVENT_TYPES.map((type, index) => (
+                  <label key={type}>
+                    <input type="radio" name="eventType" value={type} required={index === 0} />
+                    <span>{type}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="contract-grid">
+              <label className="contract-field">
+                <span>Data</span>
                 <input name="date" type="date" min={minDate} required />
               </label>
-              <label>
-                Horário
+              <label className="contract-field">
+                <span>Horário de início</span>
                 <input name="time" type="time" required />
               </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend><span>02</span> Local e duração</legend>
-            <div className="contract-form__grid">
-              <label className="contract-form__full">
-                Endereço ou nome do local
-                <input
-                  name="location"
-                  type="text"
-                  placeholder="Ex.: Salão de Eventos, Ivoti"
-                  required
-                />
-              </label>
-              <label>
-                Duração desejada
-                <select name="duration" defaultValue={artist.setMinutes[0]}>
-                  {artist.setMinutes.map((minutes) => (
-                    <option key={minutes} value={minutes}>{minutes / 60}h de apresentação</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Estrutura de som
-                <select name="soundStructure" defaultValue="nao-sei">
-                  <option value="nao-sei">Ainda não sei</option>
-                  <option value="local">O local possui</option>
-                  <option value="artista">Preciso que o artista leve</option>
-                </select>
+              <label className="contract-field">
+                <span>Convidados</span>
+                <input name="guestCount" type="number" min="1" max="100000" inputMode="numeric" placeholder="Ex.: 120" required />
               </label>
             </div>
           </fieldset>
 
-          <fieldset>
-            <legend><span>03</span> Alguma observação?</legend>
-            <label>
-              Mensagem para o artista
+          <fieldset className="contract-step">
+            <legend><span aria-hidden="true">2</span>Local e apresentação</legend>
+
+            <label className="contract-field">
+              <span>Local do evento</span>
+              <input name="location" type="text" autoComplete="street-address" placeholder="Nome do espaço ou endereço, cidade" required />
+            </label>
+
+            {artist.setMinutes.length > 0 && (
+              <fieldset className="contract-field">
+                <legend>Duração da apresentação</legend>
+                <div className="contract-chips">
+                  {artist.setMinutes.map((minutes, index) => {
+                    const price = estimatePrice(artist, minutes);
+                    return (
+                      <label key={minutes}>
+                        <input type="radio" name="duration" value={minutes} defaultChecked={index === 0} />
+                        <span>
+                          {formatMinutes(minutes)}
+                          {price != null && <small>{formatMoney(price)}</small>}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+
+            <fieldset className="contract-field">
+              <legend>Equipamento de som</legend>
+              <div className="contract-options">
+                {SOUND_OPTIONS.map((option) => (
+                  <label key={option.value}>
+                    <input type="radio" name="soundStructure" value={option.value} defaultChecked={option.value === 'nao-sei'} />
+                    <span>
+                      <strong>{option.title}</strong>
+                      <small>{option.detail}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </fieldset>
+
+          <fieldset className="contract-step">
+            <legend><span aria-hidden="true">3</span>Recado para o artista</legend>
+            <label className="contract-field">
+              <span>Mensagem <em>opcional</em></span>
               <textarea
                 name="message"
                 rows="5"
-                placeholder="Clima do evento, músicas importantes, observações..."
+                maxLength={2000}
+                placeholder="Clima do evento, músicas que não podem faltar, horário de chegada…"
               />
             </label>
           </fieldset>
 
-          {error && <p className="contract-form__error" role="alert">{error}</p>}
-
-          <button ref={reviewTriggerRef} className="contract-form__submit" type="submit">
-            Revisar proposta para {artist.name} <span>→</span>
-          </button>
-          <small>Você poderá revisar os dados antes do envio. Nenhuma cobrança será feita.</small>
+          <div className="contract-submit">
+            {error && <p className="contract-submit__error" role="alert">{error}</p>}
+            <button ref={reviewTriggerRef} type="submit">Revisar proposta</button>
+            <small>Você confere tudo antes de enviar.</small>
+          </div>
         </form>
 
-        <aside className="contract-summary">
-          <div className="contract-summary__artist" style={{ '--artist-color': artist.color }}>
-            <span>{artist.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
-          </div>
-          <p>{artist.category}</p>
-          <h2>{artist.name}</h2>
-          <div className="contract-summary__rating">
-            {hasRating(artist)
-              ? `★ ${formatRating(artist)} · ${formatReviewCount(artist)}`
-              : NO_RATING_LABEL}
-          </div>
-          <dl>
-            <div><dt>Valor inicial</dt><dd>{formatPrice(artist)}</dd></div>
-            <div><dt>Região</dt><dd>{artist.location}</dd></div>
-          </dl>
-          <small>O valor final pode variar conforme duração, deslocamento e estrutura.</small>
-        </aside>
+        <ProposalTicket artist={artist} draft={draft} />
       </div>
 
       <AnimatePresence>

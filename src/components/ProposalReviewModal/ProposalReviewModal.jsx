@@ -1,8 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, hasRating,
+  NO_RATING_LABEL, formatMoney, formatRating, hasRating,
 } from '../../lib/artistDisplay.js';
+import { estimatePrice } from '../../lib/bookingDisplay.js';
 import './ProposalReviewModal.css';
 
 function formatDate(value) {
@@ -117,7 +118,7 @@ function ProposalReviewModal({
 
           <div className="proposal-review-price">
             <span>Valor inicial estimado</span>
-            <strong>{formatPrice(artist)}</strong>
+            <strong>{formatMoney(estimatePrice(artist, proposal.duration))}</strong>
             <small>O valor final será confirmado pelo artista.</small>
           </div>
 
