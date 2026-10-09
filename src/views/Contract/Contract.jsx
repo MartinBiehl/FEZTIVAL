@@ -7,12 +7,37 @@ import { useRouter } from 'next/navigation';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  NO_RATING_LABEL, formatMinutes, formatPrice, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatMinutes, formatPrice, formatRating, formatReviewCount, hasRating, priceLabel,
 } from '../../lib/artistDisplay.js';
 import { createBooking } from '../../lib/bookingActions.js';
 import { todayIso } from '../../lib/bookingDisplay.js';
 import { formatPhone } from '../../lib/phone.js';
 import './Contract.css';
+
+/*
+ * Rascunho da proposta para quem ainda nao entrou: o envio leva ao login, e
+ * sem isto a pessoa voltaria com o formulario em branco. sessionStorage
+ * porque o rascunho so interessa a esta aba; pode falhar (modo privado,
+ * armazenamento bloqueado), entao todo acesso e protegido.
+ */
+const draftKey = (slug) => `feztival:proposta:${slug}`;
+
+function readDraft(slug) {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(draftKey(slug)) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(slug, data) {
+  try {
+    if (data) window.sessionStorage.setItem(draftKey(slug), JSON.stringify(data));
+    else window.sessionStorage.removeItem(draftKey(slug));
+  } catch {
+    // Sem armazenamento a proposta so nao e recuperada; o envio segue normal.
+  }
+}
 
 function Contract({ artist }) {
   const router = useRouter();
@@ -21,11 +46,29 @@ function Contract({ artist }) {
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState('');
   const [phone, setPhone] = useState('');
+  const [restored, setRestored] = useState(false);
+  const formRef = useRef(null);
   const [isSending, startSending] = useTransition();
   // Definida apos montar: a pagina e prerenderizada, e a data do build divergiria da do visitante.
   const [minDate, setMinDate] = useState(undefined);
   const reviewTriggerRef = useRef(null);
   useEffect(() => setMinDate(todayIso()), []);
+
+  // Devolve ao formulario o que foi preenchido antes do login.
+  useEffect(() => {
+    const draft = readDraft(artist.slug);
+    const form = formRef.current;
+    if (!draft || !form) return;
+    Object.entries(draft).forEach(([name, value]) => {
+      if (name === 'phone') {
+        setPhone(formatPhone(String(value)));
+        return;
+      }
+      const field = form.elements.namedItem(name);
+      if (field && 'value' in field) field.value = value;
+    });
+    setRestored(true);
+  }, [artist.slug]);
   const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
 
   const closeReview = useCallback(() => {
@@ -40,6 +83,7 @@ function Contract({ artist }) {
 
       const result = await createBooking(formData);
       if (result.needsAuth) {
+        writeDraft(artist.slug, reviewData);
         router.push(loginPath);
         return;
       }
@@ -48,6 +92,7 @@ function Contract({ artist }) {
         setError(result.error);
         return;
       }
+      writeDraft(artist.slug, null);
       setSent(true);
       refresh();
     });
@@ -85,11 +130,15 @@ function Contract({ artist }) {
       </div>
 
       <div className="contract-layout">
-        <form className="contract-form" onSubmit={reviewProposal}>
-          {!user && (
+        <form ref={formRef} className="contract-form" onSubmit={reviewProposal}>
+          {restored ? (
+            <p className="contract-form__notice" role="status">
+              Recuperamos o que você tinha preenchido. Confira e envie.
+            </p>
+          ) : !user && (
             <p className="contract-form__notice">
-              Para enviar a proposta você precisa de uma conta.{' '}
-              <Link href={loginPath}>Entre ou cadastre-se</Link> antes de preencher.
+              Pode preencher sem conta: ao enviar, pedimos que você{' '}
+              <Link href={loginPath}>entre ou se cadastre</Link> e guardamos o que você digitou.
             </p>
           )}
 
@@ -206,7 +255,9 @@ function Contract({ artist }) {
 
         <aside className="contract-summary">
           <div className="contract-summary__artist" style={{ '--artist-color': artist.color }}>
-            <span>{artist.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
+            {artist.coverUrl
+              ? <img src={artist.coverUrl} alt="" />
+              : <span>{artist.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>}
           </div>
           <p>{artist.category}</p>
           <h2>{artist.name}</h2>
@@ -216,7 +267,7 @@ function Contract({ artist }) {
               : NO_RATING_LABEL}
           </div>
           <dl>
-            <div><dt>Valor inicial</dt><dd>{formatPrice(artist)}</dd></div>
+            <div><dt>{priceLabel(artist)}</dt><dd>{formatPrice(artist)}</dd></div>
             <div><dt>Região</dt><dd>{artist.location}</dd></div>
           </dl>
           <small>O valor final pode variar conforme duração, deslocamento e estrutura.</small>

@@ -18,7 +18,7 @@ function Footer() {
         </div>
         <div>
           <strong>Feztival</strong>
-          <Link href="/#sobre">Sobre o projeto</Link>
+          <Link href="/#sobre-nos">Sobre o projeto</Link>
           <Link href="/#para-artistas">Para artistas</Link>
           <Link href="/entrar">Entrar</Link>
         </div>

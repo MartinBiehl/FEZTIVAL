@@ -113,6 +113,16 @@
   place-items: center;
 }
 
+.proposal-review-artist > span {
+  overflow: hidden;
+}
+
+.proposal-review-artist > span img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .proposal-review-artist div {
   display: grid;
   gap: 0.1rem;
@@ -154,8 +164,21 @@
   gap: 0.5rem;
 }
 
-.proposal-review-details__location {
+.proposal-review-details__location,
+.proposal-review-details__message {
   grid-column: 1 / -1;
+}
+
+/* Mensagem longa nao empurra o botao de envio para fora da tela. */
+.proposal-review-details__message p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .proposal-review-details article span {

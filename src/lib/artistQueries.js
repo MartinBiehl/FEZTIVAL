@@ -16,7 +16,7 @@ import { supabase } from './supabase.js';
 const CATEGORY_LABEL = {
   dj: 'DJ',
   band: 'Banda',
-  solo: 'Músico Solo',
+  solo: 'Músico solo',
 };
 
 export function categoryLabel(value) {
