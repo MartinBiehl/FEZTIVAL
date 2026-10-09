@@ -135,8 +135,9 @@ mensagem e valor) e próximos shows confirmados. Em cada proposta o artista:
 - depois **confirma** o show e, por fim, **marca como realizado**; pode cancelar
   antes disso.
 
-Depois do aceite aparece o link de WhatsApp do contratante. Telefones não são
-públicos: cada usuário só vê o contato da outra parte de uma reserva.
+Depois do aceite aparece o WhatsApp da outra parte, dos dois lados: o artista vê o do
+contratante no painel e o contratante vê o do artista em "Minhas reservas". Telefones
+não são públicos: cada usuário só vê o contato da outra parte de uma reserva.
 
 As perguntas feitas no perfil público aparecem em "Perguntas sem resposta", onde o
 artista responde. A resposta fica pública no perfil, junto da pergunta.
@@ -151,8 +152,8 @@ Pedidos do contratante em três abas — em andamento, concluídas e canceladas 
 com artista, evento, data, valor e status. O contratante pode cancelar um pedido
 ainda não concluído e avaliar uma reserva concluída. Exige login.
 
-> As duas telas leem com a sessão do usuário: a segurança por linha (RLS) só
-> devolve as reservas em que ele é contratante ou dono do artista.
+> As duas telas leem com a sessão do usuário, e cada consulta filtra pelas
+> reservas em que ele é contratante ou dono do artista.
 
 ---
 
@@ -162,14 +163,13 @@ Telas existentes: escolha de perfil (`/entrar`), login de contratante e de
 artista, cadastro para os dois públicos e recuperação de senha em três passos
 (pedido → código → nova senha).
 
-**Estado: ✅ funcionando**, com Supabase Auth (e-mail e senha).
+**Estado: ✅ funcionando**, com autenticação própria (e-mail e senha, sessão em cookie).
 
-- **Cadastro de contratante:** nome completo, e-mail e senha.
+- **Cadastro de contratante:** nome completo, WhatsApp, e-mail e senha.
 - **Cadastro de artista:** nome artístico, nome completo, WhatsApp e categoria
   (DJ, banda, músico solo). Cria o perfil artístico como **rascunho**, fora do
   catálogo até ser publicado.
-- Se a confirmação de e-mail estiver ligada no Supabase, a conta só entra depois
-  do clique no link.
+- A conta só entra depois do clique no link de confirmação enviado por e-mail.
 - **Recuperação de senha:** código de 6 dígitos por e-mail, depois a nova senha.
 - "Continuar com Google" segue desativado.
 

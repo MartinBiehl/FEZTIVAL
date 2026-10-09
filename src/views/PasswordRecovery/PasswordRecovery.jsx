@@ -13,11 +13,7 @@ import {
 } from '../../lib/accountActions.js';
 import './PasswordRecovery.css';
 
-/*
- * Igual a auth.email.otp_length do Supabase (6 em supabase/config.toml). O
- * template "Reset Password" do projeto precisa exibir {{ .Token }}; o padrao
- * envia so um link.
- */
+/* Igual a RESET_CODE_LENGTH em accountActions.js, que gera o codigo. */
 const CODE_LENGTH = 6;
 
 const stepActions = {

@@ -1,17 +1,16 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabase, getCurrentUser } from './supabaseServer.js';
-import { ensureAccount } from './account.js';
+import { getCurrentUser } from './auth.js';
+import { queryOne } from './db.js';
 
 /*
  * Perguntas publicas do perfil ("Pergunte antes de contratar") e a resposta do
  * artista no painel.
  *
- * Como nas reservas, a validacao aqui e so para a mensagem ficar clara. Quem
- * barra e a RLS de questions/answers (migration add_questions_and_payments):
- * pergunta so em artista publicado e em nome proprio; resposta so do dono do
- * artista, uma por pergunta.
+ * Como nas reservas, quem pode escrever e decidido dentro da query: pergunta
+ * so em artista publicado e em nome proprio; resposta so do dono do artista.
+ * "Uma resposta por pergunta" e o unique de answers.question_id.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -29,27 +28,20 @@ export async function askQuestion(_prevState, formData) {
     return { error: 'A pergunta precisa ter entre 10 e 1.000 caracteres.' };
   }
 
-  const supabase = await createServerSupabase();
-  const user = await getCurrentUser(supabase);
+  const user = await getCurrentUser();
   if (!user) return { needsAuth: true };
 
-  const { data: artist, error: artistError } = await supabase
-    .from('artists')
-    .select('id, profile_id')
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle();
-  if (artistError) return { error: 'Não foi possível enviar agora. Tente novamente.' };
+  const artist = await queryOne('select id, profile_id from artists where slug = $1 and is_published', [slug]);
   if (!artist) return { error: 'Este artista não está mais disponível.' };
   if (artist.profile_id === user.id) return { error: 'Você não pode perguntar ao seu próprio perfil.' };
 
-  // questions.author_profile_id referencia profiles: garante a linha antes do INSERT.
-  await ensureAccount(supabase, user);
-
-  const { error } = await supabase
-    .from('questions')
-    .insert({ artist_id: artist.id, author_profile_id: user.id, body });
-  if (error) {
+  try {
+    await queryOne(
+      `insert into questions (artist_id, author_profile_id, body, moderation_status)
+       values ($1, $2, $3, 'published')`,
+      [artist.id, user.id, body],
+    );
+  } catch (error) {
     console.error('askQuestion falhou', error.code);
     return { error: 'Não foi possível enviar a pergunta. Tente novamente.' };
   }
@@ -68,29 +60,32 @@ export async function answerQuestion(_prevState, formData) {
     return { error: 'A resposta precisa ter entre 2 e 2.000 caracteres.' };
   }
 
-  const supabase = await createServerSupabase();
-  const user = await getCurrentUser(supabase);
+  const user = await getCurrentUser();
   if (!user) return { error: 'Sua sessão expirou. Entre novamente.' };
 
-  const { data: question } = await supabase
-    .from('questions')
-    .select('artist:artists ( slug )')
-    .eq('id', questionId)
-    .maybeSingle();
-  if (!question?.artist) return { error: 'Pergunta não encontrada.' };
-
-  const { error } = await supabase
-    .from('answers')
-    .insert({ question_id: questionId, author_profile_id: user.id, body });
-  if (error?.code === '23505') return { error: 'Esta pergunta já foi respondida.' };
-  // 42501: a policy recusou -- a pergunta nao e de um artista do usuario.
-  if (error?.code === '42501') return { error: 'Só o artista do perfil pode responder.' };
-  if (error) {
+  let answered;
+  try {
+    answered = await queryOne(
+      `with inserted as (
+         insert into answers (question_id, author_profile_id, body, moderation_status)
+         select q.id, $2, $3, 'published'
+           from questions q
+           join artists a on a.id = q.artist_id
+          where q.id = $1 and a.profile_id = $2
+         returning question_id
+       )
+       select a.slug from inserted i join questions q on q.id = i.question_id join artists a on a.id = q.artist_id`,
+      [questionId, user.id, body],
+    );
+  } catch (error) {
+    if (error.code === '23505') return { error: 'Esta pergunta já foi respondida.' };
     console.error('answerQuestion falhou', error.code);
     return { error: 'Não foi possível enviar a resposta. Tente novamente.' };
   }
+  // Nada inserido: a pergunta nao existe ou nao e de um artista do usuario.
+  if (!answered) return { error: 'Só o artista do perfil pode responder.' };
 
-  revalidatePath(`/artista/${question.artist.slug}`);
+  revalidatePath(`/artista/${answered.slug}`);
   revalidatePath('/painel');
   return { ok: true };
 }

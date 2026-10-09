@@ -1,239 +1,506 @@
 .contract-page {
-  padding-block: clamp(1.5rem, 3vw, 3rem) 5rem;
+  padding-block: clamp(1.25rem, 3vw, 2.5rem) 5rem;
 }
 
 .contract-back {
   display: inline-flex;
-  margin-bottom: 1.5rem;
-  padding: 0.65rem 0.9rem 0.65rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-decoration: none;
+  min-height: 44px;
   align-items: center;
-  gap: 0.55rem;
-}
-
-.contract-back span {
-  display: grid;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  background: var(--ink);
-  color: white;
-  font-size: 0.85rem;
-  place-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .contract-back:hover {
-  border-color: var(--ink);
   color: var(--ink);
-  transform: translateX(-2px);
+}
+
+.contract-heading {
+  max-width: 40rem;
+  margin: 0.75rem 0 2rem;
+}
+
+.contract-heading h1 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.contract-heading p {
+  margin: 0.9rem 0 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.contract-notice {
+  display: flex;
+  max-width: 46rem;
+  margin-bottom: 2rem;
+  padding: 1rem 1rem 1rem 1.25rem;
+  border: 1px solid #e6c200;
+  border-radius: var(--radius-sm);
+  background: #fff6c2;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.contract-notice p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.contract-notice a {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .contract-layout {
   display: grid;
   align-items: start;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: clamp(2rem, 5vw, 4.5rem);
 }
 
+/* Etapas: o numero fica numa trilha vertical que liga as tres. */
 .contract-form {
   display: grid;
-  gap: 2rem;
+  max-width: 46rem;
 }
 
-.contract-form fieldset {
+.contract-step {
+  position: relative;
+  display: grid;
   margin: 0;
-  padding: 0 0 2rem;
+  padding: 0 0 2.5rem 3.25rem;
   border: 0;
-  border-bottom: 1px solid var(--border);
-  background: transparent;
+  gap: 1.5rem;
 }
 
-.contract-form legend {
-  width: auto;
-  margin: 0 0 1.25rem;
+.contract-step::before {
+  position: absolute;
+  top: 2.25rem;
+  bottom: 0.5rem;
+  left: 1rem;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  content: '';
+}
+
+.contract-step > legend {
+  display: flex;
+  float: left;
+  width: 100%;
+  margin: 0 0 0 -3.25rem;
   padding: 0;
+  align-items: center;
+  gap: 1.25rem;
   font-family: 'Syne', sans-serif;
-  font-size: clamp(1.05rem, 2vw, 1.25rem);
-  font-weight: 800;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.contract-form legend span {
-  display: inline-grid;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-right: 0.65rem;
+.contract-step > legend span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   background: var(--ink);
   color: white;
-  font-family: var(--font-interface);
-  font-size: 0.65rem;
-  vertical-align: middle;
+  flex-shrink: 0;
+  font-family: var(--font-numeric);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
   place-items: center;
 }
 
-.contract-form__grid {
+/* Etapa sem campo obrigatorio pendente: o numero fica amarelo. */
+.contract-step:not(:has(:invalid)) > legend span {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.contract-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.3fr 1fr 1fr;
   gap: 1rem;
 }
 
-.contract-form label {
+/* Campo: rotulo de leitura confortavel, nao um microtexto cinza. */
+.contract-field {
   display: grid;
-  gap: 0.55rem;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 800;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 0.5rem;
 }
 
-.contract-form input,
-.contract-form select,
-.contract-form textarea {
+.contract-field > span,
+.contract-field > legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+label.contract-field > span {
+  margin-bottom: 0;
+}
+
+/* Dica abaixo do campo (ex.: o WhatsApp pedido a contas antigas). */
+label.contract-field > small {
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+}
+
+.contract-field em {
+  margin-left: 0.35rem;
+  color: var(--text-tertiary);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.contract-field input,
+.contract-field textarea {
   width: 100%;
   min-height: 52px;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
-  outline: none;
+  font-size: 1rem;
 }
 
-.contract-form input:focus,
-.contract-form select:focus,
-.contract-form textarea:focus {
+.contract-field input::placeholder,
+.contract-field textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.contract-field input:hover,
+.contract-field textarea:hover {
+  border-color: rgba(17, 17, 17, 0.45);
+}
+
+.contract-field input:focus-visible,
+.contract-field textarea:focus-visible {
   border-color: var(--ink);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.06);
+  outline: 3px solid var(--cyan);
+  outline-offset: 1px;
 }
 
-.contract-form textarea {
+.contract-field textarea {
+  min-height: 8rem;
+  line-height: 1.5;
   resize: vertical;
 }
 
-.contract-form__full {
-  grid-column: 1 / -1;
-}
-
-.contract-form label small {
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-.contract-form__submit {
+/* Escolha unica em pilulas: radio real, escondido, com o foco no rotulo. */
+.contract-chips {
   display: flex;
-  width: 100%;
-  min-height: 54px;
-  padding: 1rem 1.25rem;
-  border: 0;
-  border-radius: 12px;
-  background: var(--ink);
-  color: white;
-  justify-content: space-between;
-  font-weight: 800;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contract-chips label,
+.contract-options label {
+  position: relative;
   cursor: pointer;
 }
 
-.contract-form__submit:hover {
-  background: var(--pink);
+.contract-chips input,
+.contract-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.contract-form > small {
-  margin-top: -0.4rem;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  text-align: center;
+.contract-chips span {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
-.contract-summary {
-  position: sticky;
-  top: 6rem;
-  padding: 1rem;
-  border-radius: 18px;
+.contract-chips small {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.contract-chips label:hover span,
+.contract-options label:hover span {
+  border-color: var(--ink);
+}
+
+.contract-chips input:checked + span {
+  border-color: var(--ink);
   background: var(--ink);
   color: white;
 }
 
-.contract-summary__artist {
+.contract-chips input:checked + span small {
+  color: var(--yellow);
+}
+
+.contract-chips input:focus-visible + span,
+.contract-options input:focus-visible + span {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.contract-options {
   display: grid;
-  min-height: 135px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, var(--artist-color), #222);
-  color: rgba(255, 255, 255, 0.25);
-  font-family: 'Syne', sans-serif;
-  font-size: 4rem;
-  font-weight: 800;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.contract-options span {
+  display: grid;
+  height: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  gap: 0.25rem;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.contract-options strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.contract-options small {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.contract-options input:checked + span {
+  border-color: var(--ink);
+  background: #fff6c2;
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.contract-submit {
+  display: grid;
+  margin-left: 3.25rem;
+  justify-items: start;
+  gap: 0.75rem;
+}
+
+.contract-submit button {
+  min-height: 56px;
+  padding: 0 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contract-submit button:hover {
+  background: var(--pink);
+}
+
+.contract-submit small {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.contract-submit__error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #b42318;
+  border-radius: 4px;
+  background: rgba(180, 35, 24, 0.08);
+  color: #8f1c13;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Ingresso: cabecalho na cor do artista, picote, valor estimado. */
+.proposal-ticket {
+  position: sticky;
+  top: 6rem;
+  overflow: hidden;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-soft);
+}
+
+.proposal-ticket__head {
+  display: flex;
+  padding: 1.25rem;
+  background: var(--artist-color);
+  align-items: center;
+  gap: 1rem;
+}
+
+.proposal-ticket__media {
+  display: grid;
+  overflow: hidden;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 14px;
+  background: rgba(17, 17, 17, 0.18);
+  flex-shrink: 0;
   place-items: center;
 }
 
-.contract-summary__artist:has(img) {
-  overflow: hidden;
-  min-height: 0;
-  aspect-ratio: 4 / 3;
-}
-
-.contract-summary__artist img {
+.proposal-ticket__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.contract-summary > p {
-  margin: 1rem 0 0.25rem;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.contract-summary h2 {
-  margin: 0;
+.proposal-ticket__media span {
+  color: rgba(17, 17, 17, 0.6);
   font-family: 'Syne', sans-serif;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  font-weight: 800;
 }
 
-.contract-summary__rating {
-  margin-top: 0.5rem;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.75rem;
+.proposal-ticket__head > div:last-child {
+  min-width: 0;
+  color: var(--ink);
 }
 
-.contract-summary dl {
-  margin: 1.5rem 0 1rem;
-  padding: 1rem 0;
-  border-block: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.contract-summary dl div {
-  display: flex;
-  padding: 0.35rem 0;
-  justify-content: space-between;
-  font-size: 0.72rem;
-}
-
-.contract-summary dt {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.contract-summary dd {
+.proposal-ticket__head p {
   margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  opacity: 0.75;
 }
 
-.contract-summary > small {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.65rem;
-  line-height: 1.5;
+.proposal-ticket__head h2 {
+  margin: 0.15rem 0;
+  overflow-wrap: anywhere;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.proposal-ticket__head small {
+  font-size: 0.8125rem;
+  opacity: 0.75;
+}
+
+.proposal-ticket__rows {
+  display: grid;
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  gap: 0.65rem;
+}
+
+.proposal-ticket__rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.proposal-ticket__rows dt {
+  color: var(--text-secondary);
+}
+
+.proposal-ticket__rows dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proposal-ticket__rows .is-filled dd {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.proposal-ticket__price {
+  position: relative;
+  display: grid;
+  padding: 1.25rem;
+  border-top: 2px dashed var(--border-strong);
+  gap: 0.2rem;
+}
+
+/* Recortes do picote, na cor do fundo da pagina. */
+.proposal-ticket__price::before,
+.proposal-ticket__price::after {
+  position: absolute;
+  top: -0.7rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--background);
+  content: '';
+}
+
+.proposal-ticket__price::before {
+  left: -0.65rem;
+}
+
+.proposal-ticket__price::after {
+  right: -0.65rem;
+}
+
+.proposal-ticket__price span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.proposal-ticket__price strong {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.proposal-ticket__price small {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .contract-success {
   display: flex;
-  min-height: 80vh;
-  padding-block: 6rem;
+  max-width: 44rem;
+  min-height: 75vh;
+  padding-block: 5rem;
   justify-content: center;
   flex-direction: column;
 }
@@ -245,35 +512,41 @@
   margin-bottom: 2rem;
   border-radius: 50%;
   background: var(--yellow);
-  font-size: 1.5rem;
   place-items: center;
 }
 
 .contract-success h1 {
   margin: 0;
   font-family: 'Syne', sans-serif;
-  font-size: clamp(4rem, 8vw, 8rem);
-  letter-spacing: -0.085em;
-  line-height: 0.85;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
 }
 
-.contract-success > p:not(.eyebrow) {
-  max-width: 500px;
+.contract-success > p {
+  max-width: 34rem;
+  margin: 1.25rem 0 0;
   color: var(--text-secondary);
+  font-size: 1.0625rem;
   line-height: 1.6;
 }
 
 .contract-success > div {
   display: flex;
-  margin-top: 1.5rem;
-  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .contract-success a {
-  padding: 0.8rem 1rem;
+  display: inline-flex;
+  min-height: 48px;
+  padding: 0 1.4rem;
   border: 1px solid var(--ink);
   border-radius: 999px;
-  font-weight: 800;
+  align-items: center;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -282,61 +555,68 @@
   color: white;
 }
 
-@media (max-width: 850px) {
+@media (max-width: 960px) {
   .contract-layout {
     grid-template-columns: 1fr;
   }
 
-  .contract-summary {
+  /* No celular o ingresso vem antes do formulario, so com o artista e o valor. */
+  .proposal-ticket {
+    position: static;
+    order: -1;
+  }
+
+  .proposal-ticket__rows {
     display: none;
+  }
+
+  .proposal-ticket__price {
+    padding-block: 1rem;
+  }
+
+  .proposal-ticket__price strong {
+    font-size: 1.5rem;
   }
 }
 
-@media (max-width: 560px) {
-  .contract-page {
-    padding-top: 1rem;
+@media (max-width: 640px) {
+  .contract-notice {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .contract-back {
-    max-width: 100%;
-    margin-bottom: 1rem;
+  .contract-notice a {
+    justify-content: center;
   }
 
-  .contract-form__grid {
+  .contract-step {
+    padding-left: 0;
+  }
+
+  .contract-step::before {
+    display: none;
+  }
+
+  .contract-step > legend {
+    margin-left: 0;
+    gap: 0.75rem;
+  }
+
+  .contract-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .contract-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .contract-options {
     grid-template-columns: 1fr;
   }
 
-  .contract-form__full {
-    grid-column: auto;
-  }
-
-  .contract-success > div {
-    align-items: stretch;
-    flex-direction: column;
+  .contract-submit {
+    margin-left: 0;
+    justify-items: stretch;
     text-align: center;
   }
-}
-
-.contract-form__notice,
-.contract-form__error {
-  margin: 0 0 1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 14px;
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.contract-form__notice {
-  background: #fff3b0;
-}
-
-.contract-form__notice a {
-  font-weight: 800;
-  text-decoration: underline;
-}
-
-.contract-form__error {
-  background: rgba(166, 35, 35, 0.08);
-  color: #a62323;
-  font-weight: 650;
 }

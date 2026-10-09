@@ -110,6 +110,15 @@ textarea:focus-visible {
   content: '';
 }
 
+.sr-only {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .page-container {
   width: min(calc(100% - 3rem), var(--page-width));
   margin-inline: auto;

@@ -18,6 +18,12 @@
 # build do Vite, que nao existe mais apos a migracao para Next.js
 /dist
 
+# fotos enviadas pelos artistas em desenvolvimento (MEDIA_DIR)
+/storage
+
+# estado local da CLI do Supabase (projeto antigo, nao usado pelo app)
+/supabase/.temp
+
 # misc
 .DS_Store
 *.pem

@@ -1,8 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import {
-  NO_RATING_LABEL, estimateFor, findService, formatRating, hasRating,
+  NO_RATING_LABEL, formatMoney, formatRating, hasRating,
 } from '../../lib/artistDisplay.js';
+import { estimatePrice } from '../../lib/bookingDisplay.js';
 import './ProposalReviewModal.css';
 
 function formatDate(value) {
@@ -14,11 +15,11 @@ function formatDate(value) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
-/* Valores do <select> de estrutura de som em Contract.jsx. */
+/* Mesmos textos de SOUND_OPTIONS em Contract.jsx. */
 const SOUND_LABEL = {
   'nao-sei': 'Ainda não sei',
-  local: 'O local possui',
-  artista: 'O artista leva',
+  local: 'O local já tem som',
+  artista: 'O artista leva o som',
 };
 
 function formatDuration(value) {
@@ -46,8 +47,6 @@ function ProposalReviewModal({
   });
   const titleId = 'proposal-review-title';
   const descriptionId = 'proposal-review-description';
-  const service = findService(artist, proposal.serviceId);
-  const estimate = estimateFor(artist, proposal.serviceId);
 
   return (
     <div className="proposal-review-layer">
@@ -122,7 +121,7 @@ function ProposalReviewModal({
             </article>
             <article>
               <span>Duração</span>
-              <strong>{formatDuration(service?.durationMinutes)}</strong>
+              <strong>{formatDuration(proposal.duration)}</strong>
             </article>
             <article>
               <span>Tipo de evento</span>
@@ -145,8 +144,8 @@ function ProposalReviewModal({
           </div>
 
           <div className="proposal-review-price">
-            <span>{service ? `Valor estimado · ${service.title}` : 'Valor inicial estimado'}</span>
-            <strong>{estimate == null ? 'Sob consulta' : `R$ ${estimate.toLocaleString('pt-BR')}`}</strong>
+            <span>Valor inicial estimado</span>
+            <strong>{formatMoney(estimatePrice(artist, proposal.duration))}</strong>
             <small>O valor final será confirmado pelo artista.</small>
           </div>
 

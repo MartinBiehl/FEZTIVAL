@@ -108,3 +108,13 @@ export function initials(name) {
     .join('')
     .toUpperCase();
 }
+
+/*
+ * Estimativa exibida no formulario de proposta: preco do servico com a
+ * duracao escolhida, senao o preco inicial. E a mesma regra que createBooking
+ * grava em agreed_price -- mude as duas juntas.
+ */
+export function estimatePrice(artist, durationMinutes) {
+  const service = (artist.services ?? []).find((item) => item.durationMinutes === Number(durationMinutes));
+  return service?.price ?? artist.price ?? null;
+}

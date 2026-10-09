@@ -33,8 +33,13 @@ export const NO_RATING_LABEL = 'Novo na plataforma';
 
 /* "R$ 2.500", ou "Sob consulta" quando o artista nao publica valor. */
 export function formatPrice(artist) {
-  if (artist.price == null) return 'Sob consulta';
-  return `R$ ${artist.price.toLocaleString('pt-BR')}`;
+  return formatMoney(artist.price);
+}
+
+/* Mesmo formato para um valor solto (estimativa da proposta). */
+export function formatMoney(value) {
+  if (value == null) return 'Sob consulta';
+  return `R$ ${value.toLocaleString('pt-BR')}`;
 }
 
 /*
@@ -54,19 +59,6 @@ export function formatMaxDuration(artist) {
   const minutes = artist.setMinutes;
   if (!Array.isArray(minutes) || minutes.length === 0) return null;
   return formatMinutes(Math.max(...minutes));
-}
-
-/*
- * Servico escolhido no formulario de proposta e a estimativa de valor que o
- * contratante ve na revisao. Espelha o calculo de createBooking: preco do
- * servico, senao o preco inicial (nulo quando o artista e "sob consulta").
- */
-export function findService(artist, serviceId) {
-  return (artist.services ?? []).find((service) => service.id === serviceId) ?? null;
-}
-
-export function estimateFor(artist, serviceId) {
-  return findService(artist, serviceId)?.price ?? artist.price;
 }
 
 /* 90 -> "1h30", 180 -> "3h", 45 -> "45 min"; null quando nao ha duracao. */
