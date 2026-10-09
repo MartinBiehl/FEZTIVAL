@@ -1,24 +1,24 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabase, getCurrentUser } from './supabaseServer.js';
-import { ARTIST_CATEGORIES } from './account.js';
-import {
-  MAX_GALLERY_PHOTOS, MEDIA_BUCKET, isArtistObjectPath, objectPathFromUrl, publicUrl,
-} from './artistMedia.js';
-import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS, selectOwnArtist } from './profileEditor.js';
+import { getCurrentUser } from './auth.js';
+import { query, queryOne, transaction } from './db.js';
+import { ARTIST_CATEGORIES, findOwnArtist } from './account.js';
+import { MAX_GALLERY_PHOTOS, objectPathFromUrl, publicUrl } from './artistMedia.js';
+import { deleteArtistImage, saveArtistImage } from './mediaStorage.js';
+import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from './profileOptions.js';
 
 /*
  * Salva o perfil do artista a partir do editor (/painel/perfil).
  *
  * O artista e sempre o do usuario logado, buscado aqui: o formulario nao
- * envia id de artista, entao nao ha como editar o perfil de outro. A RLS
- * barraria de qualquer forma.
+ * envia id de artista, entao nao ha como editar o perfil de outro. Todo
+ * UPDATE/DELETE abaixo filtra por esse artist_id -- e essa e a protecao.
  *
+ * Tudo e gravado numa transacao: ou o perfil inteiro e salvo, ou nada muda.
  * As listas sao sincronizadas por diferenca (apaga o que saiu, grava o que
- * entrou) em vez de apagar tudo e regravar: se uma etapa falhar, o perfil nao
- * fica sem generos ou sem servicos. Servicos e infraestrutura preservam o id,
- * porque bookings.service_id aponta para o servico escolhido na proposta.
+ * entrou) porque servicos e infraestrutura precisam preservar o id:
+ * bookings.service_id aponta para o servico escolhido na proposta.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -164,39 +164,42 @@ function parseProfile(formData) {
   };
 }
 
-function check(result, step) {
-  if (result.error) throw new Error(`${step}: ${result.error.message}`);
-  return result.data;
-}
-
 /* Vinculo N:N: apaga os que sairam e insere os novos. */
-async function syncLinks(supabase, table, column, artistId, ids) {
-  let remove = supabase.from(table).delete().eq('artist_id', artistId);
-  if (ids.length) remove = remove.not(column, 'in', `(${ids.join(',')})`);
-  check(await remove, table);
-
-  if (ids.length) {
-    check(await supabase.from(table).upsert(
-      ids.map((id) => ({ artist_id: artistId, [column]: id })),
-      { onConflict: `artist_id,${column}`, ignoreDuplicates: true },
-    ), table);
-  }
+async function syncLinks(tx, table, column, artistId, ids) {
+  await tx.query(
+    `delete from ${table} where artist_id = $1 and not (${column} = any($2::uuid[]))`,
+    [artistId, ids],
+  );
+  await tx.query(
+    `insert into ${table} (artist_id, ${column})
+     select $1, unnest($2::uuid[]) on conflict do nothing`,
+    [artistId, ids],
+  );
 }
 
 /* Linhas com id proprio: atualiza as que ficaram, insere as novas, apaga o resto. */
-async function syncRows(supabase, table, artistId, rows) {
-  const existing = check(await supabase.from(table).select('id').eq('artist_id', artistId), table);
+async function syncRows(tx, table, artistId, rows) {
+  const existing = await tx.query(`select id from ${table} where artist_id = $1`, [artistId]);
   const existingIds = new Set(existing.map((row) => row.id));
   const keptIds = rows.map((row) => row.id).filter((id) => id && existingIds.has(id));
 
-  const removed = [...existingIds].filter((id) => !keptIds.includes(id));
-  if (removed.length) check(await supabase.from(table).delete().in('id', removed), table);
+  await tx.query(
+    `delete from ${table} where artist_id = $1 and not (id = any($2::uuid[]))`,
+    [artistId, keptIds],
+  );
 
   for (const { id, ...fields } of rows) {
+    const columns = Object.keys(fields);
+    const values = Object.values(fields);
     if (id && existingIds.has(id)) {
-      check(await supabase.from(table).update(fields).eq('id', id).eq('artist_id', artistId), table);
+      const assignments = columns.map((column, index) => `${column} = $${index + 3}`).join(', ');
+      await tx.query(`update ${table} set ${assignments} where id = $1 and artist_id = $2`, [id, artistId, ...values]);
     } else {
-      check(await supabase.from(table).insert({ ...fields, artist_id: artistId }), table);
+      const placeholders = columns.map((_, index) => `$${index + 2}`).join(', ');
+      await tx.query(
+        `insert into ${table} (artist_id, ${columns.join(', ')}) values ($1, ${placeholders})`,
+        [artistId, ...values],
+      );
     }
   }
 }
@@ -210,52 +213,65 @@ export async function saveArtistProfile(_prevState, formData) {
     throw error;
   }
 
-  const supabase = await createServerSupabase();
-  const user = await getCurrentUser(supabase);
+  const user = await getCurrentUser();
   if (!user) return { error: 'Sua sessão expirou. Entre novamente.' };
 
-  const { data: artist, error: artistError } = await selectOwnArtist(supabase, user.id, 'id, slug');
-  if (artistError || !artist) return { error: 'Cadastro artístico não encontrado.' };
+  const artist = await findOwnArtist(user.id);
+  if (!artist) return { error: 'Cadastro artístico não encontrado.' };
 
   try {
-    // O slug nao entra: e imutavel depois de criado (URL e sitemap).
-    const { error: updateError } = await supabase.from('artists').update(input.artist).eq('id', artist.id);
-    if (updateError?.code === '23514') {
-      return { error: 'Para publicar, informe o preço inicial ou marque "sob consulta".' };
-    }
-    check({ error: updateError }, 'artists');
+    await transaction(async (tx) => {
+      // O slug nao entra: e imutavel depois de criado (URL e sitemap).
+      const { artist: fields } = input;
+      await tx.query(
+        `update artists
+            set stage_name = $2, category = $3, city = $4, bio_short = $5, bio_long = $6,
+                base_price = $7, price_on_request = $8, color = $9,
+                service_area_summary = $10, is_published = $11
+          where id = $1`,
+        [artist.id, fields.stage_name, fields.category, fields.city, fields.bio_short, fields.bio_long,
+          fields.base_price, fields.price_on_request, fields.color,
+          fields.service_area_summary, fields.is_published],
+      );
 
-    await syncLinks(supabase, 'artist_genres', 'genre_id', artist.id, input.genreIds);
-    await syncLinks(supabase, 'artist_payment_methods', 'payment_method_id', artist.id, input.paymentMethodIds);
-    await syncLinks(supabase, 'artist_venue_types', 'venue_type_id', artist.id, input.venueTypeIds);
+      await syncLinks(tx, 'artist_genres', 'genre_id', artist.id, input.genreIds);
+      await syncLinks(tx, 'artist_payment_methods', 'payment_method_id', artist.id, input.paymentMethodIds);
+      await syncLinks(tx, 'artist_venue_types', 'venue_type_id', artist.id, input.venueTypeIds);
 
-    let removeCities = supabase.from('artist_service_areas').delete().eq('artist_id', artist.id);
-    if (input.cities.length) {
-      removeCities = removeCities.not('city', 'in', `(${input.cities.map((city) => `"${city.replace(/"/g, '\\"')}"`).join(',')})`);
-    }
-    check(await removeCities, 'artist_service_areas');
-    if (input.cities.length) {
-      check(await supabase.from('artist_service_areas').upsert(
-        input.cities.map((city, index) => ({ artist_id: artist.id, city, sort_order: index })),
-        { onConflict: 'artist_id,city' },
-      ), 'artist_service_areas');
-    }
+      await tx.query(
+        'delete from artist_service_areas where artist_id = $1 and not (city = any($2::text[]))',
+        [artist.id, input.cities],
+      );
+      await tx.query(
+        `insert into artist_service_areas (artist_id, city, sort_order)
+         select $1, city, ordinality - 1 from unnest($2::text[]) with ordinality as t(city, ordinality)
+         on conflict (artist_id, city) do update set sort_order = excluded.sort_order`,
+        [artist.id, input.cities],
+      );
 
-    // Sem nenhum dia marcado, o horario semanal e tratado como nao declarado.
-    if (input.weeklyHours.some((day) => day.is_available)) {
-      check(await supabase.from('artist_weekly_hours').upsert(
-        input.weeklyHours.map((day) => ({ ...day, artist_id: artist.id })),
-        { onConflict: 'artist_id,weekday' },
-      ), 'artist_weekly_hours');
-    } else {
-      check(await supabase.from('artist_weekly_hours').delete().eq('artist_id', artist.id), 'artist_weekly_hours');
-    }
+      // Sem nenhum dia marcado, o horario semanal e tratado como nao declarado.
+      if (input.weeklyHours.some((day) => day.is_available)) {
+        for (const day of input.weeklyHours) {
+          await tx.query(
+            `insert into artist_weekly_hours (artist_id, weekday, is_available, opens_at, closes_at)
+             values ($1, $2, $3, $4, $5)
+             on conflict (artist_id, weekday) do update
+               set is_available = excluded.is_available, opens_at = excluded.opens_at, closes_at = excluded.closes_at`,
+            [artist.id, day.weekday, day.is_available, day.opens_at, day.closes_at],
+          );
+        }
+      } else {
+        await tx.query('delete from artist_weekly_hours where artist_id = $1', [artist.id]);
+      }
 
-    await syncRows(supabase, 'artist_services', artist.id, input.services);
-    await syncRows(supabase, 'artist_infrastructure', artist.id, input.infrastructure);
+      await syncRows(tx, 'artist_services', artist.id, input.services);
+      await syncRows(tx, 'artist_infrastructure', artist.id, input.infrastructure);
+    });
   } catch (error) {
-    console.error('saveArtistProfile falhou', error.message);
-    return { error: 'Não foi possível salvar tudo. Confira os dados e salve de novo.' };
+    // 23514: o CHECK artists_price_defined recusou publicar sem preco.
+    if (error.code === '23514') return { error: 'Para publicar, informe o preço inicial ou marque "sob consulta".' };
+    console.error('saveArtistProfile falhou', error.code ?? error.message);
+    return { error: 'Não foi possível salvar. Confira os dados e tente de novo.' };
   }
 
   revalidateArtistPages(artist.slug);
@@ -274,88 +290,84 @@ function revalidateArtistPages(slug) {
 }
 
 /*
- * Imagens: o navegador envia o arquivo direto ao Storage (bucket
- * artist-media, na pasta do artista) e chama as actions abaixo so com o
- * caminho, para registrar no banco. O arquivo nao passa pelo servidor do Next.
- *
- * O caminho vem do cliente, entao e conferido: precisa ter o formato gerado
- * por newObjectPath e ficar na pasta do artista do usuario logado. As policies
- * do bucket e a RLS de artists/artist_media barram o resto.
+ * Imagens: o navegador reduz a foto (prepareImage) e a envia aqui, num
+ * FormData com o campo "image". O servidor confere o arquivo, grava em disco
+ * na pasta do artista do usuario logado (mediaStorage.js) e registra no banco.
+ * Se o registro falhar, o arquivo recem-gravado e apagado.
  */
 
 async function ownArtistContext() {
-  const supabase = await createServerSupabase();
-  const user = await getCurrentUser(supabase);
+  const user = await getCurrentUser();
   if (!user) return { error: 'Sua sessão expirou. Entre novamente.' };
 
-  const { data: artist, error } = await selectOwnArtist(supabase, user.id, 'id, slug, cover_url');
-  if (error || !artist) return { error: 'Cadastro artístico não encontrado.' };
-  return { supabase, artist };
+  const artist = await findOwnArtist(user.id, 'id, slug, cover_url');
+  if (!artist) return { error: 'Cadastro artístico não encontrado.' };
+  return { artist };
 }
 
-/* Apaga do bucket uma imagem que deixou de ser usada. Se falhar, sobra so um arquivo orfao. */
-async function removeStoredImage(supabase, artistId, url) {
-  const path = objectPathFromUrl(url);
-  if (!path || !isArtistObjectPath(path, artistId)) return;
-  const { error } = await supabase.storage.from(MEDIA_BUCKET).remove([path]);
-  if (error) console.error('Remocao de imagem falhou', error.message);
+/* Apaga do disco uma imagem nossa que deixou de ser usada; link externo so e desvinculado. */
+function removeStoredImage(artistId, url) {
+  const objectPath = objectPathFromUrl(url);
+  return objectPath ? deleteArtistImage(artistId, objectPath) : undefined;
 }
 
-/* Define (caminho) ou remove (null) a foto principal. */
-export async function setArtistCover(path) {
+/* Define (FormData com "image") ou remove (null) a foto principal. */
+export async function setArtistCover(formData) {
   const context = await ownArtistContext();
   if (context.error) return context;
-  const { supabase, artist } = context;
+  const { artist } = context;
 
-  if (path !== null && !isArtistObjectPath(path, artist.id)) return { error: 'Imagem inválida.' };
-  const url = path === null ? null : publicUrl(path);
+  let url = null;
+  let saved = null;
+  if (formData !== null) {
+    saved = await saveArtistImage(artist.id, formData.get('image'));
+    if (saved.error) return saved;
+    url = publicUrl(saved.path);
+  }
 
-  const { error } = await supabase.from('artists').update({ cover_url: url }).eq('id', artist.id);
-  if (error) {
-    console.error('setArtistCover falhou', error.message);
+  try {
+    await query('update artists set cover_url = $2 where id = $1', [artist.id, url]);
+  } catch (error) {
+    console.error('setArtistCover falhou', error.code);
+    if (saved) await deleteArtistImage(artist.id, saved.path);
     return { error: 'Não foi possível salvar a foto principal.' };
   }
 
   if (artist.cover_url && artist.cover_url !== url) {
-    await removeStoredImage(supabase, artist.id, artist.cover_url);
+    await removeStoredImage(artist.id, artist.cover_url);
   }
   revalidateArtistPages(artist.slug);
   return { ok: true, url };
 }
 
-export async function addArtistPhoto(path) {
+export async function addArtistPhoto(formData) {
   const context = await ownArtistContext();
   if (context.error) return context;
-  const { supabase, artist } = context;
+  const { artist } = context;
 
-  if (!isArtistObjectPath(path, artist.id)) return { error: 'Imagem inválida.' };
+  const saved = await saveArtistImage(artist.id, formData.get('image'));
+  if (saved.error) return saved;
 
-  const { data: photos, error: listError } = await supabase
-    .from('artist_media')
-    .select('sort_order')
-    .eq('artist_id', artist.id)
-    .eq('type', 'photo');
-  if (listError) {
-    console.error('addArtistPhoto falhou', listError.message);
+  let photo;
+  try {
+    /* O limite da galeria e conferido no proprio INSERT: nada entra se ja houver 12. */
+    photo = await queryOne(
+      `insert into artist_media (artist_id, type, url, sort_order)
+       select $1, 'photo', $2, coalesce(max(sort_order), -1) + 1
+         from artist_media where artist_id = $1 and type = 'photo'
+       having count(*) < $3
+       returning id, url`,
+      [artist.id, publicUrl(saved.path), MAX_GALLERY_PHOTOS],
+    );
+  } catch (error) {
+    console.error('addArtistPhoto falhou', error.code);
+    await deleteArtistImage(artist.id, saved.path);
     return { error: 'Não foi possível adicionar a foto.' };
   }
-  if (photos.length >= MAX_GALLERY_PHOTOS) {
+
+  if (!photo) {
+    await deleteArtistImage(artist.id, saved.path);
     return { error: `A galeria aceita até ${MAX_GALLERY_PHOTOS} fotos.` };
-  }
-
-  const { data: photo, error } = await supabase
-    .from('artist_media')
-    .insert({
-      artist_id: artist.id,
-      type: 'photo',
-      url: publicUrl(path),
-      sort_order: Math.max(-1, ...photos.map((item) => item.sort_order)) + 1,
-    })
-    .select('id, url')
-    .single();
-  if (error) {
-    console.error('addArtistPhoto falhou', error.message);
-    return { error: 'Não foi possível adicionar a foto.' };
   }
 
   revalidateArtistPages(artist.slug);
@@ -367,22 +379,16 @@ export async function removeArtistPhoto(id) {
 
   const context = await ownArtistContext();
   if (context.error) return context;
-  const { supabase, artist } = context;
+  const { artist } = context;
 
-  // O filtro por artista importa: a RLS deixa ler a galeria de qualquer perfil publicado.
-  const { data: removed, error } = await supabase
-    .from('artist_media')
-    .delete()
-    .eq('id', id)
-    .eq('artist_id', artist.id)
-    .select('url')
-    .maybeSingle();
-  if (error || !removed) {
-    if (error) console.error('removeArtistPhoto falhou', error.message);
-    return { error: 'Não foi possível remover a foto.' };
-  }
+  // O filtro por artista e a protecao: sem ele, qualquer foto poderia ser apagada.
+  const removed = await queryOne(
+    'delete from artist_media where id = $1 and artist_id = $2 returning url',
+    [id, artist.id],
+  );
+  if (!removed) return { error: 'Não foi possível remover a foto.' };
 
-  await removeStoredImage(supabase, artist.id, removed.url);
+  await removeStoredImage(artist.id, removed.url);
   revalidateArtistPages(artist.slug);
   return { ok: true };
 }

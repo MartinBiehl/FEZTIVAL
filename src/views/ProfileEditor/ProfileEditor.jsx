@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUpRight, Check, Plus, Trash2 } from 'lucide-react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { saveArtistProfile } from '../../lib/profileActions.js';
-import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from '../../lib/profileEditor.js';
+import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from '../../lib/profileOptions.js';
 import MediaManager from './MediaManager.jsx';
 import './ProfileEditor.css';
 
@@ -225,7 +225,6 @@ function ProfileEditor({ profile, catalogs }) {
 
           <Section id="fotos" title="Fotos" description="Enviar ou remover uma foto vale na hora, sem precisar salvar.">
             <MediaManager
-              artistId={profile.id}
               initialCover={profile.coverUrl}
               initialGallery={profile.gallery}
               onCoverChange={setCover}

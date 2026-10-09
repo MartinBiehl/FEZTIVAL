@@ -1,4 +1,5 @@
-import { supabase } from './supabase.js';
+import 'server-only';
+import { query, queryOne } from './db.js';
 
 /*
  * Leitura de artistas a partir do banco.
@@ -8,8 +9,8 @@ import { supabase } from './supabase.js';
  * iguais -- com uma diferenca importante: campos que o banco nao tem vem
  * nulos ou vazios, nunca preenchidos com valor inventado.
  *
- * A leitura passa pela RLS com a chave publishable, portanto so retorna
- * artistas com is_published = true.
+ * Toda consulta daqui filtra is_published = true: o publico nunca ve
+ * rascunho. Nao remova esse filtro -- o banco nao tem mais RLS para barrar.
  */
 
 /* Enum do banco -> rotulo exibido. O banco tem 3 categorias, nao 5. */
@@ -37,10 +38,7 @@ function toArtist(row, summary) {
     name: row.stage_name,
     category: categoryLabel(row.category),
     categoryValue: row.category,
-    genres: (row.artist_genres ?? [])
-      .map((link) => link.genres?.name)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b, 'pt-BR')),
+    genres: [...row.genres].sort((a, b) => a.localeCompare(b, 'pt-BR')),
     price: row.base_price == null ? null : Number(row.base_price),
     priceOnRequest: row.price_on_request,
     location: row.city,
@@ -61,7 +59,6 @@ function toArtist(row, summary) {
   };
 }
 
-/* Colunas do catalogo: o /explorar so precisa do cartao. */
 /* 0 = domingo, 6 = sabado (convencao de artist_weekly_hours e Date.getDay()). */
 const WEEKDAY_LABEL = [
   'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
@@ -81,11 +78,9 @@ function formatTime(value) {
   return minute === '00' ? `${hour}h` : `${hour}h${minute}`;
 }
 
-const bySortOrder = (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
-
 /* Servicos ordenados por duracao, do mais curto ao mais longo. */
 function mapServices(row) {
-  return (row.artist_services ?? [])
+  return row.services
     .map((service) => ({
       id: service.id,
       title: service.title,
@@ -114,152 +109,144 @@ function toArtistDetail(row, summary, reviews) {
     })),
     bioLong: row.bio_long,
     viewCount: row.view_count ?? 0,
-    /*
-     * A RLS so entrega perguntas e respostas publicadas. Sem o autor: profiles
-     * nao e publico. answers e 1:1 (question_id unico), entao vem objeto.
-     */
-    questions: [...(row.questions ?? [])]
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .map((question) => {
-        const answer = Array.isArray(question.answers) ? question.answers[0] : question.answers;
-        return {
-          id: question.id,
-          body: question.body,
-          createdAt: question.created_at,
-          answer: answer?.body ?? null,
-        };
-      }),
+    /* So perguntas e respostas publicadas, e sem o autor: profiles nao e publico. */
+    questions: row.questions.map((question) => ({
+      id: question.id,
+      body: question.body,
+      createdAt: question.created_at,
+      answer: question.answer,
+    })),
     /* So fotos: o editor ainda nao envia audio nem video, e o lightbox exibe <img>. */
-    mediaGallery: [...(row.artist_media ?? [])]
-      .filter((item) => item.type === 'photo')
-      .sort(bySortOrder)
-      .map((item, index) => ({
-        id: item.id,
-        type: item.type,
-        src: item.url,
-        alt: item.caption || `${row.stage_name}, foto ${index + 1}`,
-        featured: index === 0,
-      })),
+    mediaGallery: row.photos.map((item, index) => ({
+      id: item.id,
+      type: item.type,
+      src: item.url,
+      alt: item.caption || `${row.stage_name}, foto ${index + 1}`,
+      featured: index === 0,
+    })),
     serviceAreas: {
       summary: row.service_area_summary,
-      locations: [...(row.artist_service_areas ?? [])].sort(bySortOrder)
-        .map((area) => area.city),
+      locations: row.service_areas,
     },
-    infrastructure: [...(row.artist_infrastructure ?? [])].sort(bySortOrder)
-      .map((item) => ({
-        status: INFRASTRUCTURE_LABEL[item.status] ?? item.status,
-        title: item.title,
-        detail: item.detail,
-      })),
-    weeklyHours: [...(row.artist_weekly_hours ?? [])]
-      .sort((a, b) => a.weekday - b.weekday)
-      .map((entry) => ({
-        day: WEEKDAY_LABEL[entry.weekday] ?? `Dia ${entry.weekday}`,
-        hours: entry.is_available
-          ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}`
-          : 'Não atende',
-        available: entry.is_available,
-      })),
-    paymentMethods: (row.artist_payment_methods ?? [])
-      .map((link) => link.payment_methods)
-      .filter(Boolean)
-      .sort(bySortOrder)
-      .map((method) => ({ name: method.name, detail: method.detail })),
-    venueTypes: (row.artist_venue_types ?? [])
-      .map((link) => link.venue_types)
-      .filter(Boolean)
-      .sort(bySortOrder)
-      .map((venue) => venue.name),
+    infrastructure: row.infrastructure.map((item) => ({
+      status: INFRASTRUCTURE_LABEL[item.status] ?? item.status,
+      title: item.title,
+      detail: item.detail,
+    })),
+    weeklyHours: row.weekly_hours.map((entry) => ({
+      day: WEEKDAY_LABEL[entry.weekday] ?? `Dia ${entry.weekday}`,
+      hours: entry.is_available
+        ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}`
+        : 'Não atende',
+      available: entry.is_available,
+    })),
+    paymentMethods: row.payment_methods,
+    venueTypes: row.venue_types,
   };
 }
 
+/*
+ * Colunas do catalogo: o /explorar so precisa do cartao. As listas vem
+ * agregadas em JSON, ja na ordem de exibicao, para cada artista custar uma
+ * linha so -- sem cascata de consultas.
+ */
 const ARTIST_LIST_COLUMNS = `
-  id, slug, stage_name, category, city, base_price, price_on_request,
-  bio_short, cover_url, color,
-  artist_genres ( genres ( name, slug ) ),
-  artist_services ( id, title, description, price, duration_minutes )
+  a.id, a.slug, a.stage_name, a.category, a.city, a.base_price, a.price_on_request,
+  a.bio_short, a.cover_url, a.color,
+  array(
+    select g.name from artist_genres ag join genres g on g.id = ag.genre_id
+     where ag.artist_id = a.id
+  ) as genres,
+  coalesce((
+    select json_agg(json_build_object(
+      'id', s.id, 'title', s.title, 'description', s.description,
+      'price', s.price, 'duration_minutes', s.duration_minutes
+    ))
+    from artist_services s where s.artist_id = a.id
+  ), '[]') as services
 `;
 
-/*
- * O perfil carrega tudo que o artista declarou. Uma unica consulta com joins
- * evita a cascata de requisicoes que separar em varias traria.
- */
+/* O perfil carrega tudo que o artista declarou, na mesma consulta. */
 const ARTIST_DETAIL_COLUMNS = `
   ${ARTIST_LIST_COLUMNS},
-  bio_long, service_area_summary, view_count,
-  artist_media ( id, type, url, caption, sort_order ),
-  questions ( id, body, created_at, answers ( body ) ),
-  artist_service_areas ( city, sort_order ),
-  artist_infrastructure ( status, title, detail, sort_order ),
-  artist_weekly_hours ( weekday, is_available, opens_at, closes_at ),
-  artist_payment_methods ( payment_methods ( name, detail, sort_order ) ),
-  artist_venue_types ( venue_types ( name, sort_order ) )
+  a.bio_long, a.service_area_summary, a.view_count,
+  coalesce((
+    select json_agg(json_build_object('id', m.id, 'type', m.type, 'url', m.url, 'caption', m.caption)
+                    order by m.sort_order)
+    from artist_media m where m.artist_id = a.id and m.type = 'photo'
+  ), '[]') as photos,
+  coalesce((
+    select json_agg(json_build_object('id', q.id, 'body', q.body, 'created_at', q.created_at, 'answer', an.body)
+                    order by q.created_at desc)
+    from questions q
+    left join answers an on an.question_id = q.id and an.moderation_status = 'published'
+    where q.artist_id = a.id and q.moderation_status = 'published'
+  ), '[]') as questions,
+  array(
+    select sa.city from artist_service_areas sa where sa.artist_id = a.id order by sa.sort_order
+  ) as service_areas,
+  coalesce((
+    select json_agg(json_build_object('status', i.status, 'title', i.title, 'detail', i.detail)
+                    order by i.sort_order)
+    from artist_infrastructure i where i.artist_id = a.id
+  ), '[]') as infrastructure,
+  coalesce((
+    select json_agg(json_build_object(
+      'weekday', h.weekday, 'is_available', h.is_available, 'opens_at', h.opens_at, 'closes_at', h.closes_at
+    ) order by h.weekday)
+    from artist_weekly_hours h where h.artist_id = a.id
+  ), '[]') as weekly_hours,
+  coalesce((
+    select json_agg(json_build_object('name', pm.name, 'detail', pm.detail) order by pm.sort_order)
+    from artist_payment_methods apm join payment_methods pm on pm.id = apm.payment_method_id
+    where apm.artist_id = a.id
+  ), '[]') as payment_methods,
+  array(
+    select vt.name from artist_venue_types avt join venue_types vt on vt.id = avt.venue_type_id
+     where avt.artist_id = a.id order by vt.sort_order
+  ) as venue_types
 `;
 
 /*
- * Nota media e contagem por artista. Vem de uma funcao security definer
- * porque a nota deriva de bookings, que o publico nao le (ver a migration
- * private_contacts_and_artist_ratings).
+ * Nota media e contagem por artista publicado. A nota deriva de bookings,
+ * que nunca e exposta: artist_review_summary devolve so o agregado.
  */
 async function fetchReviewSummaries() {
-  const { data, error } = await supabase.rpc('artist_review_summary');
-  if (error) throw new Error(`Falha ao carregar avaliacoes: ${error.message}`);
-  return new Map((data ?? []).map((row) => [row.artist_id, row]));
+  const rows = await query('select * from artist_review_summary()');
+  return new Map(rows.map((row) => [row.artist_id, row]));
 }
 
 /* Todos os artistas publicados, para o catalogo. */
 export async function fetchArtists() {
-  const [{ data, error }, summaries] = await Promise.all([
-    supabase.from('artists').select(ARTIST_LIST_COLUMNS).eq('is_published', true),
+  const [rows, summaries] = await Promise.all([
+    query(`select ${ARTIST_LIST_COLUMNS} from artists a where a.is_published`),
     fetchReviewSummaries(),
   ]);
-
-  if (error) throw new Error(`Falha ao carregar artistas: ${error.message}`);
-
-  return (data ?? []).map((row) => toArtist(row, summaries.get(row.id)));
+  return rows.map((row) => toArtist(row, summaries.get(row.id)));
 }
 
 /* Um artista por slug, ou null quando nao existe (a rota responde 404). */
 export async function fetchArtistBySlug(slug) {
-  const { data, error } = await supabase
-    .from('artists')
-    .select(ARTIST_DETAIL_COLUMNS)
-    .eq('slug', slug)
-    .eq('is_published', true)
-    .maybeSingle();
+  const row = await queryOne(
+    `select ${ARTIST_DETAIL_COLUMNS} from artists a where a.slug = $1 and a.is_published`,
+    [slug],
+  );
+  if (!row) return null;
 
-  if (error) throw new Error(`Falha ao carregar o artista ${slug}: ${error.message}`);
-  if (!data) return null;
-
-  const [summaries, { data: reviews, error: reviewsError }] = await Promise.all([
+  const [summaries, reviews] = await Promise.all([
     fetchReviewSummaries(),
-    supabase.rpc('artist_reviews', { target_slug: slug }),
+    query('select * from artist_reviews($1)', [slug]),
   ]);
-  if (reviewsError) throw new Error(`Falha ao carregar avaliacoes de ${slug}: ${reviewsError.message}`);
-
-  return toArtistDetail(data, summaries.get(data.id), reviews);
+  return toArtistDetail(row, summaries.get(row.id), reviews);
 }
 
 /* Slugs publicados, usados por generateStaticParams e pelo sitemap. */
 export async function fetchArtistSlugs() {
-  const { data, error } = await supabase
-    .from('artists')
-    .select('slug')
-    .eq('is_published', true);
-
-  if (error) throw new Error(`Falha ao carregar slugs: ${error.message}`);
-
-  return (data ?? []).map((row) => row.slug);
+  const rows = await query('select slug from artists where is_published');
+  return rows.map((row) => row.slug);
 }
 
 /* Catalogo de generos, para o filtro do /explorar. */
-export async function fetchGenres() {
-  const { data, error } = await supabase
-    .from('genres')
-    .select('name, slug')
-    .order('name');
-
-  if (error) throw new Error(`Falha ao carregar generos: ${error.message}`);
-
-  return data ?? [];
+export function fetchGenres() {
+  return query('select name, slug from genres order by name');
 }

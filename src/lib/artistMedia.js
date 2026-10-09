@@ -1,31 +1,23 @@
-import { SUPABASE_URL } from './supabaseConfig.js';
-
 /*
- * Imagens do artista no Supabase Storage (bucket `artist-media`), usadas pelo
- * navegador (envio) e pelas Server Actions (registro e remocao).
+ * Imagens do artista, usadas pelo navegador (preparo antes do envio) e pelo
+ * servidor (src/lib/mediaStorage.js grava em disco; /media/... serve).
  *
- * Caminho: `<artists.id>/<uuid>.jpg`. A pasta e o que as policies do bucket
- * conferem para saber quem e o dono (migration artist_media_storage). Limite
- * de tamanho e tipos tambem sao impostos pelo bucket; os daqui so evitam um
- * envio que seria recusado.
+ * Caminho: `<artists.id>/<uuid>.jpg`. A pasta identifica o dono; o servidor
+ * gera o caminho e confere o formato antes de tocar no disco.
  */
 
-export const MEDIA_BUCKET = 'artist-media';
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const MAX_GALLERY_PHOTOS = 12;
 
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 0.85;
-const PUBLIC_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${MEDIA_BUCKET}/`;
+/* Relativa ao site: as fotos sao servidas pelo proprio Next. */
+const PUBLIC_PREFIX = '/media/';
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const OBJECT_PATH = new RegExp(`^(${UUID})/${UUID}\\.jpg$`, 'i');
 
 /* Erro com mensagem pronta para exibir ao artista. */
 export class MediaError extends Error {}
-
-export function newObjectPath(artistId) {
-  return `${artistId}/${crypto.randomUUID()}.jpg`;
-}
 
 /* true se o caminho tem o formato gerado aqui e fica na pasta do artista. */
 export function isArtistObjectPath(path, artistId) {
@@ -37,7 +29,7 @@ export function publicUrl(path) {
   return `${PUBLIC_PREFIX}${path}`;
 }
 
-/* Caminho no bucket de uma URL publica, ou null se a imagem e de outro lugar. */
+/* Caminho de uma URL publica nossa, ou null se a imagem e de outro lugar. */
 export function objectPathFromUrl(url) {
   return typeof url === 'string' && url.startsWith(PUBLIC_PREFIX) ? url.slice(PUBLIC_PREFIX.length) : null;
 }

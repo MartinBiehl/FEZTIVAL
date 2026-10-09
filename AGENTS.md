@@ -18,7 +18,7 @@ avaliar. O Feztival não é uma rede social nem um aplicativo de relacionamento.
 
 ## Arquitetura atual
 
-O repositório contém uma única aplicação frontend:
+O repositório contém uma única aplicação Next.js, que é também o backend:
 
 ```text
 Browser
@@ -26,8 +26,10 @@ Browser
       ├── roteamento por arquivo em src/app
       ├── JavaScript/JSX
       ├── CSS modular por componente/página
-      ├── Server Actions e Route Handler (escritas e autenticação)
-      └── Supabase: Postgres com RLS + Auth
+      ├── Server Components (leitura), Server Actions e Route Handlers (escrita e autenticação)
+      ├── autenticação própria: senha com scrypt, sessão em cookie httpOnly
+      ├── fotos dos artistas em disco (MEDIA_DIR), servidas por /media
+      └── Postgres (driver pg), acessado só pelo servidor
 ```
 
 Tecnologias em uso:
@@ -39,20 +41,29 @@ Tecnologias em uso:
 | Rotas | Roteamento por arquivo do App Router |
 | Linguagem | JavaScript + JSX |
 | Estilos | CSS puro, mobile-first |
-| Dados | PostgreSQL no Supabase, lido em Server Components |
-| Cliente do banco | `@supabase/supabase-js` + `@supabase/ssr`, chave publishable |
-| Autenticação | Supabase Auth (e-mail e senha), sessão em cookies |
-| Escrita | Server Actions; um Route Handler para o link de confirmação |
+| Dados | PostgreSQL 17, lido em Server Components |
+| Cliente do banco | `pg` (node-postgres), SQL parametrizado, sem ORM |
+| Autenticação | Própria (`src/lib/auth.js`): e-mail e senha, sessão em cookie |
+| E-mail | `nodemailer` via `SMTP_URL`; em desenvolvimento, impresso no terminal |
+| Arquivos | Disco local (`MEDIA_DIR`), servido pelo Route Handler `/media` |
+| Escrita | Server Actions; Route Handlers para o link de confirmação, a sessão do Header e as fotos |
 
-Não existe backend separado: o Supabase é o backend, e a camada de servidor do
-Next (Server Components, Server Actions, Route Handlers) fala com ele. Não há dado
-simulado no repositório — `src/data` foi removido. As cores do wordmark, únicas
-que restavam ali, vivem no próprio `BrandLogo`, o único consumidor.
+Não existe backend separado: a camada de servidor do Next (Server Components, Server
+Actions, Route Handlers) é o backend e a única coisa que fala com o banco. O navegador
+nunca recebe credencial de banco. Não há dado simulado no repositório — `src/data`
+foi removido. As cores do wordmark, únicas que restavam ali, vivem no próprio
+`BrandLogo`, o único consumidor.
 
-Todas as telas leem do banco: as públicas com o cliente anônimo, `/painel` e
-`/minhas-reservas` com a sessão do usuário, filtradas pela RLS via `auth.uid()`.
+Todas as telas leem do banco. As públicas filtram `is_published`; `/painel` e
+`/minhas-reservas` filtram pelo usuário da sessão dentro de cada query.
 
-Não há TypeScript, Tailwind ou monorepo neste momento. Não introduza essas
+> **Migração do Supabase (outubro de 2026).** Até o commit `812b02e` o backend era o
+> Supabase (Postgres com RLS, Auth e Storage). Foi trocado por este backend próprio
+> antes de existir qualquer usuário real, então não houve migração de dados. As 11
+> migrations antigas foram consolidadas em `db/migrations/0001_schema.sql`; o histórico
+> delas segue no Git.
+
+Não há TypeScript, Tailwind, ORM ou monorepo neste momento. Não introduza essas
 tecnologias como se já fizessem parte do projeto.
 
 `next.config.js` traz `agentRules: false`: sem isso o `next dev` anexa automaticamente
@@ -80,42 +91,49 @@ src/
 ├── lib/              # acesso a dados, Server Actions e formatação
 ├── views/            # uma pasta por página (antes: pages/)
 ├── styles/           # tokens e estilos globais
-├── hooks/            # hooks compartilhados
-└── proxy.js          # renova a sessão Supabase a cada requisição
+└── hooks/            # hooks compartilhados
 ```
 
 `src/lib` concentra o acesso a dados e a formatação:
 
 | Arquivo | Papel |
 |---|---|
-| `supabaseConfig.js` | URL e chave do projeto, lidas uma vez |
-| `supabase.js` | cliente **anônimo**, sem cookies, para as leituras públicas |
-| `supabaseServer.js` | cliente com a sessão do usuário (Server Components, Actions, Route Handlers) |
-| `supabaseBrowser.js` | cliente do navegador: `AuthContext` e envio de imagens ao Storage |
-| `account.js` | `ensureAccount` (cria `profiles` e o rascunho em `artists`), `safeNextPath`, `slugify` |
-| `accountActions.js` | Server Actions de login, cadastro e recuperação de senha |
+| `db.js` | pool do Postgres: `query`, `queryOne`, `transaction` (só servidor) |
+| `auth.js` | senhas, sessão (`getCurrentUser`, `createSession`), tokens de e-mail |
+| `mail.js` | e-mails de confirmação e de código de recuperação |
+| `account.js` | `createAccountRows` (cria `profiles` e o rascunho em `artists`), `findOwnArtist`, `safeNextPath`, `slugify` |
+| `accountActions.js` | Server Actions de login, cadastro, saída e recuperação de senha |
 | `bookingActions.js` | Server Actions de proposta, mudança de status e avaliação |
 | `bookingQueries.js` | leituras do painel (propostas e perguntas sem resposta) e de "Minhas reservas" |
 | `questionActions.js` | Server Actions de pergunta pública e resposta do artista |
 | `bookingDisplay.js` | rótulos de status, datas no fuso de São Paulo, valores |
 | `artistActions.js` | contagem de visualização do perfil |
 | `profileEditor.js` | leitura do editor de perfil e catálogos |
+| `profileOptions.js` | opções fixas do editor (durações, infraestrutura), usadas pela tela e pela validação |
 | `profileActions.js` | Server Actions do perfil do artista: salvar o formulário, foto principal e galeria |
-| `artistMedia.js` | Bucket de imagens: caminhos, URL pública e redução da foto no navegador |
+| `artistMedia.js` | imagens: caminhos, URL pública e redução da foto no navegador (servidor e navegador) |
+| `mediaStorage.js` | grava, lê e apaga as fotos em `MEDIA_DIR` (só servidor) |
 | `artistQueries.js` | leitura de artistas; converte a linha do banco para a forma das telas |
 | `artistDisplay.js` | formata campos que podem estar vazios (nota, preço, duração) |
 | `artistSeo.js` | título, descrição e JSON-LD dos perfis |
 | `dailyShuffle.js` | embaralhamento estável por dia, da ordenação "Recomendados" |
 | `site.js` | URL absoluta e metadados do site |
 
+Os módulos que falam com o banco ou com o disco começam com `import 'server-only'`:
+importá-los de um Client Component quebra o build, em vez de vazar código de servidor
+para o navegador. Constante que a tela também precisa vai para um módulo sem banco
+(como `profileOptions.js`).
+
 Na raiz, fora de `src/`:
 
 ```text
-supabase/
-├── migrations/       # schema versionado, aplicado com db push
-├── tests/            # scripts de verificação, rodados no SQL Editor
-├── seed.sql          # os 8 artistas de demonstração
-└── config.toml
+db/
+├── migrations/       # schema versionado, aplicado por npm run db:migrate
+├── tests/            # testes SQL dos triggers (npm run db:test)
+└── seed.sql          # os 8 artistas de demonstração
+scripts/db.js         # executor de migrations, seed e testes SQL
+tests/                # testes das Server Actions contra um Postgres real (npm test)
+storage/              # MEDIA_DIR padrão em desenvolvimento (fora do Git)
 ```
 
 Cada página mantém seu JSX e CSS juntos em `src/views/NomeDaPagina`. Componentes
@@ -235,7 +253,7 @@ de Syne e apenas 5 de Inter.
 
 ## Limites atuais
 
-- Os artistas do catálogo são o seed de demonstração (`supabase/seed.sql`).
+- Os artistas do catálogo são o seed de demonstração (`db/seed.sql`).
 - O editor envia só fotos: vídeo e áudio (`artist_media.type`) e a agenda por data
   (`availability`) ainda não têm tela.
 - Perguntas não têm moderação na interface: nascem `published` e o artista não
@@ -248,21 +266,42 @@ de Syne e apenas 5 de Inter.
 ## Comandos
 
 ```bash
-cp .env.example .env.local   # URL e publishable key do Supabase
+cp .env.example .env.local   # DATABASE_URL, MEDIA_DIR, SMTP_URL
 npm install
 npm run dev      # Next.js em http://localhost:3000
-npm run build
+npm run build    # precisa do banco: os perfis são prerenderizados
 npm run start    # serve o build de produção
 ```
 
-Banco de dados (a CLI roda via `npx`, não está instalada globalmente):
+Banco de dados (Postgres 17; em desenvolvimento, `brew install postgresql@17`):
 
 ```bash
-npx supabase migration new <nome>   # cria migration vazia em supabase/migrations
-npx supabase db push                # aplica as migrations pendentes no remoto
-npx supabase db push --include-seed  # aplica também o supabase/seed.sql
-npx supabase migration list         # compara migrations locais e remotas
+createdb feztival
+npm run db:migrate   # aplica as migrations de db/migrations ainda não aplicadas
+npm run db:seed      # 8 artistas de demonstração (recusa rodar com NODE_ENV=production)
+npm run db:test      # testes SQL dos triggers, numa transação desfeita no fim
+createdb feztival_test
+TEST_DATABASE_URL=postgres://localhost:5432/feztival_test npm test
 ```
+
+`npm test` **apaga e recria** o banco de `TEST_DATABASE_URL` a cada execução e se
+recusa a rodar se ele for o mesmo de `DATABASE_URL`.
+
+Migration nova é um arquivo `db/migrations/NNNN_nome.sql` com o próximo número.
+`schema_migrations` registra o que já rodou; cada arquivo roda numa transação.
+
+Variáveis de ambiente (todas só do servidor; nenhuma é `NEXT_PUBLIC_`):
+
+| Variável | Papel |
+|---|---|
+| `DATABASE_URL` | conexão com o Postgres |
+| `MEDIA_DIR` | pasta das fotos enviadas (padrão `storage/media`). Precisa de disco persistente |
+| `SMTP_URL` | SMTP dos e-mails de conta. Vazio só em desenvolvimento: os e-mails vão para o terminal. Em produção a falta dele é erro |
+| `MAIL_FROM` | remetente dos e-mails |
+
+> **Hospedagem.** Fotos em disco local exigem um servidor com disco persistente (VPS,
+> container com volume). Em plataformas sem disco próprio (Vercel e afins) as fotos se
+> perderiam a cada deploy; ali, troque `mediaStorage.js` por um storage de objetos.
 
 ## SEO e metadata
 
@@ -343,45 +382,24 @@ da home.
 
 ## Banco de dados
 
-PostgreSQL no Supabase (região São Paulo). O schema está criado, com RLS ativa, e é a
-única fonte de dados do site.
+PostgreSQL 17, única fonte de dados do site. Só o servidor do Next se conecta a ele.
 
-Todo o schema vive em `supabase/migrations/`, em arquivos `.sql` versionados. **Não crie
-nem altere tabelas pelo Table Editor do painel:** mudança feita por lá não vai para o
-Git, não é revisável e não se reproduz em outro ambiente. Migration nova sempre, mesmo
-para um `alter table` de uma linha.
+Todo o schema vive em `db/migrations/`, em arquivos `.sql` versionados. **Não crie
+nem altere tabelas direto no banco** (cliente SQL, painel do provedor): mudança feita
+por lá não vai para o Git, não é revisável e não se reproduz em outro ambiente.
+Migration nova sempre, mesmo para um `alter table` de uma linha.
 
-### Banco remoto fora do repositório
-
-> **Situação em 02/10/2026.** O projeto remoto recebeu em 11/09 quatro migrations
-> aplicadas fora do Git: `fix_rls_security`, `add_questions_and_payments`,
-> `harden_policy_commands` e `support_booking_duration`. Os arquivos foram trazidos
-> para `supabase/migrations/` com `supabase migration fetch` (as cinco anteriores
-> conferem com o repositório, a menos de formatação).
-> Entre outras coisas, elas moveram as funções de trigger para o schema `private`,
-> removeram `owns_artist` e `artist_is_published` (as policies passaram a usar
-> `exists (...)` direto), criaram `questions`, `answers` e as tabelas de pagamento e
-> instalaram um trigger `handle_new_user` em `auth.users`. Esse trigger contraria a
-> decisão de não ter trigger em `auth.users` (ver "Contas") e motivou o passo do
-> telefone em `ensureAccount`.
->
-> Além disso, `20261001120000_private_contacts_and_artist_ratings` aparece como não
-> aplicada no histórico, embora tudo o que ela cria já exista no remoto (conferido:
-> funções, permissões e a policy de `profiles`). Antes do próximo `db push`, marque-a
-> como aplicada — senão o push tenta rodá-la de novo e falha no `drop policy`:
->
-> ```bash
-> npx supabase migration repair --linked --status applied 20261001120000
-> npx supabase db push --dry-run   # deve listar só as migrations novas
-> ```
->
-> Migrations novas não devem depender de `owns_artist`.
+`0001_schema.sql` é o schema; `0002_catalogs.sql` traz os catálogos (gêneros, formas
+de pagamento, tipos de local). Catálogo é dado de referência, não de demonstração:
+sem gêneros ninguém publica perfil, então ele roda em todo ambiente — ao contrário do
+seed.
 
 ### Tabelas
 
 | Tabela | Papel |
 |---|---|
-| `profiles` | Estende `auth.users` 1:1. A PK **é** o `auth.users.id`, para as policies compararem direto com `auth.uid()` |
+| `users`, `sessions`, `auth_tokens` | Contas, sessões abertas e tokens enviados por e-mail (ver "Autenticação e escrita") |
+| `profiles` | Estende `users` 1:1. A PK **é** o `users.id` |
 | `artists` | Cadastro artístico. `slug` único alimenta `/artista/[slug]` |
 | `genres`, `artist_genres` | Catálogo de gêneros e o vínculo N:N |
 | `artist_media` | Fotos, áudios e vídeos do portfólio |
@@ -424,11 +442,11 @@ Decisões que não se leem no schema:
   Também é o campo que permite preencher o `lastModified` do sitemap, hoje ausente.
 - **`artists.color`** guarda o token `--artist-color`, usado em seis componentes. É
   identidade do artista, não decoração aleatória.
-- **`artists.view_count`** é contador simples, incrementado por
-  `increment_artist_view_count` (`security definer`, porque a RLS não concede `UPDATE`
-  anônimo em `artists` e conceder exporia todas as colunas). É chamada por
-  `recordArtistView` ao abrir o perfil, no máximo uma vez por visitante a cada 24h
-  (cookie `fz_view_<slug>`). Sem histórico por data, não há como calcular variação
+- **`artists.view_count`** é contador simples, incrementado por `recordArtistView` ao
+  abrir o perfil, no máximo uma vez por visitante a cada 24h (cookie `fz_view_<slug>`).
+  Na época do Supabase isso passava pela função `increment_artist_view_count`, que uma
+  migration aplicada fora do Git apagou: o erro era ignorado e a contagem não andava.
+  Hoje é um `UPDATE` direto. Sem histórico por data, não há como calcular variação
   mensal — o painel perdeu o "↑ 18% este mês".
 - **`artist_services.price` é valor absoluto**, não um delta sobre `base_price`. A
   interface antiga usava `priceAdjustment`; a modelagem do banco venceu.
@@ -469,56 +487,61 @@ estado nem sai de um desfecho definitivo.
 Existe porque uma reserva que volta de `completed` para `pending` destrói a confiança no
 histórico — e no repasse já calculado.
 
-Os dois triggers são cobertos por `supabase/tests/booking_triggers_test.sql`.
+Os dois triggers são cobertos por `db/tests/booking_triggers_test.sql` (`npm run db:test`).
 
-### RLS
+### Autorização
 
-RLS está habilitada nas **9 tabelas, sem exceção**. Tabela sem RLS no Supabase fica
-legível e gravável por qualquer portador da chave pública. Ao criar tabela nova, habilite
-RLS na mesma migration.
+Não há RLS. O banco só é acessível pelo servidor do Next, e **quem decide quem lê e
+grava o quê é o código de `src/lib`**, sempre a partir do usuário da sessão
+(`getCurrentUser`), nunca de um id vindo do formulário.
 
-Leitura pública: `genres`, `reviews`, os catálogos, e as tabelas de artista apenas quando
-`is_published`. `profiles` **não** é público: guarda nome e WhatsApp, então cada um lê o
-próprio perfil e o da outra parte de uma reserva (`is_booking_counterparty`). O dono também vê o próprio rascunho — sem isso o painel do artista não
-teria como editar um perfil não publicado. Escrita sempre restrita ao dono.
+A regra para escrever código novo: **a checagem de permissão vai dentro da própria
+query**, no `WHERE` do `UPDATE`/`DELETE` ou no `SELECT` do `INSERT ... SELECT`. Assim a
+checagem e a escrita são uma coisa só, sem janela entre "conferir" e "gravar". Nada
+afetado = sem permissão. Exemplos: `updateBookingStatus`, `createReview`,
+`answerQuestion`, `removeArtistPhoto`.
 
-`genres` não tem policy de escrita: o catálogo é mantido por administração, via painel ou
-`service_role`, que ignora RLS.
+O que antes eram policies, e onde vive agora:
 
-Duas policies merecem destaque:
+| Regra | Onde |
+|---|---|
+| Público só vê artista `is_published` (e o que pende dele) | toda query de `artistQueries.js` |
+| `profiles` não é público: nome e WhatsApp só para o próprio e para o artista das reservas do contratante | `fetchArtistDashboard`, `/api/session` |
+| Reservas: cada um vê só as em que é contratante ou dono do artista | `bookingQueries.js` |
+| Proposta nasce `pending`, em nome de quem está logado | `createBooking` |
+| O artista aceita, recusa, confirma, conclui e cancela; o contratante **só cancela** | `updateBookingStatus` |
+| Avaliação: só o contratante, só reserva `completed`, uma vez, **imutável** (não existe action de editar nem apagar) | `createReview` + unique de `reviews.booking_id` |
+| Pergunta só em artista publicado e em nome próprio; resposta só do dono, uma por pergunta | `questionActions.js` + unique de `answers.question_id` |
+| Perfil, listas e fotos só do próprio artista | `profileActions.js` (o artista é sempre `findOwnArtist(user.id)`) |
+| Catálogos não têm escrita pela aplicação | só por migration |
 
-- **Avaliação é imutável.** `reviews` tem policy de `SELECT` e `INSERT`, e **nenhuma** de
-  `UPDATE` ou `DELETE`. Como o status permanece `completed` para sempre, permitir
-  `UPDATE` daria ao contratante o direito de reescrever a avaliação indefinidamente.
-- **`UPDATE` de `bookings` é separado por papel.** O artista aceita, recusa, confirma e
-  conclui; o contratante apenas cancela. Os triggers validam *se a transição é legal*;
-  as policies controlam *quem pode disparar*. Sem essa separação, o contratante marcaria
-  a própria reserva como `completed` — transição válida, papel errado.
+A separação de papéis em `updateBookingStatus` é o ponto mais sensível: os triggers
+validam *se a transição é legal*, a action controla *quem pode dispará-la*. Sem essa
+separação o contratante marcaria a própria reserva como `completed` — transição
+válida, papel errado.
 
-Verificar posse exige consultar `artists` de dentro da policy de outra tabela, o que
-seria filtrado pela RLS de `artists` e causaria recursão. As funções `owns_artist` e
-`artist_is_published` são `security definer` com `search_path` fixo para resolver isso.
+A nota pública vem de `artist_review_summary()` (média e contagem) e
+`artist_reviews(slug)` (nota, comentário, tipo de evento e data). Elas existem porque a
+nota deriva de `bookings`, que guarda endereço, valores e mensagens — e o público não
+deve ver nada disso. Nenhuma devolve quem avaliou nem outro dado da reserva.
 
-A nota pública dos artistas vem de duas funções `security definer`,
-`artist_review_summary()` (média e contagem) e `artist_reviews(slug)` (nota, comentário,
-tipo de evento e data). Elas existem porque a nota deriva de `bookings`, que o público não
-lê — e não deve ler: ali estão endereço, valores e mensagens. Nenhuma devolve quem
-avaliou nem outro dado da reserva.
-
-Coberto por `supabase/tests/rls_test.sql`, que simula três usuários.
+Coberto por `tests/flows.test.mjs` (`npm test`), que chama as Server Actions de verdade
+com três usuários e tenta, entre outras coisas, aceitar como contratante, cancelar como
+terceiro, avaliar antes da conclusão e responder pergunta de outro artista.
 
 ### Seed
 
-`supabase/seed.sql` popula os 8 artistas que viviam no antigo `src/data`, **preservando os
+`db/seed.sql` popula os 8 artistas que viviam no antigo `src/data`, **preservando os
 slugs exatos** — as URLs já estão no sitemap.
 
-É dado de demonstração, identificável de três formas: e-mails em
-`@seed.feztival.local` (domínio reservado, nunca será real), UUIDs fixos começando em
-`5eed0000` / `5eed1111`, e `raw_app_meta_data` com `{"provider":"seed"}`. Para remover
+É dado de demonstração, identificável de duas formas: e-mails em
+`@seed.feztival.local` (domínio reservado, nunca será real) e UUIDs fixos começando em
+`5eed0000` / `5eed1111`. As contas têm `password_hash = '!'`, que não corresponde a
+nenhuma senha: ninguém entra nelas. Para remover
 tudo, sem risco de tocar em cadastro legítimo:
 
 ```sql
-delete from auth.users where email like '%@seed.feztival.local';
+delete from users where email like '%@seed.feztival.local';
 ```
 
 O seed é idempotente (`on conflict do nothing`) e **não deve rodar em produção com
@@ -604,8 +627,13 @@ A listagem (`ARTIST_LIST_COLUMNS`) traz só o que o cartão e o modal de prévia
 o perfil (`ARTIST_DETAIL_COLUMNS`) traz tudo em **uma consulta com joins**, para não
 disparar uma cascata de requisições.
 
-Toda leitura passa pela RLS com a chave publishable, então **só retorna artistas com
-`is_published = true`**. Não há caminho que ignore isso no front — e não introduza um.
+Toda leitura de `artistQueries.js` filtra `is_published = true`. Não há RLS por trás
+para barrar um esquecimento: **não remova esse filtro nem crie leitura pública sem ele.**
+
+As listas de cada artista (gêneros, serviços, fotos, horários...) vêm agregadas em JSON
+(`json_agg`) na mesma consulta, já na ordem de exibição. `db.js` converte `date` para
+`'AAAA-MM-DD'`, `timestamptz` para string ISO e `numeric` para `number` — a forma que
+as telas já consumiam.
 
 ### Campos vazios na interface
 
@@ -644,55 +672,71 @@ semana". Não foi apagado para não mexer em estilos.
 
 ### Sessão
 
-Supabase Auth com e-mail e senha. A sessão fica em cookies (`@supabase/ssr`), lidos
-pelos três lados:
+Autenticação própria, em `src/lib/auth.js`:
 
-- **`src/proxy.js`** (o antigo `middleware` do Next 16) renova o token a cada
-  requisição. Server Component não grava cookie; sem o proxy, a sessão expiraria.
-  Não autoriza nada.
-- **Servidor** (`createServerSupabase`): `/painel`, `/minhas-reservas`, as Server
-  Actions e `/auth/confirm`. Sempre `getUser()`, que valida o token no Auth — nunca
-  confie em `getSession()` no servidor.
-- **Navegador** (`AuthContext`): só para o Header saber quem está logado.
+- **Senha:** scrypt (N=2^15, r=8, p=3, parâmetros do OWASP), sal por senha, formato
+  `scrypt$N$r$p$sal$hash` em `users.password_hash`.
+- **Sessão:** token aleatório de 32 bytes no cookie `fz_session` (httpOnly, SameSite=Lax,
+  Secure em produção). O banco guarda **só o SHA-256** do token em `sessions`: um
+  vazamento da tabela não abre sessão de ninguém. Vale 30 dias e desliza: passada a
+  metade, ganha mais 30.
+- **`getCurrentUser()`** devolve `{ id, email }` ou null, memorizado por requisição
+  (`React.cache`). É a única fonte de "quem está logado" no servidor.
+- Server Actions têm proteção de CSRF do próprio Next (conferência de `Origin`). Escrita
+  nova vai em Server Action, não em Route Handler `POST` sem essa conferência.
+
+Não há proxy/middleware: sem token de terceiros para renovar, ele não tinha mais
+função. Server Component não grava cookie, então ali a renovação da sessão atualiza só
+a linha do banco; o cookie é renovado na próxima Server Action.
 
 **O layout raiz não lê cookies, de propósito.** Ler a sessão ali tornaria todas as
 rotas dinâmicas e o prerender dos perfis — o motivo da migração para Next — se
-perderia. Por isso o usuário do Header é carregado no navegador, e as telas de login
-chamam `refresh()` do contexto antes de navegar.
-
-As páginas públicas continuam usando o cliente anônimo de `supabase.js`, sem cookies,
-pelo mesmo motivo.
+perderia. Por isso o usuário do Header é carregado no navegador: o `AuthContext`
+consulta `GET /api/session`, e as telas de login chamam `refresh()` do contexto antes
+de navegar. Sair é a Server Action `signOut`, que apaga a sessão no banco.
 
 ### Contas
 
-`signUp` grava os dados do formulário em `user_metadata`; `ensureAccount` cria a linha
-de `profiles` (e, no cadastro de artista, o rascunho em `artists`) quando a sessão
-existe — no primeiro login ou em `/auth/confirm`. Não é feito no próprio `signUp`
-porque, com confirmação de e-mail ligada, ainda não há sessão e a RLS recusaria o
-INSERT. Nenhum trigger em `auth.users`: mantém a regra de só duas regras no banco.
+`signUp` cria, **numa única transação**, a linha de `users`, a de `profiles` e, no
+cadastro de artista, o rascunho em `artists` (`createAccountRows`): ou a conta nasce
+inteira, ou não nasce. Em seguida envia o link de confirmação. Sem confirmar o e-mail
+não há login; o link (`/auth/confirm?token=...`, válido por 24h, uso único) marca
+`email_verified_at`, abre a sessão e leva o usuário para a área dele.
 
-`user_metadata.signup_as` é só a intenção do cadastro, **não** um papel. Quem tem linha
-em `artists` vai para `/painel`; os demais, para `/minhas-reservas`.
+Cadastro com e-mail já **confirmado** é recusado. Com e-mail cadastrado e **nunca
+confirmado**, o novo cadastro substitui o anterior — ninguém provou ser dono daquele
+e-mail — e o link antigo deixa de valer.
+
+O formulário envia `signupAs`, que é só a intenção do cadastro, **não** um papel. Quem
+tem linha em `artists` vai para `/painel`; os demais, para `/minhas-reservas`.
 
 O cadastro de artista exige nome artístico, nome completo, WhatsApp e categoria. O
 slug é gerado uma única vez, a partir do nome artístico; em colisão recebe um sufixo
 curto. O artista nasce com `is_published = false`.
+
+Login: 5 senhas erradas seguidas travam o login daquele e-mail por 15 minutos. Para
+e-mail inexistente o servidor calcula um hash de mentira, para o tempo de resposta não
+revelar quais e-mails estão cadastrados.
 
 `?next=` só aceita caminho interno (`safeNextPath`): `//site.com` e URLs absolutas são
 descartados, para o login não virar redirecionamento aberto.
 
 ### Recuperação de senha
 
-Três passos: `resetPasswordForEmail` → `verifyOtp({ type: 'recovery' })` com o código
-de 6 dígitos → `updateUser({ password })`, seguido de `signOut` para pedir login com a
-senha nova. A resposta ao pedir o código é sempre a mesma, exista ou não a conta.
+Três passos, com o mesmo visual de antes:
 
-> **Configuração no painel do Supabase:** o template de e-mail "Reset Password" precisa
-> exibir `{{ .Token }}` — o conteúdo pronto está em `supabase/templates/recovery.html`
-> (o ambiente local já o lê pelo `config.toml`). O padrão envia só um link. O
-> tamanho do código (`otp_length`) precisa ser 6, igual a `CODE_LENGTH` em
-> `PasswordRecovery.jsx`. Em **Authentication → URL Configuration**, inclua
-> `<domínio>/auth/confirm` nas Redirect URLs.
+1. `requestPasswordReset` envia um código de 6 dígitos (válido por 15 minutos). A
+   resposta é sempre a mesma, exista ou não a conta; um segundo pedido em menos de 1
+   minuto não envia outro e-mail.
+2. `verifyRecoveryCode` confere o código. Certo, troca-o por uma autorização de 15
+   minutos, guardada no cookie httpOnly `fz_password_reset`. Na quinta tentativa errada
+   o código é descartado.
+3. `updatePassword` consome a autorização, grava a senha nova e **encerra todas as
+   sessões** do usuário; a tela seguinte pede login com a senha nova. Concluir a
+   recuperação também prova a posse do e-mail, então a conta passa a confirmada.
+
+`RESET_CODE_LENGTH` (`accountActions.js`) e `CODE_LENGTH` (`PasswordRecovery.jsx`)
+precisam ser iguais.
 
 ### Propostas e reservas
 
@@ -701,9 +745,9 @@ exibida (preço do serviço da duração escolhida, ou `base_price`, ou nulo). N
 artista informa o valor final, e `updateBookingStatus` grava junto a comissão (12%) e o
 repasse — depois disso o trigger congela os três valores.
 
-As Server Actions validam para dar mensagem clara, mas **não são a proteção**: a chave
-publishable permite chamar o PostgREST direto. Quem barra é a RLS (papel) e os triggers
-(transição e valores). Não duplique essas regras no JavaScript.
+As Server Actions **são a proteção de papel** (ver "Autorização"): quem pode disparar
+cada status está no `WHERE` do `UPDATE`. Transição e valores continuam com os triggers;
+não duplique essas duas regras no JavaScript.
 
 O contratante avalia uma reserva `completed` uma única vez (`createReview`), em
 "Minhas reservas". O perfil público só lista as avaliações; não há formulário ali.
@@ -713,11 +757,10 @@ O contratante avalia uma reserva `completed` uma única vez (`createReview`), em
 `saveArtistProfile` grava o cadastro do artista do usuário logado — o formulário não
 envia id de artista. O slug não é editável.
 
-As listas são sincronizadas **por diferença** (apaga o que saiu, grava o que entrou), e
-não apagando tudo para regravar: se uma etapa falhar no meio, o perfil não fica sem
-gêneros ou serviços, e salvar de novo completa. Não é transacional — são várias chamadas
-ao PostgREST. Serviços e itens de estrutura mantêm o id, porque `bookings.service_id`
-aponta para o serviço escolhido na proposta.
+Tudo é gravado **numa transação**: ou o perfil inteiro é salvo, ou nada muda. As listas
+são sincronizadas **por diferença** (apaga o que saiu, grava o que entrou), e não
+apagando tudo para regravar, porque serviços e itens de estrutura precisam manter o id:
+`bookings.service_id` aponta para o serviço escolhido na proposta.
 
 Publicar exige cidade, ao menos um gênero e preço ou "sob consulta". O banco só impõe a
 última; as duas primeiras são da aplicação, porque sem elas o artista não aparece na
@@ -735,29 +778,31 @@ perfil. Não é possível perguntar ao próprio perfil. A pergunta aparece no pe
 hora, sem o autor (`profiles` não é público).
 
 O artista responde em `/painel`, na seção "Perguntas sem resposta"
-(`answerQuestion`). A resposta é única por pergunta e pública. Quem garante isso é a
-RLS de `questions`/`answers`, não o JavaScript.
+(`answerQuestion`). A resposta é única por pergunta (unique em `answers.question_id`)
+e pública; só o dono do artista consegue inserir — a condição está no próprio
+`INSERT ... SELECT`.
 
-### Fotos (Supabase Storage)
+### Fotos
 
 Foto principal (`artists.cover_url`) e galeria (`artist_media`, tipo `photo`, até 12)
 são enviadas na seção "Fotos" do editor, que fica **fora** do formulário: cada envio ou
 remoção vale na hora.
 
-- O arquivo vai do navegador **direto ao Storage**, no bucket público `artist-media`,
-  em `<artists.id>/<uuid>.jpg`. Não passa pelo servidor do Next (Server Action tem
-  limite de corpo de 1 MB).
-- Antes do envio, `prepareImage` reduz a foto a 2000 px e regrava como JPEG. Isso
-  mantém o arquivo abaixo de 5 MB e **descarta o EXIF, inclusive o GPS** — não
+- Antes do envio, `prepareImage` (navegador) reduz a foto a 2000 px e regrava como JPEG.
+  Isso mantém o arquivo abaixo de 5 MB e **descarta o EXIF, inclusive o GPS** — não
   remova esse passo.
-- Depois do envio, `setArtistCover` / `addArtistPhoto` recebem **só o caminho**,
-  conferem que ele está na pasta do artista do usuário e gravam a URL pública. Se o
-  registro falhar, o navegador apaga o arquivo enviado.
-- Trocar ou remover uma foto apaga o arquivo antigo do bucket. Foto principal antiga
-  que era link externo é só desvinculada.
-- Quem barra é o banco: o bucket limita tamanho (5 MiB) e tipo (JPEG, PNG, WEBP), e as
-  policies de `storage.objects` só deixam gravar e apagar na pasta de um artista do
-  próprio usuário (migration `artist_media_storage`).
+- A foto vai num `FormData` para `setArtistCover` / `addArtistPhoto`. O limite de corpo
+  das Server Actions foi elevado para 6 MB em `next.config.js` por causa disso.
+- O servidor (`mediaStorage.js`) confere tamanho e que o conteúdo **é** JPEG (pelos
+  bytes, não pelo nome), grava em `MEDIA_DIR/<artists.id>/<uuid>.jpg` e registra no
+  banco. Se o registro falhar, o arquivo recém-gravado é apagado. O caminho é sempre
+  gerado no servidor, nunca vem do navegador.
+- As fotos são servidas por `/media/[artistId]/[file]` (Route Handler), com cache
+  permanente: cada arquivo tem nome único e nunca é regravado. O caminho é validado
+  antes de tocar no disco, para um `../` não escapar da pasta.
+- Trocar ou remover uma foto apaga o arquivo antigo. Foto principal antiga que era link
+  externo é só desvinculada.
+- O limite de 12 fotos é conferido no próprio `INSERT`.
 
 ### Formulários
 
@@ -778,6 +823,7 @@ diferente, e misturá-las dificulta identificar a origem do problema.
 | — | ~~Autenticação e escrita: login, cadastro, propostas, painel e reservas~~ — concluída |
 | — | ~~Editor de perfil, privacidade de `profiles` e nota pública~~ — concluída |
 | — | ~~Upload de fotos (Supabase Storage): foto principal e galeria~~ — concluída |
+| — | ~~Backend próprio: Postgres puro, autenticação própria e fotos em disco, no lugar do Supabase~~ — concluída |
 | a seguir | Pagamentos: Route Handlers para Pagar.me e webhooks |
 
 A ordem original previa Server Components antes do Supabase. O banco veio primeiro, sem
@@ -803,8 +849,8 @@ Pendências abertas:
 - `rating` e `reviews` não são colunas: vêm de `artist_review_summary` — ver a interface e o
   SEO na seção do banco.
 - Se um perfil pode ter mais de um cadastro de artista segue em aberto.
-- Sem `psql` nem Docker no ambiente, os scripts de `supabase/tests/` são executados à mão
-  no SQL Editor do painel. `brew install libpq` permitiria rodá-los pela linha de comando.
+- O antigo projeto no Supabase ainda existe e deve ser pausado ou apagado no painel
+  dele: não é mais usado por nada.
 
 Pendências abertas da Fase 2:
 

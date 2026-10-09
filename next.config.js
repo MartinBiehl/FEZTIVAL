@@ -10,6 +10,12 @@ const nextConfig = {
   // AGENTS.md é documentação canônica mantida à mão neste repo.
   // Impede o `next dev` de anexar o bloco nextjs-agent-rules automaticamente.
   agentRules: false,
+  experimental: {
+    serverActions: {
+      // As fotos do editor sobem por Server Action (ate 5 MB, artistMedia.js).
+      bodySizeLimit: '6mb',
+    },
+  },
 };
 
 export default nextConfig;

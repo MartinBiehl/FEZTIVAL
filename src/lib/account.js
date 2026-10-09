@@ -1,7 +1,9 @@
+import 'server-only';
+import { queryOne } from './db.js';
+
 /*
- * Regras de conta compartilhadas pelas Server Actions e pelo callback de
- * confirmacao de e-mail. Recebem o cliente com sessao (createServerSupabase),
- * entao toda escrita passa pela RLS em nome do proprio usuario.
+ * Regras de conta compartilhadas pelas Server Actions de acesso e pelo
+ * callback de confirmacao de e-mail.
  */
 
 /* Categorias aceitas no cadastro, iguais ao enum artist_category do banco. */
@@ -30,95 +32,55 @@ export function slugify(value) {
   return slug || 'artista';
 }
 
-async function findOwnArtist(supabase, userId) {
-  const { data, error } = await supabase
-    .from('artists')
-    .select('id, slug')
-    .eq('profile_id', userId)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw new Error(`Falha ao carregar o cadastro artistico: ${error.message}`);
-  return data;
+/*
+ * Cadastro artistico do usuario, ou null. Se houver mais de um (decisao de
+ * produto em aberto), vale o mais antigo -- o mesmo em todas as telas e actions.
+ */
+export function findOwnArtist(userId, columns = 'id, slug') {
+  return queryOne(
+    `select ${columns} from artists where profile_id = $1 order by created_at limit 1`,
+    [userId],
+  );
 }
 
 /*
  * O slug e unico e imutavel na pratica (ja vai para URL e sitemap), entao e
- * definido uma unica vez, aqui. Em colisao, tenta um sufixo curto em vez de
- * consultar antes: rascunhos alheios nao sao visiveis pela RLS, entao so o
- * INSERT sabe se o slug esta livre.
+ * definido uma unica vez, aqui. Em colisao, tenta um sufixo curto.
  */
-async function createDraftArtist(supabase, userId, { stageName, category }) {
+async function freeSlug(tx, stageName) {
   const base = slugify(stageName);
-
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = attempt === 0 ? base : `${base}-${Math.random().toString(36).slice(2, 6)}`;
-    const { error } = await supabase.from('artists').insert({
-      profile_id: userId,
-      slug,
-      stage_name: stageName,
-      category,
-      // Rascunho: so aparece no catalogo depois de publicado.
-      is_published: false,
-    });
-
-    if (!error) return;
-    if (error.code !== '23505') throw new Error(`Falha ao criar o perfil artistico: ${error.message}`);
+    if (!(await tx.queryOne('select 1 from artists where slug = $1', [slug]))) return slug;
   }
-
   throw new Error('Nao foi possivel gerar um endereco unico para o perfil artistico.');
 }
 
 /*
- * Garante as linhas de profiles (e, para quem se cadastrou como artista, de
- * artists) depois que a sessao existe.
+ * Cria a linha de profiles e, no cadastro de artista, o rascunho em artists,
+ * na mesma transacao do usuario: ou a conta nasce inteira, ou nao nasce.
  *
- * Nao e feito no signUp porque, com confirmacao de e-mail ligada, ainda nao ha
- * sessao naquele momento e a RLS recusaria o INSERT. Os dados do formulario
- * viajam em user_metadata e sao gravados no primeiro login ou na confirmacao.
- * Idempotente: pode rodar a cada login.
- *
- * user_metadata.signup_as registra so a intencao do cadastro. Nao e papel:
- * quem tem linha em artists e artista (ver AGENTS.md).
+ * signupAs e so a intencao do cadastro. Nao e papel: quem tem linha em
+ * artists e artista (ver AGENTS.md).
  */
-export async function ensureAccount(supabase, user) {
-  const meta = user.user_metadata ?? {};
+export async function createAccountRows(tx, userId, {
+  signupAs, fullName, phone, stageName, category,
+}) {
+  await tx.query(
+    'insert into profiles (id, full_name, phone) values ($1, $2, $3)',
+    [userId, fullName, phone || null],
+  );
 
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .upsert(
-      { id: user.id, full_name: meta.full_name ?? null, phone: meta.phone ?? null },
-      { onConflict: 'id', ignoreDuplicates: true },
-    );
-  if (profileError) throw new Error(`Falha ao criar o perfil: ${profileError.message}`);
-
-  /*
-   * Se a linha ja existia, o upsert acima nao grava nada. O banco remoto tem um
-   * trigger em auth.users (handle_new_user, aplicado fora deste repositorio)
-   * que cria profiles no cadastro sem o telefone -- sem este passo o WhatsApp
-   * informado no formulario se perderia. So preenche o que esta vazio.
-   */
-  if (meta.phone) {
-    const { error: phoneError } = await supabase
-      .from('profiles')
-      .update({ phone: meta.phone })
-      .eq('id', user.id)
-      .is('phone', null);
-    if (phoneError) throw new Error(`Falha ao gravar o telefone: ${phoneError.message}`);
-  }
-
-  let artist = await findOwnArtist(supabase, user.id);
-
-  if (!artist && meta.signup_as === 'artist' && meta.stage_name && ARTIST_CATEGORIES.includes(meta.category)) {
-    await createDraftArtist(supabase, user.id, { stageName: meta.stage_name, category: meta.category });
-    artist = await findOwnArtist(supabase, user.id);
-  }
-
-  return { artist };
+  if (signupAs !== 'artist') return;
+  await tx.query(
+    // Rascunho: so aparece no catalogo depois de publicado.
+    `insert into artists (profile_id, slug, stage_name, category, is_published)
+     values ($1, $2, $3, $4, false)`,
+    [userId, await freeSlug(tx, stageName), stageName, category],
+  );
 }
 
 /* Para onde mandar o usuario depois de entrar. */
-export function destinationFor({ artist }) {
+export function destinationFor(artist) {
   return artist ? '/painel' : '/minhas-reservas';
 }

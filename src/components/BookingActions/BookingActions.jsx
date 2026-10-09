@@ -10,7 +10,8 @@ import './BookingActions.css';
  * contratante (minhas reservas).
  *
  * Mostrar so as acoes do papel e conveniencia de interface: quem barra o papel
- * errado e a RLS, e quem barra a transicao ilegal e o trigger do banco.
+ * errado e updateBookingStatus (bookingActions.js), e quem barra a transicao
+ * ilegal e o trigger do banco.
  */
 const ARTIST_ACTIONS = {
   pending: [

@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { supabase } from './supabase.js';
+import { query } from './db.js';
 
 const VIEW_COOKIE_MAX_AGE = 60 * 60 * 24;
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -10,8 +10,7 @@ const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
  * Conta uma visualizacao do perfil, no maximo uma por visitante a cada 24h.
  *
  * O perfil e HTML estatico, entao a contagem e disparada pelo navegador. O
- * cookie evita que F5 infle o numero; increment_artist_view_count (security
- * definer) so incrementa artistas publicados e nao devolve nada.
+ * cookie evita que F5 infle o numero. So conta artista publicado.
  */
 export async function recordArtistView(slug) {
   if (typeof slug !== 'string' || !SLUG_PATTERN.test(slug)) return;
@@ -28,5 +27,5 @@ export async function recordArtistView(slug) {
     path: '/',
   });
 
-  await supabase.rpc('increment_artist_view_count', { target_slug: slug });
+  await query('update artists set view_count = view_count + 1 where slug = $1 and is_published', [slug]);
 }
