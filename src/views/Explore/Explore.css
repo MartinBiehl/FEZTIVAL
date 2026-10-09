@@ -2,7 +2,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: clamp(4rem, 8vw, 8rem) 0 4rem;
+  padding: clamp(2.5rem, 5vw, 4.5rem) 0 2.5rem;
   background: var(--ink);
   color: white;
 }
@@ -308,6 +308,14 @@
   font-size: 0.78rem;
   cursor: pointer;
   transition: color 180ms ease, background-color 180ms ease;
+}
+
+/* Quantidade de artistas da opcao, alinhada a direita. */
+.explore-filter-group label small {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-family: var(--font-numeric);
+  font-size: 0.7rem;
 }
 
 .explore-filter-group label:hover,

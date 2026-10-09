@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, CalendarHeart, Mic2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
@@ -13,7 +14,7 @@ const cards = [
     title: 'Quero contratar',
     label: 'Contratante',
     description: 'Encontre artistas e acompanhe suas reservas.',
-    to: '/entrar/contratante',
+    to: '/cadastro/contratante',
     image: crowdImage,
     icon: CalendarHeart,
     accent: '#ffd600',
@@ -22,7 +23,7 @@ const cards = [
     title: 'Sou artista',
     label: 'Artista',
     description: 'Administre seu perfil, agenda e propostas.',
-    to: '/entrar/artista',
+    to: '/cadastro/artista',
     image: stageImage,
     icon: Mic2,
     accent: '#00bfe7',
@@ -44,8 +45,15 @@ const cardVariants = {
   },
 };
 
+/*
+ * Escolha do tipo de conta, em /cadastro. O login e unico (/entrar); so o
+ * cadastro precisa saber se e artista ou contratante. Preserva ?next= para
+ * quem chegou aqui no meio de uma proposta.
+ */
 function ChooseLogin() {
   const shouldReduceMotion = useReducedMotion();
+  const next = useSearchParams().get('next') ?? '';
+  const withNext = (path) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
 
   return (
     <main className="choose-login-page">
@@ -57,6 +65,11 @@ function ChooseLogin() {
         </Link>
       </header>
 
+      <div className="choose-login__intro">
+        <h1>Como você quer usar o Feztival?</h1>
+        <p>Já tem conta? <Link href={withNext('/entrar')}>Entrar</Link></p>
+      </div>
+
       <section className="choose-login__content" aria-label="Escolha seu tipo de acesso">
         <motion.div
           className="choose-login__grid"
@@ -66,7 +79,7 @@ function ChooseLogin() {
         >
           {cards.map(({ title, label, description, to, image, icon: Icon, accent }) => (
             <motion.div key={to} className="choose-card-wrap" variants={cardVariants}>
-              <Link className="choose-card" href={to} style={{ '--card-accent': accent }}>
+              <Link className="choose-card" href={withNext(to)} style={{ '--card-accent': accent }}>
                 <img src={image.src} alt="" />
                 <span className="choose-card__overlay" aria-hidden="true" />
                 <span className="choose-card__topline">

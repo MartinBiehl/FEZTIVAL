@@ -1,11 +1,16 @@
 import { motion, useReducedMotion } from 'motion/react';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating, priceLabel,
 } from '../../lib/artistDisplay.js';
 import './ArtistCard.css';
 
+/* Generos visiveis no cartao; o resto vira "+N" para nao quebrar a altura. */
+const VISIBLE_GENRES = 2;
+
 function ArtistCard({ artist, featured = false, onPreview }) {
   const shouldReduceMotion = useReducedMotion();
+  const visibleGenres = artist.genres.slice(0, VISIBLE_GENRES);
+  const hiddenGenres = artist.genres.length - visibleGenres.length;
 
   function openPreview(event) {
     onPreview?.(artist, event.currentTarget);
@@ -28,24 +33,39 @@ function ArtistCard({ artist, featured = false, onPreview }) {
             {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
           </span>
         )}
-        <span className="artist-result-card__category">{artist.category}</span>
       </div>
       <div className="artist-result-card__body">
-        <div className="artist-result-card__rating">
-          {hasRating(artist) ? (
-            <>
-              <span>★ {formatRating(artist)}</span>
-              <small>{formatReviewCount(artist)}</small>
-            </>
-          ) : (
-            <small>{NO_RATING_LABEL}</small>
+        <div className="artist-result-card__tags">
+          <span className="artist-result-card__category">{artist.category}</span>
+          {artist.location && (
+            <span className="artist-result-card__location">
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 15s5-4.6 5-8.5a5 5 0 0 0-10 0C3 10.4 8 15 8 15Zm0-6.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" />
+              </svg>
+              {artist.location}
+            </span>
           )}
         </div>
         <h3>{artist.name}</h3>
-        <p>{artist.genres.join(' · ')} · {artist.location}</p>
+        {visibleGenres.length > 0 && (
+          <ul className="artist-result-card__genres" aria-label="Gêneros">
+            {visibleGenres.map((genre) => <li key={genre}>{genre}</li>)}
+            {hiddenGenres > 0 && <li aria-label={`e mais ${hiddenGenres}`}>+{hiddenGenres}</li>}
+          </ul>
+        )}
         <div className="artist-result-card__footer">
-          <span>A partir de <strong>{formatPrice(artist)}</strong></span>
-          <span className="artist-result-card__preview-icon" aria-hidden="true">↗</span>
+          <div>
+            <span>{priceLabel(artist)}</span>
+            <strong>{formatPrice(artist)}</strong>
+          </div>
+          <div className="artist-result-card__rating">
+            {hasRating(artist) ? (
+              <span title={formatReviewCount(artist)}>★ {formatRating(artist)}</span>
+            ) : (
+              <small>{NO_RATING_LABEL}</small>
+            )}
+            <span className="artist-result-card__preview-icon" aria-hidden="true">↗</span>
+          </div>
         </div>
       </div>
       <button

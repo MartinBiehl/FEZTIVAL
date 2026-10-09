@@ -283,6 +283,18 @@
   grid-column: 2 / -1;
 }
 
+.bookings-list__contact {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  background: #25d366;
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .bookings-list__actions:empty {
   display: none;
 }
@@ -299,6 +311,104 @@
 
 @media (max-width: 800px) {
   .bookings-list article > .bookings-list__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+.bookings-list__avatar {
+  overflow: hidden;
+}
+
+.bookings-list__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Andamento: Enviada -> Aceita -> Confirmada -> Realizada, e o proximo passo. */
+.bookings-list article > .bookings-list__progress {
+  grid-column: 2 / -1;
+}
+
+.bookings-list__progress ol {
+  display: grid;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  list-style: none;
+}
+
+.bookings-list__progress li {
+  padding-top: 0.45rem;
+  border-top: 3px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.bookings-list__progress li.is-done {
+  border-color: var(--ink);
+  color: var(--text-secondary);
+}
+
+.bookings-list__progress li.is-current {
+  border-color: var(--booking-color, var(--yellow));
+  color: var(--ink);
+}
+
+.bookings-list__progress p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.bookings-list__details {
+  margin-bottom: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.bookings-list__details summary {
+  width: fit-content;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bookings-list__details dl {
+  display: grid;
+  margin: 0.6rem 0 0;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.6rem 1rem;
+}
+
+.bookings-list__details dt {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+}
+
+.bookings-list__details dd {
+  margin: 0.15rem 0 0;
+}
+
+.bookings-list__message {
+  grid-column: 1 / -1;
+}
+
+.bookings-list__message dd {
+  white-space: pre-line;
+}
+
+.bookings-list__empty p {
+  margin: 0 0 0.8rem;
+}
+
+.bookings-list__empty a {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+@media (max-width: 800px) {
+  .bookings-list article > .bookings-list__progress {
     grid-column: 1 / -1;
   }
 }

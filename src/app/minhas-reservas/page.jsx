@@ -12,7 +12,7 @@ export const metadata = {
 /* Rota dinamica: le a sessao pelos cookies e exige login. */
 export default async function Page() {
   const user = await getCurrentUser();
-  if (!user) redirect('/entrar/contratante?next=/minhas-reservas');
+  if (!user) redirect('/entrar?next=/minhas-reservas');
 
   const { clientName, bookings } = await fetchClientBookings(user.id);
   return <ClientBookings clientName={clientName} bookings={bookings} />;

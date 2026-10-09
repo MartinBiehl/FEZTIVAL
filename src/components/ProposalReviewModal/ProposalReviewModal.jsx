@@ -15,6 +15,13 @@ function formatDate(value) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+/* Mesmos textos de SOUND_OPTIONS em Contract.jsx. */
+const SOUND_LABEL = {
+  'nao-sei': 'Ainda não sei',
+  local: 'O local já tem som',
+  artista: 'O artista leva o som',
+};
+
 function formatDuration(value) {
   const minutes = Number(value);
   // Artista sem servicos cadastrados nao oferece duracao para escolher.
@@ -86,7 +93,9 @@ function ProposalReviewModal({
         <div className="proposal-review-dialog__content">
           <div className="proposal-review-artist">
             <span aria-hidden="true">
-              {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+              {artist.coverUrl
+                ? <img src={artist.coverUrl} alt="" />
+                : artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
             </span>
             <div>
               <small>{artist.category}</small>
@@ -114,6 +123,24 @@ function ProposalReviewModal({
               <span>Duração</span>
               <strong>{formatDuration(proposal.duration)}</strong>
             </article>
+            <article>
+              <span>Tipo de evento</span>
+              <strong>{proposal.eventType}</strong>
+            </article>
+            <article>
+              <span>Convidados</span>
+              <strong>{Number(proposal.guestCount).toLocaleString('pt-BR')}</strong>
+            </article>
+            <article>
+              <span>Estrutura de som</span>
+              <strong>{SOUND_LABEL[proposal.soundStructure] ?? SOUND_LABEL['nao-sei']}</strong>
+            </article>
+            {proposal.message?.trim() && (
+              <article className="proposal-review-details__message">
+                <span>Mensagem</span>
+                <p>{proposal.message.trim()}</p>
+              </article>
+            )}
           </div>
 
           <div className="proposal-review-price">
@@ -122,20 +149,23 @@ function ProposalReviewModal({
             <small>O valor final será confirmado pelo artista.</small>
           </div>
 
-          <section className="proposal-review-payments" aria-labelledby="accepted-payments-title">
-            <div>
-              <span>Informação</span>
-              <h3 id="accepted-payments-title">Formas de pagamento aceitas</h3>
-            </div>
-            <ul>
-              {(artist.paymentMethods ?? []).map((method) => (
-                <li key={method.name}>
-                  <span aria-hidden="true">✓</span>
-                  {method.name}
-                </li>
-              ))}
-            </ul>
-          </section>
+          {/* Sem formas de pagamento cadastradas, a secao ficaria so com o titulo. */}
+          {artist.paymentMethods?.length > 0 && (
+            <section className="proposal-review-payments" aria-labelledby="accepted-payments-title">
+              <div>
+                <span>Informação</span>
+                <h3 id="accepted-payments-title">Formas de pagamento aceitas</h3>
+              </div>
+              <ul>
+                {artist.paymentMethods.map((method) => (
+                  <li key={method.name}>
+                    <span aria-hidden="true">✓</span>
+                    {method.name}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <p className="proposal-review-notice">
             <span aria-hidden="true">i</span>

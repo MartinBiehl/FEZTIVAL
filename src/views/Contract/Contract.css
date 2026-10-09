@@ -168,6 +168,12 @@ label.contract-field > span {
   margin-bottom: 0;
 }
 
+/* Dica abaixo do campo (ex.: o WhatsApp pedido a contas antigas). */
+label.contract-field > small {
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+}
+
 .contract-field em {
   margin-left: 0.35rem;
   color: var(--text-tertiary);

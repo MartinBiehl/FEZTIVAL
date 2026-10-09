@@ -11,12 +11,12 @@ export const metadata = {
 };
 
 /*
- * Rota dinamica: le a sessao pelos cookies. Sem login, vai para o acesso do
- * artista; logado sem cadastro artistico, vai para as proprias reservas.
+ * Rota dinamica: le a sessao pelos cookies. Sem login, vai para o login
+ * (/entrar); logado sem cadastro artistico, vai para as proprias reservas.
  */
 export default async function Page() {
   const user = await getCurrentUser();
-  if (!user) redirect('/entrar/artista?next=/painel');
+  if (!user) redirect('/entrar?next=/painel');
 
   const dashboard = await fetchArtistDashboard(user.id);
   if (!dashboard) redirect('/minhas-reservas');

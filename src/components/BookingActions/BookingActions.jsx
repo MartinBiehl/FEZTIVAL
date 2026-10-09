@@ -3,6 +3,7 @@
 import { useActionState, useId } from 'react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import { createReview, updateBookingStatus } from '../../lib/bookingActions.js';
+import { todayIso } from '../../lib/bookingDisplay.js';
 import './BookingActions.css';
 
 /*
@@ -42,7 +43,9 @@ export function BookingStatusActions({ booking, side, contextLabel }) {
   const [state, formAction, isPending] = useActionState(updateBookingStatus, null);
   const submit = useActionSubmit(formAction);
   const priceId = useId();
-  const actions = (side === 'artist' ? ARTIST_ACTIONS : CLIENT_ACTIONS)[booking.status] ?? [];
+  // Show futuro ainda nao pode ser marcado como realizado.
+  const actions = ((side === 'artist' ? ARTIST_ACTIONS : CLIENT_ACTIONS)[booking.status] ?? [])
+    .filter((item) => item.action !== 'complete' || booking.eventDate <= todayIso());
   const needsPrice = side === 'artist' && booking.status === 'pending';
 
   if (actions.length === 0) return null;

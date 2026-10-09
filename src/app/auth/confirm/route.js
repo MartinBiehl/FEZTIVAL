@@ -12,7 +12,7 @@ export async function GET(request) {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get('token');
   const next = safeNextPath(searchParams.get('next'));
-  const loginPath = searchParams.get('perfil') === 'artista' ? '/entrar/artista' : '/entrar/contratante';
+  const loginPath = '/entrar';
 
   const userId = token ? await consumeEmailVerificationToken(token) : null;
   if (!userId) {

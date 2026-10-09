@@ -10,7 +10,7 @@ import { recordArtistView } from '../../lib/artistActions.js';
 import { askQuestion } from '../../lib/questionActions.js';
 import {
   NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
-  hasRating,
+  hasRating, priceLabel,
 } from '../../lib/artistDisplay.js';
 import './ArtistProfile.css';
 
@@ -76,7 +76,7 @@ function QuestionForm({ slug }) {
   const [state, formAction, isPending] = useActionState(askQuestion, null);
   const submit = useActionSubmit(formAction);
   const formRef = useRef(null);
-  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/artista/${slug}`)}`;
+  const loginPath = `/entrar?next=${encodeURIComponent(`/artista/${slug}`)}`;
 
   // Limpa o campo so quando a pergunta foi publicada; em erro o texto fica.
   useEffect(() => {
@@ -112,11 +112,34 @@ function ArtistProfile({ artist }) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(null);
   const [openInfoId, setOpenInfoId] = useState(null);
   const mediaTriggerRef = useRef(null);
+  const heroCtaRef = useRef(null);
+  const bookingRef = useRef(null);
+  const [showStickyCta, setShowStickyCta] = useState(false);
 
   // A pagina e estatica: a visualizacao e contada pelo navegador, uma vez por visita.
   useEffect(() => {
     recordArtistView(artist.slug).catch(() => {});
   }, [artist.slug]);
+
+  /*
+   * Barra fixa de "Pedir proposta" no celular: aparece quando nem o botao do
+   * topo nem a lateral de reserva estao na tela. No desktop o CSS a esconde,
+   * porque a lateral ja acompanha a rolagem.
+   */
+  useEffect(() => {
+    const targets = [heroCtaRef.current, bookingRef.current].filter(Boolean);
+    if (targets.length === 0 || typeof IntersectionObserver === 'undefined') return undefined;
+    const visible = new Set();
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) visible.add(entry.target);
+        else visible.delete(entry.target);
+      });
+      setShowStickyCta(visible.size === 0);
+    });
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
 
   const closeMedia = useCallback(() => {
     setActiveMediaIndex(null);
@@ -150,6 +173,7 @@ function ArtistProfile({ artist }) {
 
   // Secao sem dado declarado e ocultada, nao preenchida com texto (AGENTS.md).
   const about = artist.bioLong || artist.bioShort;
+  const hasAbout = Boolean(about) || artist.genres.length > 0;
   const hasGallery = artist.mediaGallery.length > 0;
   const hasServices = artist.services.length > 0;
   const hasServiceAreas = Boolean(artist.serviceAreas.summary) || artist.serviceAreas.locations.length > 0;
@@ -184,13 +208,20 @@ function ArtistProfile({ artist }) {
               <span>{NO_RATING_LABEL}</span>
             )}
           </div>
+          <div className="profile-hero__cta" ref={heroCtaRef}>
+            <div>
+              <span>{priceLabel(artist)}</span>
+              <strong>{formatPrice(artist)}</strong>
+            </div>
+            <Link href={`/reservar/${artist.slug}`}>Pedir proposta <span aria-hidden="true">→</span></Link>
+          </div>
         </div>
       </section>
 
       <div className="profile-layout page-container">
         <div className="profile-main">
           <nav className="profile-tabs" aria-label="Seções do perfil">
-            <a href="#sobre-artista">Sobre</a>
+            {hasAbout && <a href="#sobre-artista">Sobre</a>}
             {hasGallery && <a href="#fotos-videos">Fotos</a>}
             {hasServices && <a href="#servicos">Serviços</a>}
             {hasPlanning && <a href="#planejamento">Planeje</a>}
@@ -198,15 +229,17 @@ function ArtistProfile({ artist }) {
             <a href="#perguntas">Perguntas</a>
           </nav>
 
-          <section className="profile-section" id="sobre-artista">
-            <h2>Sobre</h2>
-            {about && <p className="profile-about">{about}</p>}
-            {artist.genres.length > 0 && (
-              <div className="profile-tags">
-                {artist.genres.map((genre) => <span key={genre}>{genre}</span>)}
-              </div>
-            )}
-          </section>
+          {hasAbout && (
+            <section className="profile-section" id="sobre-artista">
+              <h2>Sobre</h2>
+              {about && <p className="profile-about">{about}</p>}
+              {artist.genres.length > 0 && (
+                <div className="profile-tags">
+                  {artist.genres.map((genre) => <span key={genre}>{genre}</span>)}
+                </div>
+              )}
+            </section>
+          )}
 
           {hasGallery && (
             <section className="profile-section profile-media" id="fotos-videos">
@@ -369,7 +402,13 @@ function ArtistProfile({ artist }) {
                 <h2>Avaliações</h2>
               </div>
               {hasRating(artist) && (
-                <strong>{formatRating(artist)}<span>★★★★★</span></strong>
+                <strong aria-label={`Nota ${formatRating(artist)} de 5`}>
+                  {formatRating(artist)}
+                  <span aria-hidden="true">
+                    {'★'.repeat(Math.round(artist.rating))}
+                    <i>{'★'.repeat(5 - Math.round(artist.rating))}</i>
+                  </span>
+                </strong>
               )}
             </div>
             {!hasRating(artist) && (
@@ -423,14 +462,14 @@ function ArtistProfile({ artist }) {
           </section>
         </div>
 
-        <aside className="profile-booking">
-          <span>A partir de</span>
+        <aside className="profile-booking" ref={bookingRef}>
+          <span>{priceLabel(artist)}</span>
           <strong>{formatPrice(artist)}</strong>
           <small>por apresentação</small>
           <dl>
             <div><dt>Local</dt><dd>{artist.location}</dd></div>
             {formatMaxDuration(artist) && (
-              <div><dt>Duração</dt><dd>{formatMaxDuration(artist)} disponíveis</dd></div>
+              <div><dt>Duração</dt><dd>Sets de até {formatMaxDuration(artist)}</dd></div>
             )}
             {hasRating(artist) && (
               <div><dt>Avaliação</dt><dd>★ {formatRating(artist)}</dd></div>
@@ -439,6 +478,16 @@ function ArtistProfile({ artist }) {
           <Link href={`/reservar/${artist.slug}`}>Pedir proposta <span>→</span></Link>
           <p>Você não paga nada para enviar uma proposta.</p>
         </aside>
+      </div>
+
+      <div className={`profile-sticky-cta${showStickyCta ? ' is-visible' : ''}`} aria-hidden={!showStickyCta}>
+        <div>
+          <span>{priceLabel(artist)}</span>
+          <strong>{formatPrice(artist)}</strong>
+        </div>
+        <Link href={`/reservar/${artist.slug}`} tabIndex={showStickyCta ? undefined : -1}>
+          Pedir proposta <span aria-hidden="true">→</span>
+        </Link>
       </div>
 
       <AnimatePresence>

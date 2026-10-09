@@ -64,7 +64,10 @@ const form = (fields) => {
   for (const [k, v] of Object.entries(fields)) for (const x of [].concat(v)) f.append(k, x);
   return f;
 };
-const signupFields = (o) => ({ signupAs: 'contractor', password: 'senha-forte-1', terms: 'on', fullName: 'Pessoa Teste', ...o });
+// WhatsApp e obrigatorio para todo cadastro: e o contato entre as partes depois do aceite.
+const signupFields = (o) => ({
+  signupAs: 'contractor', password: 'senha-forte-1', terms: 'on', fullName: 'Pessoa Teste', phone: '(51) 98888-7777', ...o,
+});
 
 async function signUpAndConfirm(who, fields) {
   as(who);
@@ -283,6 +286,58 @@ test('painel e minhas reservas mostram so o que e de cada um', async () => {
   assert.equal(dash2.metrics.pending, 1);
 });
 
+test('cadastro sem WhatsApp e recusado, tambem para contratante', async () => {
+  as('semfone');
+  const r = await acc.signUp(null, form(signupFields({ email: 'semfone@test.local', phone: '' })));
+  assert.match(r.error, /WhatsApp/);
+  assert.equal(await one(`select id from users where email = 'semfone@test.local'`), undefined);
+});
+
+test('whatsapp: conta antiga informa na proposta; contato do artista so depois do aceite', async () => {
+  as('c');
+  const c = await getCurrentUser();
+  await one('update profiles set phone = null where id = $1', [c.id]);
+  assert.match((await bookings.createBooking(bookingForm())).error, /WhatsApp/);
+  assert.deepEqual(await bookings.createBooking(bookingForm({ phone: '(51) 97777-6666' })), { ok: true });
+  assert.equal((await one('select phone from profiles where id = $1', [c.id])).phone, '51977776666');
+
+  const pending = (await fetchClientBookings(c.id)).bookings[0];
+  assert.equal(pending.artistPhone, null);
+  assert.equal(pending.guestCount, 80);
+  assert.equal(pending.durationMinutes, 120);
+
+  bookingId = pending.id;
+  as('a');
+  assert.deepEqual(await status('accept', { price: '1500' }), { ok: true });
+  as('c');
+  assert.equal((await fetchClientBookings(c.id)).bookings[0].artistPhone, '51999998888');
+});
+
+test('painel: aceita ja passada continua para ser concluida; pendente vencida sai', async () => {
+  as('a');
+  const me = await getCurrentUser();
+  // bookingId e a reserva aceita do teste anterior; a pendente e a do cliente b.
+  const pendingId = (await one(
+    `select b.id from bookings b join users u on u.id = b.client_id
+      where u.email = 'cliente@test.local' and b.status = 'pending'`,
+  )).id;
+  await one(`update bookings set event_date = '2020-01-10' where id = any($1)`, [[bookingId, pendingId]]);
+
+  const dash = await fetchArtistDashboard(me.id);
+  const ids = dash.proposals.map((p) => p.id);
+  assert.ok(ids.includes(bookingId));
+  assert.ok(!ids.includes(pendingId));
+  assert.equal(dash.proposals.find((p) => p.id === bookingId).isPast, true);
+  assert.equal(dash.metrics.pending, 0);
+});
+
+test('"sob consulta" esconde o preco inicial no publico', async () => {
+  await one('update artists set price_on_request = true where id = $1', [artistId]);
+  assert.equal((await fetchArtistBySlug(slug)).price, null);
+  await one('update artists set price_on_request = false where id = $1', [artistId]);
+  assert.notEqual((await fetchArtistBySlug(slug)).price, null);
+});
+
 test('perguntas: contratante pergunta; so o dono responde, uma vez', async () => {
   const ask = form({ slug, body: 'Vocês tocam até que horas?' });
   as('a');
@@ -302,6 +357,11 @@ test('perguntas: contratante pergunta; so o dono responde, uma vez', async () =>
   assert.equal((await fetchArtistDashboard((await getCurrentUser()).id)).openQuestions.length, 1);
   assert.deepEqual(await questions.answerQuestion(null, answer), { ok: true });
   assert.match((await questions.answerQuestion(null, answer)).error, /já foi respondida/);
+
+  // A respondida sai da fila e vai para o historico do painel.
+  const dash = await fetchArtistDashboard((await getCurrentUser()).id);
+  assert.equal(dash.openQuestions.length, 0);
+  assert.equal(dash.answeredQuestions[0].answer, 'Até as 2h.');
 
   const pub = await fetchArtistBySlug(slug);
   assert.equal(pub.questions[0].answer, 'Até as 2h.');

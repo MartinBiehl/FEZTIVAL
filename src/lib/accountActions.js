@@ -109,14 +109,15 @@ export async function signUp(_prevState, formData) {
   if (fullName.length < 2 || fullName.length > 120) return { error: 'Informe seu nome completo.' };
 
   /*
-   * Artista sem nome e sem telefone nao e contratavel: o WhatsApp e o canal de
-   * contato efetivo. As colunas sao nullable (rascunho e seed), entao a
-   * obrigatoriedade mora aqui.
+   * O WhatsApp e o canal de contato efetivo entre as duas partes depois do
+   * aceite, entao vale para artista e contratante. As colunas sao nullable
+   * (rascunho e seed), entao a obrigatoriedade mora aqui.
    */
+  if (phone.length < 10 || phone.length > 11) return { error: 'Informe um WhatsApp com DDD.' };
+
   if (signupAs === 'artist') {
     if (stageName.length < 2 || stageName.length > 80) return { error: 'Informe seu nome artístico.' };
     if (!ARTIST_CATEGORIES.includes(category)) return { error: 'Escolha a categoria do seu trabalho.' };
-    if (phone.length < 10 || phone.length > 11) return { error: 'Informe um WhatsApp com DDD.' };
   }
 
   const passwordHash = await hashPassword(password);
@@ -149,7 +150,6 @@ export async function signUp(_prevState, formData) {
 
   const confirmUrl = new URL('/auth/confirm', await requestOrigin());
   confirmUrl.searchParams.set('token', token);
-  confirmUrl.searchParams.set('perfil', signupAs === 'artist' ? 'artista' : 'contratante');
   if (next) confirmUrl.searchParams.set('next', next);
 
   try {

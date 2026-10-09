@@ -43,12 +43,29 @@ export function formatMoney(value) {
 }
 
 /*
- * Maior duracao de set oferecida, em horas ("3h"), ou null quando o artista
+ * Rotulo que acompanha o preco. "A partir de Sob consulta" nao faz sentido:
+ * sem valor publicado, o rotulo e so "Cachê".
+ */
+export function priceLabel(artist) {
+  return artist.price == null ? 'Cachê' : 'A partir de';
+}
+
+/*
+ * Maior duracao de set oferecida ("3h", "1h30"), ou null quando o artista
  * nao cadastrou servicos. Math.max() sem argumentos devolve -Infinity, que
  * chegaria na tela como "-Infinity h".
  */
 export function formatMaxDuration(artist) {
   const minutes = artist.setMinutes;
   if (!Array.isArray(minutes) || minutes.length === 0) return null;
-  return `${Math.max(...minutes) / 60}h`;
+  return formatMinutes(Math.max(...minutes));
+}
+
+/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min"; null quando nao ha duracao. */
+export function formatMinutes(minutes) {
+  if (minutes == null) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, '0')}`;
 }

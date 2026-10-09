@@ -135,8 +135,9 @@ mensagem e valor) e próximos shows confirmados. Em cada proposta o artista:
 - depois **confirma** o show e, por fim, **marca como realizado**; pode cancelar
   antes disso.
 
-Depois do aceite aparece o link de WhatsApp do contratante. Telefones não são
-públicos: cada usuário só vê o contato da outra parte de uma reserva.
+Depois do aceite aparece o WhatsApp da outra parte, dos dois lados: o artista vê o do
+contratante no painel e o contratante vê o do artista em "Minhas reservas". Telefones
+não são públicos: cada usuário só vê o contato da outra parte de uma reserva.
 
 As perguntas feitas no perfil público aparecem em "Perguntas sem resposta", onde o
 artista responde. A resposta fica pública no perfil, junto da pergunta.
@@ -164,7 +165,7 @@ artista, cadastro para os dois públicos e recuperação de senha em três passo
 
 **Estado: ✅ funcionando**, com autenticação própria (e-mail e senha, sessão em cookie).
 
-- **Cadastro de contratante:** nome completo, e-mail e senha.
+- **Cadastro de contratante:** nome completo, WhatsApp, e-mail e senha.
 - **Cadastro de artista:** nome artístico, nome completo, WhatsApp e categoria
   (DJ, banda, músico solo). Cria o perfil artístico como **rascunho**, fora do
   catálogo até ser publicado.

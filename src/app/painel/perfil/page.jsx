@@ -11,7 +11,7 @@ export const metadata = {
 
 export default async function Page() {
   const user = await getCurrentUser();
-  if (!user) redirect('/entrar/artista?next=/painel/perfil');
+  if (!user) redirect('/entrar?next=/painel/perfil');
 
   const editor = await fetchProfileEditor(user.id);
   if (!editor) redirect('/minhas-reservas');

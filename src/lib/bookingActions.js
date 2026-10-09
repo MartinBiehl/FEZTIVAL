@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from './auth.js';
-import { query, queryOne } from './db.js';
+import { query, queryOne, transaction } from './db.js';
 import { todayIso } from './bookingDisplay.js';
+import { normalizePhone } from './phone.js';
 
 /*
  * Server Actions de reservas e avaliacoes.
@@ -49,6 +50,7 @@ export async function createBooking(formData) {
   const time = field(formData, 'time');
   const location = field(formData, 'location');
   const duration = Number(field(formData, 'duration'));
+  const phoneInput = field(formData, 'phone');
   const soundStructure = SOUND_STRUCTURE[field(formData, 'soundStructure')] ?? 'unknown';
   const message = field(formData, 'message');
 
@@ -64,7 +66,7 @@ export async function createBooking(formData) {
   if (message.length > 2000) return { error: 'A mensagem pode ter até 2.000 caracteres.' };
 
   const artist = await queryOne(
-    `select a.id, a.profile_id, a.base_price,
+    `select a.id, a.profile_id, a.base_price, a.price_on_request,
             coalesce((select json_agg(json_build_object('id', s.id, 'price', s.price, 'duration_minutes', s.duration_minutes))
                         from artist_services s where s.artist_id = a.id), '[]') as services
        from artists a
@@ -78,23 +80,39 @@ export async function createBooking(formData) {
   }
 
   /*
-   * O valor gravado agora e a estimativa exibida ao contratante. O valor final,
-   * a comissao e o repasse sao definidos pelo artista no aceite.
+   * Sem WhatsApp o artista nao tem como responder depois do aceite. Contas
+   * antigas de contratante nao informaram no cadastro: o formulario pede e
+   * gravamos aqui, so se o perfil ainda estiver sem.
    */
+  const profile = await queryOne('select phone from profiles where id = $1', [user.id]);
+  const phone = profile?.phone ? null : normalizePhone(phoneInput);
+  if (!profile?.phone && !phone) {
+    return { error: 'Informe seu WhatsApp com DDD para o artista poder responder.' };
+  }
+
   const service = artist.services.find((item) => item.duration_minutes === duration);
-  /* Mesma regra de estimatePrice (bookingDisplay.js), exibida no formulario. */
-  const estimate = service?.price ?? artist.base_price ?? null;
+  /*
+   * Mesma regra de estimatePrice (bookingDisplay.js), exibida no formulario.
+   * "Sob consulta" esconde o preco inicial, como em artistQueries.js.
+   */
+  const basePrice = artist.price_on_request ? null : artist.base_price;
+  const estimate = service?.price ?? basePrice ?? null;
 
   try {
-    // Sempre pending e sempre em nome de quem esta logado.
-    await query(
-      `insert into bookings (
-         client_id, artist_id, service_id, event_date, event_time, event_location,
-         event_type, guest_count, sound_structure, message, agreed_price, status
-       ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')`,
-      [user.id, artist.id, service?.id ?? null, date, time, location,
-        eventType, guestCount, soundStructure, message || null, estimate],
-    );
+    await transaction(async (tx) => {
+      if (phone) {
+        await tx.query('update profiles set phone = $1 where id = $2 and phone is null', [phone, user.id]);
+      }
+      // Sempre pending e sempre em nome de quem esta logado.
+      await tx.query(
+        `insert into bookings (
+           client_id, artist_id, service_id, duration_minutes, event_date, event_time,
+           event_location, event_type, guest_count, sound_structure, message, agreed_price, status
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')`,
+        [user.id, artist.id, service?.id ?? null, Number.isInteger(duration) && duration > 0 ? duration : null,
+          date, time, location, eventType, guestCount, soundStructure, message || null, estimate],
+      );
+    });
   } catch (error) {
     console.error('createBooking falhou', error.code);
     return { error: 'Não foi possível enviar a proposta. Tente novamente.' };

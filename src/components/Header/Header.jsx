@@ -14,6 +14,18 @@ const navigation = [
   { label: 'Para artistas', to: '/#para-artistas' },
 ];
 
+/*
+ * Perfil e proposta sao continuacao do catalogo: "Explorar artistas" segue
+ * marcado neles. Ancoras da home (/#...) nunca ficam ativas.
+ */
+const SECTION_PREFIXES = {
+  '/explorar': ['/explorar', '/artista/', '/reservar/'],
+};
+
+function isActive(to, pathname) {
+  return (SECTION_PREFIXES[to] ?? [to]).some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+}
+
 function Header() {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -51,7 +63,8 @@ function Header() {
             <Link
               key={to}
               href={to}
-              className={to === pathname ? 'active' : undefined}
+              className={isActive(to, pathname) ? 'active' : undefined}
+              aria-current={isActive(to, pathname) ? 'page' : undefined}
             >
               {label}
             </Link>
@@ -64,7 +77,7 @@ function Header() {
           ) : (
             <>
               <Link className="site-header__login" href="/entrar">Entrar</Link>
-              <Link className="site-header__signup" href="/cadastro/contratante">Cadastre-se</Link>
+              <Link className="site-header__signup" href="/cadastro">Cadastre-se</Link>
             </>
           )}
           <button
@@ -94,7 +107,7 @@ function Header() {
           ) : (
             <>
               <Link href="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar</Link>
-              <Link href="/cadastro/contratante" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
+              <Link href="/cadastro" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
             </>
           )}
         </nav>

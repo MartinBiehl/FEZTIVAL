@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState, useTransition } from 'react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, Mail } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
@@ -43,6 +43,31 @@ const stepContent = {
   },
 };
 
+/*
+ * O e-mail passa entre as etapas pela sessionStorage, e nao pela URL: na URL
+ * ele ficaria no historico, em logs de servidor e no Referer. Vale so para
+ * esta aba; sem ele (aba nova, armazenamento bloqueado) a pessoa recomeca.
+ */
+const EMAIL_KEY = 'feztival:recuperacao-email';
+const LOGIN_PATH = '/entrar';
+
+function storeEmail(value) {
+  try {
+    if (value) window.sessionStorage.setItem(EMAIL_KEY, value);
+    else window.sessionStorage.removeItem(EMAIL_KEY);
+  } catch {
+    // Sem armazenamento a etapa seguinte pede o e-mail de novo.
+  }
+}
+
+function storedEmail() {
+  try {
+    return window.sessionStorage.getItem(EMAIL_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 function maskEmail(email) {
   const [localPart = '', domain = ''] = email.split('@');
   if (!localPart || !domain) return 'seu e-mail';
@@ -51,15 +76,10 @@ function maskEmail(email) {
 
 function PasswordRecovery({ step = 'email' }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
-  const profile = searchParams.get('perfil') === 'artista' ? 'artist' : 'contractor';
-  const profileParam = profile === 'artist' ? 'artista' : 'contratante';
-  const query = `?perfil=${profileParam}`;
-  const loginPath = `/entrar/${profileParam}`;
   const content = stepContent[step];
   const Icon = content.icon;
-  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -70,18 +90,31 @@ function PasswordRecovery({ step = 'email' }) {
   const error = state?.error ?? '';
 
   const backPath = step === 'email'
-    ? loginPath
+    ? LOGIN_PATH
     : step === 'code'
-      ? `/recuperar-senha${query}`
-      : `/recuperar-senha/codigo${query}`;
+      ? '/recuperar-senha'
+      : '/recuperar-senha/codigo';
+
+  // Etapas 2 e 3 dependem do e-mail da etapa 1; sem ele, volta ao inicio.
+  useEffect(() => {
+    if (step === 'email') return;
+    const saved = storedEmail();
+    if (saved) setEmail(saved);
+    else router.replace('/recuperar-senha');
+  }, [router, step]);
 
   useEffect(() => {
     if (!state?.ok) return;
-    const emailParam = `&email=${encodeURIComponent(email)}`;
-    if (step === 'email') router.push(`/recuperar-senha/codigo${query}${emailParam}`);
-    if (step === 'code') router.push(`/recuperar-senha/nova-senha${query}${emailParam}`);
-    if (step === 'password') router.replace(`${loginPath}?senhaRedefinida=1`);
-  }, [email, loginPath, query, router, state, step]);
+    if (step === 'email') {
+      storeEmail(email);
+      router.push('/recuperar-senha/codigo');
+    }
+    if (step === 'code') router.push('/recuperar-senha/nova-senha');
+    if (step === 'password') {
+      storeEmail(null);
+      router.replace(`${LOGIN_PATH}?senhaRedefinida=1`);
+    }
+  }, [email, router, state, step]);
 
   const handleResend = () => {
     setCode('');
@@ -94,7 +127,7 @@ function PasswordRecovery({ step = 'email' }) {
   };
 
   return (
-    <main className={`recovery-page recovery-page--${profile}`} style={{ '--recovery-accent': profile === 'artist' ? '#00bfe7' : '#ff3cac' }}>
+    <main className="recovery-page" style={{ '--recovery-accent': '#ff3cac' }}>
       <header className="recovery-page__header">
         <BrandLogo />
         <Link href={backPath}>
@@ -199,7 +232,7 @@ function PasswordRecovery({ step = 'email' }) {
           </form>
         )}
 
-        <Link className="recovery-card__login" href={loginPath}>Voltar para o login</Link>
+        <Link className="recovery-card__login" href={LOGIN_PATH}>Voltar para o login</Link>
       </motion.section>
     </main>
   );

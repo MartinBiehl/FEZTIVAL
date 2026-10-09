@@ -116,6 +116,65 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+/* Preco e acao principal no topo: antes so existiam na lateral, abaixo da dobra. */
+.profile-hero__cta,
+.profile-sticky-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile-hero__cta {
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.profile-hero__cta span,
+.profile-sticky-cta span {
+  display: block;
+  font-size: 0.7rem;
+}
+
+.profile-hero__cta > div span {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.profile-hero__cta strong,
+.profile-sticky-cta strong {
+  font-family: var(--font-numeric);
+  font-size: 1.15rem;
+}
+
+.profile-hero__cta a,
+.profile-sticky-cta a {
+  display: inline-flex;
+  padding: 0.85rem 1.2rem;
+  border-radius: 12px;
+  background: var(--artist-color);
+  color: var(--ink);
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.profile-hero__cta a span,
+.profile-sticky-cta a span {
+  display: inline;
+  font-size: 1rem;
+}
+
+.profile-hero__cta a:hover {
+  background: white;
+}
+
+/* So existe no celular; ver o @media (max-width: 900px). */
+.profile-sticky-cta {
+  display: none;
+}
+
 .profile-layout {
   display: grid;
   padding-top: 3rem;
@@ -524,6 +583,12 @@
   letter-spacing: 0.2em;
 }
 
+/* Estrelas que faltam para 5, apagadas. */
+.profile-reviews__heading > strong span i {
+  color: var(--border-strong);
+  font-style: normal;
+}
+
 .profile-review-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -769,6 +834,34 @@
     position: static;
     grid-row: 1;
   }
+
+  .profile-sticky-cta {
+    position: fixed;
+    z-index: 40;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface), transparent 6%);
+    box-shadow: 0 -18px 40px -30px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px);
+    transform: translateY(110%);
+    transition: transform 220ms ease;
+  }
+
+  .profile-sticky-cta.is-visible {
+    transform: translateY(0);
+  }
+
+  .profile-sticky-cta span {
+    color: var(--text-secondary);
+  }
+
+  .profile-sticky-cta a span {
+    color: inherit;
+  }
 }
 
 @media (max-width: 600px) {
@@ -823,6 +916,10 @@
 
   .profile-media-item:hover img {
     transform: none;
+  }
+
+  .profile-sticky-cta {
+    transition: none;
   }
 }
 

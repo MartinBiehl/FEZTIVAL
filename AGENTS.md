@@ -177,9 +177,9 @@ revisitar em fase futura.
 | Explorar artistas | `/explorar` | Catálogo, pesquisa e filtros |
 | Perfil do artista | `/artista/:slug` | Portfólio e serviços |
 | Pedido de contratação | `/reservar/:slug` | Formulário de proposta |
-| Escolha de acesso | `/entrar` | Escolha entre contratante e artista |
-| Login contratante | `/entrar/contratante` | Acesso do cliente |
-| Login artista | `/entrar/artista` | Acesso do artista |
+| Login | `/entrar` | Login único; o destino sai da conta (`destinationFor`) |
+| Login legado | `/entrar/contratante`, `/entrar/artista` | Redirecionam para `/entrar` mantendo a query |
+| Escolha de cadastro | `/cadastro` | Escolha entre contratante e artista (preserva `?next=`) |
 | Cadastro | `/cadastro/contratante`, `/cadastro/artista` | Criação de conta |
 | Recuperação de senha | `/recuperar-senha`, `/codigo`, `/nova-senha` | E-mail → código → nova senha |
 | Painel do artista | `/painel` | Propostas recebidas e agenda (exige login) |
@@ -506,7 +506,7 @@ O que antes eram policies, e onde vive agora:
 | Regra | Onde |
 |---|---|
 | Público só vê artista `is_published` (e o que pende dele) | toda query de `artistQueries.js` |
-| `profiles` não é público: nome e WhatsApp só para o próprio e para o artista das reservas do contratante | `fetchArtistDashboard`, `/api/session` |
+| `profiles` não é público: nome e WhatsApp só para o próprio e para a outra parte da reserva; o contratante só recebe o WhatsApp do artista depois do aceite (`accepted`/`confirmed`) | `fetchArtistDashboard`, `fetchClientBookings`, `/api/session` |
 | Reservas: cada um vê só as em que é contratante ou dono do artista | `bookingQueries.js` |
 | Proposta nasce `pending`, em nome de quem está logado | `createBooking` |
 | O artista aceita, recusa, confirma, conclui e cancela; o contratante **só cancela** | `updateBookingStatus` |
@@ -710,7 +710,10 @@ e-mail — e o link antigo deixa de valer.
 O formulário envia `signupAs`, que é só a intenção do cadastro, **não** um papel. Quem
 tem linha em `artists` vai para `/painel`; os demais, para `/minhas-reservas`.
 
-O cadastro de artista exige nome artístico, nome completo, WhatsApp e categoria. O
+Todo cadastro exige nome completo e WhatsApp — é por ele que as partes se falam depois
+do aceite. Contas antigas sem telefone informam o WhatsApp no formulário de proposta
+(`createBooking` grava se o perfil estiver sem). O cadastro de artista exige também
+nome artístico e categoria. O
 slug é gerado uma única vez, a partir do nome artístico; em colisão recebe um sufixo
 curto. O artista nasce com `is_published = false`.
 

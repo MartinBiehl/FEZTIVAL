@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AnimatePresence,
   motion,
@@ -21,13 +21,54 @@ import './Explore.css';
  */
 const initialFilters = { duration: [], genre: [] };
 
+/*
+ * Faixas, e nao duracoes exatas: o editor oferece 1h30 e 5h, que nenhuma
+ * opcao exata encontrava. O artista entra se algum servico cair na faixa.
+ */
 const DURATION_OPTIONS = [
-  { label: '30 min', value: '30' },
-  { label: '1 hora', value: '60' },
-  { label: '2 horas', value: '120' },
-  { label: '3 horas', value: '180' },
-  { label: '4+ horas', value: '240' },
+  { label: 'Até 1h', value: 'ate-1h', min: 0, max: 60 },
+  { label: '1h a 2h', value: '1h-2h', min: 61, max: 120 },
+  { label: '2h a 3h', value: '2h-3h', min: 121, max: 180 },
+  { label: 'Mais de 3h', value: 'mais-3h', min: 181, max: Infinity },
 ];
+
+const SORT_VALUES = ['recommended', 'price-low', 'price-high'];
+
+/* Busca sem acento e sem caixa: "musico" encontra "Músico". */
+function normalize(value) {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('pt-BR');
+}
+
+/*
+ * Estado do catalogo <-> URL (?q=&categoria=&genero=&duracao=&ordem=), para
+ * o voltar do navegador e links compartilhados manterem a busca. Lido no
+ * navegador depois de montar: useSearchParams exigiria Suspense, e o HTML
+ * estatico desta pagina (indexado) sairia vazio.
+ */
+function readUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const list = (name) => (params.get(name) ?? '').split(',').filter(Boolean);
+  return {
+    search: params.get('q') ?? '',
+    category: params.get('categoria') ?? '',
+    filters: { duration: list('duracao'), genre: list('genero') },
+    sort: SORT_VALUES.includes(params.get('ordem')) ? params.get('ordem') : 'recommended',
+  };
+}
+
+function writeUrlState({ search, category, filters, sort }) {
+  const params = new URLSearchParams();
+  if (search.trim()) params.set('q', search.trim());
+  if (category) params.set('categoria', category);
+  if (filters.genre.length) params.set('genero', filters.genre.join(','));
+  if (filters.duration.length) params.set('duracao', filters.duration.join(','));
+  if (sort !== 'recommended') params.set('ordem', sort);
+  const query = params.toString();
+  const url = `${window.location.pathname}${query ? `?${query}` : ''}`;
+  if (url !== `${window.location.pathname}${window.location.search}`) {
+    window.history.replaceState(window.history.state, '', url);
+  }
+}
 const fastGlowSpring = { stiffness: 150, damping: 24, mass: 0.45 };
 const slowGlowSpring = { stiffness: 65, damping: 20, mass: 0.95 };
 const filterDisclosureSpring = { type: 'spring', stiffness: 240, damping: 22, mass: 0.9 };
@@ -180,6 +221,7 @@ function FilterGroupDisclosure({ group, isOpen, onChange, onToggle, selectedValu
                       </AnimatePresence>
                     </motion.span>
                     {option.label}
+                    {option.count != null && <small>{option.count}</small>}
                   </motion.label>
                 );
               })}
@@ -193,11 +235,13 @@ function FilterGroupDisclosure({ group, isOpen, onChange, onToggle, selectedValu
 
 function Explore({ artists = [], genres = [] }) {
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('Todos');
+  // Valor do banco (dj, band, solo); vazio = todas.
+  const [activeCategory, setActiveCategory] = useState('');
   const [filters, setFilters] = useState(initialFilters);
   const [sort, setSort] = useState('recommended');
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [openFilterGroups, setOpenFilterGroups] = useState(['distance']);
+  const [openFilterGroups, setOpenFilterGroups] = useState([]);
+  const [urlRead, setUrlRead] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const previewTriggerRef = useRef(null);
   const shouldReduceMotion = useReducedMotion();
@@ -225,39 +269,67 @@ function Explore({ artists = [], genres = [] }) {
   const categories = useMemo(() => {
     const counts = new Map();
     for (const artist of artists) {
-      counts.set(artist.category, (counts.get(artist.category) ?? 0) + 1);
+      const current = counts.get(artist.categoryValue) ?? { name: artist.category, count: 0 };
+      counts.set(artist.categoryValue, { ...current, count: current.count + 1 });
     }
     return [
-      { name: 'Todos', count: artists.length },
+      { value: '', name: 'Todos', count: artists.length },
       ...[...counts.entries()]
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
-        .map(([name, count]) => ({ name, count })),
+        .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name, 'pt-BR'))
+        .map(([value, { name, count }]) => ({ value, name, count })),
     ];
   }, [artists]);
 
-  /* Generos vem do catalogo do banco, nao de uma lista fixa. */
-  const filterGroups = useMemo(() => [
-    { id: 'duration', label: 'Tempo de set', options: DURATION_OPTIONS },
-    {
-      id: 'genre',
-      label: 'Gênero musical',
-      options: genres.map((genre) => ({ label: genre.name, value: genre.name })),
-    },
-  ], [genres]);
+  /*
+   * Generos vem do catalogo do banco, nao de uma lista fixa. So entram os que
+   * tem artista: escolher um genero vazio levaria direto a zero resultados.
+   */
+  const filterGroups = useMemo(() => {
+    const genreCounts = new Map();
+    for (const artist of artists) {
+      for (const genre of artist.genres) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
+    }
+    return [
+      { id: 'duration', label: 'Tempo de set', options: DURATION_OPTIONS },
+      {
+        id: 'genre',
+        label: 'Gênero musical',
+        options: genres
+          .filter((genre) => genreCounts.has(genre.name))
+          .map((genre) => ({ label: genre.name, value: genre.name, count: genreCounts.get(genre.name) })),
+      },
+    ];
+  }, [artists, genres]);
+
+  useEffect(() => {
+    const state = readUrlState();
+    setSearch(state.search);
+    setActiveCategory(state.category);
+    setFilters(state.filters);
+    setSort(state.sort);
+    setUrlRead(true);
+  }, []);
+
+  useEffect(() => {
+    // Antes de ler a URL, o estado ainda e o padrao e apagaria os parametros.
+    if (!urlRead) return;
+    writeUrlState({ search, category: activeCategory, filters, sort });
+  }, [activeCategory, filters, search, sort, urlRead]);
 
   const results = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('pt-BR');
+    const query = normalize(search.trim());
     const filtered = artists.filter((artist) => {
       const searchMatches = !query || [
         artist.name,
         artist.category,
         artist.location,
         ...artist.genres,
-      ].filter(Boolean).some((value) => value.toLocaleLowerCase('pt-BR').includes(query));
-      const categoryMatches = activeCategory === 'Todos' || artist.category === activeCategory;
-      const durationMatches = !filters.duration.length || filters.duration.some(
-        (duration) => artist.setMinutes.includes(Number(duration)),
-      );
+      ].filter(Boolean).some((value) => normalize(value).includes(query));
+      const categoryMatches = !activeCategory || artist.categoryValue === activeCategory;
+      const durationMatches = !filters.duration.length || filters.duration.some((value) => {
+        const range = DURATION_OPTIONS.find((option) => option.value === value);
+        return range && artist.setMinutes.some((minutes) => minutes >= range.min && minutes <= range.max);
+      });
       const genreMatches = !filters.genre.length || filters.genre.some(
         (genre) => artist.genres.includes(genre),
       );
@@ -287,17 +359,9 @@ function Explore({ artists = [], genres = [] }) {
   function toggleFilter(group, value) {
     setFilters((current) => ({
       ...current,
-      [group]: group === 'distance'
-        ? (() => {
-            if (value === 'any') return current.distance.includes('any') ? [] : ['any'];
-            const specificDistances = current.distance.filter((item) => item !== 'any');
-            return specificDistances.includes(value)
-              ? specificDistances.filter((item) => item !== value)
-              : [...specificDistances, value];
-          })()
-        : current[group].includes(value)
-          ? current[group].filter((item) => item !== value)
-          : [...current[group], value],
+      [group]: current[group].includes(value)
+        ? current[group].filter((item) => item !== value)
+        : [...current[group], value],
     }));
   }
 
@@ -311,7 +375,7 @@ function Explore({ artists = [], genres = [] }) {
 
   function clearAll() {
     setSearch('');
-    setActiveCategory('Todos');
+    setActiveCategory('');
     setFilters(initialFilters);
   }
 
@@ -383,10 +447,11 @@ function Explore({ artists = [], genres = [] }) {
         <div className="explore-categories" role="group" aria-label="Categorias de artistas">
           {categories.map((category) => (
             <button
-              className={category.name === activeCategory ? 'active' : ''}
-              key={category.name}
+              className={category.value === activeCategory ? 'active' : ''}
+              key={category.value || 'todos'}
               type="button"
-              onClick={() => setActiveCategory(category.name)}
+              aria-pressed={category.value === activeCategory}
+              onClick={() => setActiveCategory(category.value)}
             >
               {category.name} <span>{category.count}</span>
             </button>
@@ -395,7 +460,9 @@ function Explore({ artists = [], genres = [] }) {
 
         <div className="explore-toolbar">
           <div>
-            <strong>{results.length} artistas encontrados</strong>
+            <strong>
+              {results.length === 1 ? '1 artista encontrado' : `${results.length} artistas encontrados`}
+            </strong>
             <span>em Ivoti e região</span>
           </div>
           <button
@@ -446,7 +513,7 @@ function Explore({ artists = [], genres = [] }) {
               type="button"
               onClick={() => setFiltersOpen(false)}
             >
-              Ver {results.length} resultados
+              {results.length === 1 ? 'Ver 1 resultado' : `Ver ${results.length} resultados`}
             </button>
           </aside>
 

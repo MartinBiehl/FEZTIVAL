@@ -41,7 +41,7 @@ const steps = [
   {
     number: '01',
     title: 'Explore',
-    text: 'Escolha o seu artista favorito de acordo ao gosto de seu evento.',
+    text: 'Escolha o seu artista favorito de acordo com o gosto do seu evento.',
     color: '#FFD600',
   },
   {

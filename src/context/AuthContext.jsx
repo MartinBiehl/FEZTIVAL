@@ -5,7 +5,7 @@ import { signOut } from '../lib/accountActions.js';
 
 const AuthContext = createContext(null);
 
-/* Usuario do Header ({ role, name, avatarUrl, notificationCount, destination }) ou null. */
+/* Usuario do Header ({ role, name, avatarUrl, hasPhone, notificationCount, destination }) ou null. */
 async function loadSessionUser() {
   try {
     const response = await fetch('/api/session', { cache: 'no-store' });

@@ -12,7 +12,33 @@ import {
 } from '../../lib/artistDisplay.js';
 import { createBooking } from '../../lib/bookingActions.js';
 import { estimatePrice, todayIso } from '../../lib/bookingDisplay.js';
+import { formatPhone } from '../../lib/phone.js';
 import './Contract.css';
+
+/*
+ * Rascunho da proposta para quem ainda nao entrou: o envio leva ao login, e
+ * sem isto a pessoa voltaria com o formulario em branco. sessionStorage
+ * porque o rascunho so interessa a esta aba; pode falhar (modo privado,
+ * armazenamento bloqueado), entao todo acesso e protegido.
+ */
+const draftKey = (slug) => `feztival:proposta:${slug}`;
+
+function readDraft(slug) {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(draftKey(slug)) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(slug, data) {
+  try {
+    if (data) window.sessionStorage.setItem(draftKey(slug), JSON.stringify(data));
+    else window.sessionStorage.removeItem(draftKey(slug));
+  } catch {
+    // Sem armazenamento a proposta so nao e recuperada; o envio segue normal.
+  }
+}
 
 /* Os valores precisam bater com EVENT_TYPES de bookingActions.js. */
 const EVENT_TYPES = ['Casamento', 'Aniversário', 'Evento corporativo', 'Bar ou restaurante', 'Outro'];
@@ -87,17 +113,38 @@ function ProposalTicket({ artist, draft }) {
 
 function Contract({ artist }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [sent, setSent] = useState(false);
   const [reviewData, setReviewData] = useState(null);
   const [draft, setDraft] = useState({ duration: artist.setMinutes[0] ?? '', soundStructure: 'nao-sei' });
   const [error, setError] = useState('');
+  const [phone, setPhone] = useState('');
+  const [restored, setRestored] = useState(false);
+  const formRef = useRef(null);
   const [isSending, startSending] = useTransition();
   // Definida apos montar: a pagina e prerenderizada, e a data do build divergiria da do visitante.
   const [minDate, setMinDate] = useState(undefined);
   const reviewTriggerRef = useRef(null);
   useEffect(() => setMinDate(todayIso()), []);
-  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
+
+  // Devolve ao formulario o que foi preenchido antes do login.
+  useEffect(() => {
+    const saved = readDraft(artist.slug);
+    const form = formRef.current;
+    if (!saved || !form) return;
+    Object.entries(saved).forEach(([name, value]) => {
+      if (name === 'phone') {
+        setPhone(formatPhone(String(value)));
+        return;
+      }
+      // Radios (tipo, duracao, som) chegam como RadioNodeList, que tambem aceita value.
+      const field = form.elements.namedItem(name);
+      if (field && 'value' in field) field.value = value;
+    });
+    setDraft(Object.fromEntries(new FormData(form).entries()));
+    setRestored(true);
+  }, [artist.slug]);
+  const loginPath = `/entrar?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
 
   const closeReview = useCallback(() => {
     setReviewData(null);
@@ -111,6 +158,7 @@ function Contract({ artist }) {
 
       const result = await createBooking(formData);
       if (result.needsAuth) {
+        writeDraft(artist.slug, reviewData);
         router.push(loginPath);
         return;
       }
@@ -119,9 +167,11 @@ function Contract({ artist }) {
         setError(result.error);
         return;
       }
+      writeDraft(artist.slug, null);
       setSent(true);
+      refresh();
     });
-  }, [artist.slug, loginPath, reviewData, router]);
+  }, [artist.slug, loginPath, refresh, reviewData, router]);
 
   function updateDraft(event) {
     setDraft(Object.fromEntries(new FormData(event.currentTarget).entries()));
@@ -166,15 +216,19 @@ function Contract({ artist }) {
         </p>
       </header>
 
-      {!user && (
+      {restored ? (
+        <div className="contract-notice" role="status">
+          <p>Recuperamos o que você tinha preenchido. Confira e envie.</p>
+        </div>
+      ) : !user && (
         <div className="contract-notice">
-          <p>Você precisa de uma conta de contratante para enviar. Entre antes de preencher para não perder o que digitou.</p>
+          <p>Pode preencher sem conta: ao enviar, pedimos que você entre ou se cadastre e guardamos o que você digitou.</p>
           <Link href={loginPath}>Entrar ou criar conta</Link>
         </div>
       )}
 
       <div className="contract-layout">
-        <form className="contract-form" onSubmit={reviewProposal} onChange={updateDraft}>
+        <form ref={formRef} className="contract-form" onSubmit={reviewProposal} onChange={updateDraft}>
           <fieldset className="contract-step">
             <legend><span aria-hidden="true">1</span>Sobre o evento</legend>
 
@@ -204,6 +258,29 @@ function Contract({ artist }) {
                 <input name="guestCount" type="number" min="1" max="100000" inputMode="numeric" placeholder="Ex.: 120" required />
               </label>
             </div>
+
+            {/*
+              Contas antigas de contratante nao tem WhatsApp: sem ele o artista
+              nao consegue responder depois do aceite. Pedido uma vez so.
+            */}
+            {user && !user.hasPhone && (
+              <label className="contract-field">
+                <span>Seu WhatsApp</span>
+                <input
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="numeric"
+                  required
+                  minLength={14}
+                  maxLength={15}
+                  value={phone}
+                  onChange={(event) => setPhone(formatPhone(event.target.value))}
+                  placeholder="(51) 99999-9999"
+                />
+                <small>O artista recebe seu contato quando aceitar a proposta.</small>
+              </label>
+            )}
           </fieldset>
 
           <fieldset className="contract-step">

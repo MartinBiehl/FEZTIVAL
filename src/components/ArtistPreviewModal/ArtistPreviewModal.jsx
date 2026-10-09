@@ -6,6 +6,14 @@ import {
 import useModalDialog from '../../hooks/useModalDialog.js';
 import './ArtistPreviewModal.css';
 
+/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min". */
+function formatDuration(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, '0')}`;
+}
+
 function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
   const shouldReduceMotion = useReducedMotion();
   const { dialogRef, initialFocusRef } = useModalDialog({
@@ -14,6 +22,7 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
     returnFocusRef,
   });
   const titleId = `artist-preview-title-${artist.id}`;
+  const servicesId = `artist-preview-services-${artist.id}`;
   const services = artist.services ?? [];
   const descriptionId = `artist-preview-description-${artist.id}`;
 
@@ -51,7 +60,9 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
           aria-label="Fechar prévia do artista"
           onClick={onClose}
         >
-          ×
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
         </button>
 
         <div className="artist-preview-dialog__visual">
@@ -62,9 +73,6 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
               {artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
             </span>
           )}
-          <div className="artist-preview-dialog__visual-meta">
-            <span>{artist.category}</span>
-          </div>
         </div>
 
         <motion.div
@@ -74,46 +82,68 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
           exit={shouldReduceMotion ? undefined : { opacity: 0, x: 10 }}
           transition={{ delay: shouldReduceMotion ? 0 : 0.12, duration: shouldReduceMotion ? 0 : 0.25 }}
         >
-          <p className="artist-preview-dialog__eyebrow">
-            {artist.category} · {artist.location}
-          </p>
-          <h2 id={titleId}>{artist.name}</h2>
-          <p id={descriptionId} className="artist-preview-dialog__genres">
-            {artist.genres.join(' · ')}
-          </p>
-
-          <div className="artist-preview-dialog__proof">
-            <span>
-              {hasRating(artist) ? (
-                <>
-                  <strong>★ {formatRating(artist)}</strong> {formatReviewCount(artist)}
-                </>
-              ) : (
-                NO_RATING_LABEL
-              )}
-            </span>
-            <span>A partir de <strong>{formatPrice(artist)}</strong></span>
+          <div className="artist-preview-dialog__tags">
+            <span className="artist-preview-dialog__category">{artist.category}</span>
+            {artist.location && (
+              <span className="artist-preview-dialog__location">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M8 15s5-4.6 5-8.5a5 5 0 0 0-10 0C3 10.4 8 15 8 15Zm0-6.5a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z" />
+                </svg>
+                {artist.location}
+              </span>
+            )}
           </div>
 
+          <h2 id={titleId}>{artist.name}</h2>
+
+          {artist.genres.length > 0 && (
+            <ul id={descriptionId} className="artist-preview-dialog__genres" aria-label="Gêneros">
+              {artist.genres.map((genre) => <li key={genre}>{genre}</li>)}
+            </ul>
+          )}
+
+          {artist.bioShort && <p className="artist-preview-dialog__bio">{artist.bioShort}</p>}
+
+          <dl className="artist-preview-dialog__stats">
+            <div>
+              <dt>Avaliação</dt>
+              {hasRating(artist) ? (
+                <dd>
+                  <strong>★ {formatRating(artist)}</strong>
+                  <small>{formatReviewCount(artist)}</small>
+                </dd>
+              ) : (
+                <dd><strong>{NO_RATING_LABEL}</strong></dd>
+              )}
+            </div>
+            <div>
+              <dt>{artist.price == null ? 'Cachê' : 'Cachê a partir de'}</dt>
+              <dd><strong>{formatPrice(artist)}</strong></dd>
+            </div>
+          </dl>
+
           {services.length > 0 && (
-          <div className="artist-preview-dialog__services">
+          <section className="artist-preview-dialog__services" aria-labelledby={servicesId}>
             <div className="artist-preview-dialog__section-heading">
-              <span>Serviços</span>
-              <small>
-                {services.length === 1 ? '1 formato disponível' : `${services.length} formatos disponíveis`}
-              </small>
+              <h3 id={servicesId}>Serviços</h3>
+              <small>{services.length === 1 ? '1 formato' : `${services.length} formatos`}</small>
             </div>
             <ul>
               {services.map((service) => (
                 <li key={service.id}>
                   <div>
-                    <h3>{service.title}</h3>
-                    <p>{service.detail}</p>
+                    <h4>{service.title}</h4>
+                    {service.detail && <p>{service.detail}</p>}
                   </div>
+                  {service.durationMinutes != null && (
+                    <span className="artist-preview-dialog__duration">
+                      {formatDuration(service.durationMinutes)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
           )}
 
           <Link className="artist-preview-dialog__cta" href={`/artista/${artist.slug}`}>
