@@ -77,7 +77,7 @@ function Header() {
           ) : (
             <>
               <Link className="site-header__login" href="/entrar">Entrar</Link>
-              <Link className="site-header__signup" href="/cadastro/contratante">Cadastre-se</Link>
+              <Link className="site-header__signup" href="/cadastro">Cadastre-se</Link>
             </>
           )}
           <button
@@ -107,7 +107,7 @@ function Header() {
           ) : (
             <>
               <Link href="/entrar" onClick={() => setIsMenuOpen(false)}>Entrar</Link>
-              <Link href="/cadastro/contratante" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
+              <Link href="/cadastro" onClick={() => setIsMenuOpen(false)}>Cadastre-se</Link>
             </>
           )}
         </nav>

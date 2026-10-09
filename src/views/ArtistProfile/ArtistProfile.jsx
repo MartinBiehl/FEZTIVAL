@@ -76,7 +76,7 @@ function QuestionForm({ slug }) {
   const [state, formAction, isPending] = useActionState(askQuestion, null);
   const submit = useActionSubmit(formAction);
   const formRef = useRef(null);
-  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/artista/${slug}`)}`;
+  const loginPath = `/entrar?next=${encodeURIComponent(`/artista/${slug}`)}`;
 
   // Limpa o campo so quando a pergunta foi publicada; em erro o texto fica.
   useEffect(() => {

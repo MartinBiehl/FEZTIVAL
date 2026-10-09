@@ -12,7 +12,7 @@ export const metadata = {
 export default async function Page() {
   const supabase = await createServerSupabase();
   const user = await getCurrentUser(supabase);
-  if (!user) redirect('/entrar/artista?next=/painel/perfil');
+  if (!user) redirect('/entrar?next=/painel/perfil');
 
   const editor = await fetchProfileEditor(supabase, user.id);
   if (!editor) redirect('/minhas-reservas');

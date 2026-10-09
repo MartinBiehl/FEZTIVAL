@@ -13,7 +13,7 @@ export const metadata = {
 export default async function Page() {
   const supabase = await createServerSupabase();
   const user = await getCurrentUser(supabase);
-  if (!user) redirect('/entrar/contratante?next=/minhas-reservas');
+  if (!user) redirect('/entrar?next=/minhas-reservas');
 
   const { clientName, bookings } = await fetchClientBookings(supabase, user.id);
   return <ClientBookings clientName={clientName} bookings={bookings} />;

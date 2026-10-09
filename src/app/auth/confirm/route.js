@@ -16,7 +16,7 @@ export async function GET(request) {
   const tokenHash = searchParams.get('token_hash');
   const type = searchParams.get('type');
   const next = safeNextPath(searchParams.get('next'));
-  const loginPath = searchParams.get('perfil') === 'artista' ? '/entrar/artista' : '/entrar/contratante';
+  const loginPath = '/entrar';
 
   const supabase = await createServerSupabase();
 

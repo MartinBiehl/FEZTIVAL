@@ -1,16 +1,6 @@
-import { Suspense } from 'react';
-import Login from '../../../views/Login/Login.jsx';
+import { redirectToLogin } from '../../../lib/loginRedirect.js';
 
-export const metadata = {
-  title: 'Entrar como contratante',
-  description: 'Acesse sua conta para acompanhar propostas e reservas.',
-  robots: { index: false, follow: false },
-};
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <Login mode="login" />
-    </Suspense>
-  );
+/* Endereço antigo: o login agora é único em /entrar. */
+export default async function Page({ searchParams }) {
+  await redirectToLogin(searchParams);
 }

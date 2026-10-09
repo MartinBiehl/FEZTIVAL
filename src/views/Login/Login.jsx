@@ -15,6 +15,16 @@ import stageImage from '../../images/concert_stage.png';
 import './Login.css';
 
 const pageContent = {
+  /* Login unico de /entrar: serve a artistas e contratantes. */
+  any: {
+    loginTitle: 'Que bom ter você de volta.',
+    loginDescription: 'Entre para acompanhar suas reservas ou cuidar do seu perfil de artista.',
+    image: crowdImage,
+    imageAlt: 'Pessoas celebrando em um show',
+    quote: 'Talento local para momentos que ficam.',
+    quoteAuthor: 'Feztival',
+    accent: '#ffd600',
+  },
   contractor: {
     loginTitle: 'Que bom ter você de volta.',
     loginDescription: 'Acesse suas propostas, reservas e artistas favoritos.',
@@ -87,9 +97,10 @@ function Login({ role = 'contractor', mode = 'login' }) {
 
   // Preserva o destino (?next=) ao alternar entre login e cadastro.
   const withNext = (path) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
-  const loginRoute = withNext(`/entrar/${isArtist ? 'artista' : 'contratante'}`);
-  const registerRoute = withNext(`/cadastro/${isArtist ? 'artista' : 'contratante'}`);
-  const alternateRoute = withNext(`${isRegister ? '/cadastro' : '/entrar'}/${isArtist ? 'contratante' : 'artista'}`);
+  // O login e unico; so o cadastro tem tipo (ver /cadastro).
+  const loginRoute = withNext('/entrar');
+  const registerRoute = withNext('/cadastro');
+  const alternateRoute = withNext(`/cadastro/${isArtist ? 'contratante' : 'artista'}`);
 
   /*
    * A Server Action grava a sessao nos cookies; o AuthContext precisa reler
@@ -105,9 +116,9 @@ function Login({ role = 'contractor', mode = 'login' }) {
       <section className="access-page__form-panel" aria-labelledby={`${idPrefix}-title`}>
         <header className="access-page__brand">
           <BrandLogo />
-          <Link href={isRegister ? '/' : '/entrar'}>
+          <Link href="/">
             <ArrowLeft size={15} aria-hidden="true" />
-            {isRegister ? 'Voltar ao início' : 'Trocar perfil'}
+            Voltar ao início
           </Link>
         </header>
 
@@ -268,7 +279,7 @@ function Login({ role = 'contractor', mode = 'login' }) {
 
               {!isRegister && (
                 <motion.div variants={itemVariants}>
-                  <Link className="access-card__forgot" href={`/recuperar-senha?perfil=${isArtist ? 'artista' : 'contratante'}`}>
+                  <Link className="access-card__forgot" href="/recuperar-senha">
                     Esqueci minha senha
                   </Link>
                 </motion.div>
@@ -279,7 +290,7 @@ function Login({ role = 'contractor', mode = 'login' }) {
               )}
 
               <motion.button className="access-card__submit" type="submit" disabled={isPending} aria-busy={isPending} variants={itemVariants}>
-                <span>{isRegister ? (isArtist ? 'Criar perfil artístico' : 'Criar minha conta') : (isArtist ? 'Entrar no painel' : 'Entrar')}</span>
+                <span>{isRegister ? (isArtist ? 'Criar perfil artístico' : 'Criar minha conta') : 'Entrar'}</span>
                 <ArrowRight size={18} aria-hidden="true" />
               </motion.button>
             </form>
@@ -291,9 +302,11 @@ function Login({ role = 'contractor', mode = 'login' }) {
                   {isRegister ? 'Entrar' : 'Cadastre-se'}
                 </Link>
               </p>
-              <Link className="access-card__role-link" href={alternateRoute}>
-                {isArtist ? 'Sou contratante' : 'Sou artista'} <span>→</span>
-              </Link>
+              {isRegister && (
+                <Link className="access-card__role-link" href={alternateRoute}>
+                  {isArtist ? 'Sou contratante' : 'Sou artista'} <span>→</span>
+                </Link>
+              )}
             </motion.div>
           </motion.div>
         </div>

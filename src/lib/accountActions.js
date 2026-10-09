@@ -107,7 +107,6 @@ export async function signUp(_prevState, formData) {
   const supabase = await createServerSupabase();
   const origin = await requestOrigin();
   const confirmUrl = new URL('/auth/confirm', origin);
-  confirmUrl.searchParams.set('perfil', signupAs === 'artist' ? 'artista' : 'contratante');
   if (next) confirmUrl.searchParams.set('next', next);
 
   const { data, error } = await supabase.auth.signUp({

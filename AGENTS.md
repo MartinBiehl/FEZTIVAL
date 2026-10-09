@@ -159,9 +159,9 @@ revisitar em fase futura.
 | Explorar artistas | `/explorar` | Catálogo, pesquisa e filtros |
 | Perfil do artista | `/artista/:slug` | Portfólio e serviços |
 | Pedido de contratação | `/reservar/:slug` | Formulário de proposta |
-| Escolha de acesso | `/entrar` | Escolha entre contratante e artista |
-| Login contratante | `/entrar/contratante` | Acesso do cliente |
-| Login artista | `/entrar/artista` | Acesso do artista |
+| Login | `/entrar` | Login único; o destino sai da conta (`destinationFor`) |
+| Login legado | `/entrar/contratante`, `/entrar/artista` | Redirecionam para `/entrar` mantendo a query |
+| Escolha de cadastro | `/cadastro` | Escolha entre contratante e artista (preserva `?next=`) |
 | Cadastro | `/cadastro/contratante`, `/cadastro/artista` | Criação de conta |
 | Recuperação de senha | `/recuperar-senha`, `/codigo`, `/nova-senha` | E-mail → código → nova senha |
 | Painel do artista | `/painel` | Propostas recebidas e agenda (exige login) |

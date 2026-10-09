@@ -69,7 +69,7 @@ function Contract({ artist }) {
     });
     setRestored(true);
   }, [artist.slug]);
-  const loginPath = `/entrar/contratante?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
+  const loginPath = `/entrar?next=${encodeURIComponent(`/reservar/${artist.slug}`)}`;
 
   const closeReview = useCallback(() => {
     setReviewData(null);
