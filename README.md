@@ -44,6 +44,42 @@ No `.env.local` do Windows, a URL leva o usuário e a senha escolhidos na instal
 DATABASE_URL=postgres://postgres:SUA_SENHA@localhost:5432/feztival
 ```
 
+### Windows sem administrador (Postgres portátil)
+
+Sem permissão de administrador, use o zip "binaries" do Postgres 17 da EnterpriseDB
+(<https://www.enterprisedb.com/download-postgresql-binaries>), que não precisa de
+instalação. Extraia a pasta `pgsql` em `%LOCALAPPDATA%\Programs` e, no cmd, crie o
+banco uma única vez (o `initdb` pede a senha do usuário `postgres`):
+
+```bat
+set PATH=%PATH%;%LOCALAPPDATA%\Programs\pgsql\bin
+initdb -D "%LOCALAPPDATA%\pgdata" -U postgres -W -A scram-sha-256 -E UTF8 --locale=C
+pg_ctl -D "%LOCALAPPDATA%\pgdata" -l "%LOCALAPPDATA%\pgdata\postgres.log" start
+createdb -h localhost -U postgres feztival
+createdb -h localhost -U postgres feztival_test
+```
+
+Esse Postgres não é um serviço do Windows: depois de reiniciar o PC, ligue-o antes
+do `npm run dev` (troque `start` por `stop` para desligar):
+
+```bat
+"%LOCALAPPDATA%\Programs\pgsql\bin\pg_ctl" -D "%LOCALAPPDATA%\pgdata" -l "%LOCALAPPDATA%\pgdata\postgres.log" start
+```
+
+Para conectar num cliente (DBeaver, pgAdmin, `psql`): host `localhost`, porta `5432`,
+usuário `postgres`, a senha definida no `initdb` e o banco `feztival`. No `.env.local`,
+a URL é a mesma do instalador, acima.
+
+Com Node 20, os scripts `npm run db:*` e `npm test` falham com
+`bad option: --env-file-if-exists`. Atualize para o Node 22 ou chame o script direto:
+
+```bat
+node --env-file=.env.local scripts/db.js migrate
+node --env-file=.env.local scripts/db.js seed
+```
+
+### Testes no Windows
+
 Para os testes no cmd, defina a variável antes, em vez de prefixar o comando:
 
 ```bat
