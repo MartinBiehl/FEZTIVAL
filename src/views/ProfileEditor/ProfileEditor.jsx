@@ -66,6 +66,15 @@ function ProfileEditor({ profile, catalogs }) {
   const submit = useActionSubmit(formAction);
   const [services, setServices] = useState(() => profile.services.map(withKey));
   const [infrastructure, setInfrastructure] = useState(() => profile.infrastructure.map(withKey));
+  const [openDays, setOpenDays] = useState(
+    () => profile.weeklyHours.filter((day) => day.isAvailable).map((day) => day.weekday),
+  );
+
+  function toggleDay(weekday) {
+    setOpenDays((current) => (current.includes(weekday)
+      ? current.filter((item) => item !== weekday)
+      : [...current, weekday]));
+  }
 
   return (
     <div className="profile-editor">
@@ -220,17 +229,29 @@ function ProfileEditor({ profile, catalogs }) {
           <fieldset className="profile-editor__hours">
             <legend>Horário de atendimento</legend>
             <p className="profile-editor__hint">Deixe todos desmarcados para não exibir horário no perfil.</p>
-            {profile.weeklyHours.map((day) => (
-              <div key={day.weekday}>
-                <label className="profile-editor__inline">
-                  <input type="checkbox" name={`day_${day.weekday}`} defaultChecked={day.isAvailable} />
-                  <span>{WEEKDAY_LABEL[day.weekday]}</span>
-                </label>
-                <input type="time" name={`opens_${day.weekday}`} defaultValue={day.opensAt} aria-label={`Início de ${WEEKDAY_LABEL[day.weekday]}`} />
-                <span aria-hidden="true">às</span>
-                <input type="time" name={`closes_${day.weekday}`} defaultValue={day.closesAt} aria-label={`Fim de ${WEEKDAY_LABEL[day.weekday]}`} />
-              </div>
-            ))}
+            {/*
+              Dia desmarcado desativa os horarios: o servidor ja os ignora
+              (profileActions.js), e assim a tela nao sugere que valem.
+            */}
+            {profile.weeklyHours.map((day) => {
+              const isOpen = openDays.includes(day.weekday);
+              return (
+                <div key={day.weekday} className={isOpen ? undefined : 'is-closed'}>
+                  <label className="profile-editor__inline">
+                    <input
+                      type="checkbox"
+                      name={`day_${day.weekday}`}
+                      checked={isOpen}
+                      onChange={() => toggleDay(day.weekday)}
+                    />
+                    <span>{WEEKDAY_LABEL[day.weekday]}</span>
+                  </label>
+                  <input type="time" name={`opens_${day.weekday}`} defaultValue={day.opensAt} disabled={!isOpen} aria-label={`Início de ${WEEKDAY_LABEL[day.weekday]}`} />
+                  <span aria-hidden="true">às</span>
+                  <input type="time" name={`closes_${day.weekday}`} defaultValue={day.closesAt} disabled={!isOpen} aria-label={`Fim de ${WEEKDAY_LABEL[day.weekday]}`} />
+                </div>
+              );
+            })}
           </fieldset>
 
           <fieldset>

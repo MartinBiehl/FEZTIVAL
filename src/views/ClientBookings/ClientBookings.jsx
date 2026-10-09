@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import {
   STATUS_LABEL, formatEventTime, formatMoney, formatShortDate, initials,
 } from '../../lib/bookingDisplay.js';
+import { formatMinutes } from '../../lib/artistDisplay.js';
 import { whatsappUrl } from '../../lib/phone.js';
 import './ClientBookings.css';
 
@@ -19,6 +20,84 @@ const TABS = [
 ];
 
 const CONTACT_STATUSES = ['accepted', 'confirmed'];
+
+/* Caminho feliz de uma reserva; recusada e cancelada saem dele. */
+const PROGRESS_STEPS = [
+  { status: 'pending', label: 'Enviada' },
+  { status: 'accepted', label: 'Aceita' },
+  { status: 'confirmed', label: 'Confirmada' },
+  { status: 'completed', label: 'Realizada' },
+];
+
+/* O que acontece agora, do ponto de vista de quem contratou. */
+function nextStep(booking) {
+  switch (booking.status) {
+    case 'pending':
+      return 'Aguardando o artista responder. O contato dele aparece aqui quando ele aceitar.';
+    case 'accepted':
+      return 'O artista aceitou. Combine os detalhes pelo WhatsApp; ele confirma o show em seguida.';
+    case 'confirmed':
+      return 'Show confirmado. Depois do evento, o artista marca como realizado e você pode avaliar.';
+    case 'completed':
+      return booking.reviewed ? 'Show realizado. Obrigado pela avaliação!' : 'Show realizado. Conte como foi avaliando o artista.';
+    case 'declined':
+      return 'O artista não pôde atender este pedido.';
+    default:
+      return 'Reserva cancelada.';
+  }
+}
+
+const SOUND_LABEL = {
+  unknown: 'Ainda não definida',
+  venue: 'O local possui',
+  artist: 'O artista leva',
+};
+
+function BookingProgress({ booking }) {
+  const current = PROGRESS_STEPS.findIndex((step) => step.status === booking.status);
+
+  return (
+    <div className="bookings-list__progress">
+      {current >= 0 && (
+        <ol aria-label="Andamento da reserva">
+          {PROGRESS_STEPS.map((step, index) => (
+            <li
+              key={step.status}
+              className={index < current ? 'is-done' : index === current ? 'is-current' : undefined}
+              aria-current={index === current ? 'step' : undefined}
+            >
+              {step.label}
+            </li>
+          ))}
+        </ol>
+      )}
+      <p>{nextStep(booking)}</p>
+    </div>
+  );
+}
+
+function BookingDetails({ booking }) {
+  const rows = [
+    ['Convidados', booking.guestCount ? booking.guestCount.toLocaleString('pt-BR') : null],
+    ['Duração', formatMinutes(booking.durationMinutes) ?? 'A combinar'],
+    ['Estrutura de som', SOUND_LABEL[booking.soundStructure] ?? null],
+    ['Valor', formatMoney(booking.agreedPrice)],
+  ].filter(([, value]) => value);
+
+  return (
+    <details className="bookings-list__details">
+      <summary>Ver detalhes do pedido</summary>
+      <dl>
+        {rows.map(([label, value]) => (
+          <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+        ))}
+        {booking.message && (
+          <div className="bookings-list__message"><dt>Sua mensagem</dt><dd>{booking.message}</dd></div>
+        )}
+      </dl>
+    </details>
+  );
+}
 
 const EMPTY_MESSAGE = {
   active: 'Nenhum pedido em andamento.',
@@ -74,11 +153,16 @@ function ClientBookings({ clientName, bookings }) {
           })}
         </div>
         <section className="bookings-list" role="tabpanel" aria-label={tab.label}>
-          {visible.length === 0 && <p className="bookings-list__empty">{EMPTY_MESSAGE[activeTab]}</p>}
+          {visible.length === 0 && (
+            <div className="bookings-list__empty">
+              <p>{EMPTY_MESSAGE[activeTab]}</p>
+              <Link href="/explorar">Explorar artistas <span aria-hidden="true">→</span></Link>
+            </div>
+          )}
           {visible.map((booking) => (
             <article key={booking.id}>
               <div className="bookings-list__avatar" style={{ '--booking-color': booking.artistColor ?? 'var(--yellow)' }}>
-                {initials(booking.artistName)}
+                {booking.artistCoverUrl ? <img src={booking.artistCoverUrl} alt="" /> : initials(booking.artistName)}
               </div>
               <div className="bookings-list__artist">
                 <span>{[booking.eventType, booking.location].filter(Boolean).join(' · ')}</span>
@@ -95,7 +179,9 @@ function ClientBookings({ clientName, bookings }) {
               {booking.artistSlug
                 ? <Link className="bookings-list__link" href={`/artista/${booking.artistSlug}`}>Ver artista →</Link>
                 : <span />}
+              <BookingProgress booking={booking} />
               <div className="bookings-list__actions">
+                <BookingDetails booking={booking} />
                 {/* Mesmo criterio do painel do artista: o contato abre depois do aceite. */}
                 {CONTACT_STATUSES.includes(booking.status) && booking.artistPhone && (
                   <a

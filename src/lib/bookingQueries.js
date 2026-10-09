@@ -41,14 +41,19 @@ export async function fetchArtistDashboard(supabase, userId) {
   // Perguntas do perfil ainda sem resposta, mais antigas primeiro.
   const { data: questionRows, error: questionError } = await supabase
     .from('questions')
-    .select('id, body, created_at, answers ( id )')
+    .select('id, body, created_at, answers ( id, body )')
     .eq('artist_id', artist.id)
     .order('created_at');
   if (questionError) throw new Error(`Falha ao carregar as perguntas: ${questionError.message}`);
 
-  const openQuestions = (questionRows ?? [])
-    .filter((row) => (Array.isArray(row.answers) ? row.answers.length === 0 : !row.answers))
-    .map((row) => ({ id: row.id, body: row.body, createdAt: row.created_at }));
+  // answers e 1:1 (question_id unico): o embed pode vir como objeto ou lista.
+  const questions = (questionRows ?? []).map((row) => {
+    const answer = Array.isArray(row.answers) ? row.answers[0] : row.answers;
+    return { id: row.id, body: row.body, createdAt: row.created_at, answer: answer?.body ?? null };
+  });
+  const openQuestions = questions.filter((question) => question.answer == null);
+  // Historico para o artista rever o que ja respondeu; mais recentes primeiro.
+  const answeredQuestions = questions.filter((question) => question.answer != null).reverse();
 
   const bookings = (rows ?? []).map((row) => ({
     id: row.id,
@@ -94,8 +99,10 @@ export async function fetchArtistDashboard(supabase, userId) {
       && (!booking.isPast || booking.status !== 'pending')),
     nextShows: upcoming.filter((booking) => booking.status === 'confirmed').slice(0, 3),
     openQuestions,
+    answeredQuestions,
     metrics: {
-      pending: bookings.filter((booking) => booking.status === 'pending').length,
+      // Mesmo criterio da lista: pendente vencida nao conta como nova.
+      pending: bookings.filter((booking) => booking.status === 'pending' && !booking.isPast).length,
       confirmedNext30: upcoming.filter(
         (booking) => booking.status === 'confirmed' && booking.eventDate <= in30Days,
       ).length,
@@ -116,7 +123,8 @@ export async function fetchClientBookings(supabase, userId) {
       .from('bookings')
       .select(`
         id, status, event_date, event_time, event_type, event_location, agreed_price,
-        artist:artists ( slug, stage_name, color, owner:profiles ( phone ) ),
+        guest_count, sound_structure, message, duration_minutes,
+        artist:artists ( slug, stage_name, color, cover_url, owner:profiles ( phone ) ),
         review:reviews ( id )
       `)
       .eq('client_id', userId)
@@ -136,6 +144,11 @@ export async function fetchClientBookings(supabase, userId) {
       eventType: row.event_type,
       location: row.event_location,
       agreedPrice: row.agreed_price == null ? null : Number(row.agreed_price),
+      guestCount: row.guest_count,
+      soundStructure: row.sound_structure,
+      message: row.message,
+      durationMinutes: row.duration_minutes,
+      artistCoverUrl: row.artist?.cover_url ?? null,
       // A RLS de artists esconde perfis despublicados: o artista pode vir nulo.
       artistName: row.artist?.stage_name ?? 'Artista indisponível',
       artistSlug: row.artist?.slug ?? null,

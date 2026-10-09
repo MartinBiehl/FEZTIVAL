@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId } from 'react';
+import { useActionState, useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
@@ -58,9 +58,43 @@ function AnswerForm({ question }) {
   );
 }
 
-function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics, todayLabel, greetingText }) {
+/* Secoes do painel, na ordem da pagina; a lateral marca a que esta na tela. */
+const SECTIONS = [
+  { id: 'visao', icon: '⌂', label: 'Visão geral' },
+  { id: 'propostas', icon: '◇', label: 'Propostas' },
+  { id: 'perguntas', icon: '?', label: 'Perguntas' },
+  { id: 'agenda', icon: '□', label: 'Agenda' },
+];
+
+function useActiveSection() {
+  const [active, setActive] = useState(SECTIONS[0].id);
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined;
+    // Faixa estreita no terco superior da tela: a secao que passa por ela e a "atual".
+    // "visao" e o <main> inteiro, que sempre cruza a faixa: o cabecalho o representa.
+    const targets = new Map(SECTIONS.map(({ id }) => [
+      id === 'visao' ? document.querySelector('.dashboard-header') : document.getElementById(id),
+      id,
+    ]).filter(([element]) => element));
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries.find((item) => item.isIntersecting);
+      if (entry) setActive(targets.get(entry.target));
+    }, { rootMargin: '-25% 0px -70% 0px' });
+    targets.forEach((_id, element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  return active;
+}
+
+function ArtistDashboard({
+  artist, proposals, nextShows, openQuestions, answeredQuestions = [], metrics, todayLabel, greetingText,
+}) {
   const router = useRouter();
   const { logout } = useAuth();
+  const activeSection = useActiveSection();
+  const badges = { propostas: metrics.pending, perguntas: openQuestions.length };
 
   const handleLogout = async () => {
     await logout();
@@ -73,17 +107,22 @@ function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics,
       <aside className="dashboard-sidebar">
         <BrandLogo />
         <nav>
-          <a className="active" href="#visao"><span>⌂</span> Visão geral</a>
-          <a href="#propostas"><span>◇</span> Propostas {metrics.pending > 0 && <b>{metrics.pending}</b>}</a>
-          <a href="#perguntas"><span>?</span> Perguntas {openQuestions.length > 0 && <b>{openQuestions.length}</b>}</a>
-          <a href="#agenda"><span>□</span> Agenda</a>
+          {SECTIONS.map((section) => (
+            <a
+              key={section.id}
+              className={section.id === activeSection ? 'active' : undefined}
+              aria-current={section.id === activeSection ? 'location' : undefined}
+              href={`#${section.id}`}
+            >
+              <span>{section.icon}</span> {section.label} {badges[section.id] > 0 && <b>{badges[section.id]}</b>}
+            </a>
+          ))}
           <Link href="/painel/perfil"><span>○</span> Meu perfil</Link>
         </nav>
         <div className="dashboard-sidebar__user">
           <span>{initials(artist.name)}</span>
           <div><strong>{artist.name}</strong><small>{artist.isPublished ? 'Perfil publicado' : 'Perfil em rascunho'}</small></div>
         </div>
-        <button className="dashboard-sidebar__logout" type="button" onClick={handleLogout}>Sair do painel</button>
       </aside>
 
       <main className="dashboard-main" id="visao">
@@ -113,7 +152,7 @@ function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics,
         )}
 
         <section className="dashboard-metrics">
-          <article><span>Visualizações</span><strong>{artist.viewCount.toLocaleString('pt-BR')}</strong><small>Desde a publicação</small></article>
+          <article><span>Visualizações</span><strong>{artist.viewCount.toLocaleString('pt-BR')}</strong><small>{artist.isPublished ? 'Desde a publicação' : 'Publique o perfil para começar a contar'}</small></article>
           <article><span>Novas propostas</span><strong>{metrics.pending}</strong><small>Aguardando sua resposta</small></article>
           <article><span>Shows confirmados</span><strong>{String(metrics.confirmedNext30).padStart(2, '0')}</strong><small>Próximos 30 dias</small></article>
           <article><span>Receita prevista</span><strong>{formatCompactMoney(metrics.payoutThisMonth)}</strong><small>Repasse deste mês</small></article>
@@ -180,6 +219,19 @@ function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics,
               </article>
             ))}
           </div>
+          {answeredQuestions.length > 0 && (
+            <details className="dashboard-answered">
+              <summary>Perguntas respondidas ({answeredQuestions.length})</summary>
+              <ul>
+                {answeredQuestions.map((question) => (
+                  <li key={question.id}>
+                    <p>“{question.body}”</p>
+                    <p><strong>Sua resposta:</strong> {question.answer}</p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
 
         <div className="dashboard-bottom-grid">

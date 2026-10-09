@@ -171,6 +171,11 @@
   gap: 0.6rem;
 }
 
+.profile-editor__hours > div.is-closed > span,
+.profile-editor__hours > div.is-closed input[type='time'] {
+  opacity: 0.4;
+}
+
 .profile-editor__hint {
   margin: 0.2rem 0 0;
   color: var(--text-tertiary);

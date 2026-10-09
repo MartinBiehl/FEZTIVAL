@@ -91,18 +91,6 @@
   font-size: 0.62rem;
 }
 
-.dashboard-sidebar__logout {
-  margin-top: 1rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
 .dashboard-main {
   overflow: hidden;
   padding: 3rem clamp(1.5rem, 5vw, 5rem);
@@ -421,8 +409,7 @@
   }
 
   .dashboard-sidebar nav a b,
-  .dashboard-sidebar__user div,
-  .dashboard-sidebar__logout {
+  .dashboard-sidebar__user div {
     display: none;
   }
 
@@ -563,6 +550,42 @@
   padding: 1rem 0;
   border-top: 1px solid var(--border);
   gap: 0.7rem;
+}
+
+.dashboard-answered {
+  margin-top: 0.5rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+
+.dashboard-answered summary {
+  width: fit-content;
+  color: var(--text-secondary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-answered ul {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-answered li {
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-answered p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.dashboard-answered p + p {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
 }
 
 .dashboard-questions article > p {
