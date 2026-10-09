@@ -8,6 +8,7 @@ import { answerQuestion } from '../../lib/questionActions.js';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { whatsappUrl } from '../../lib/phone.js';
 import {
   STATUS_LABEL, dateParts, formatCompactMoney, formatEventTime, formatMoney, initials,
 } from '../../lib/bookingDisplay.js';
@@ -133,10 +134,20 @@ function ArtistDashboard({ artist, proposals, nextShows, openQuestions, metrics,
                     <strong>{proposal.clientName}</strong>
                     <span>{proposalSummary(proposal)}</span>
                     {proposal.message && <p className="dashboard-proposals__message">“{proposal.message}”</p>}
-                    {proposal.status !== 'pending' && proposal.clientPhone && (
-                      <a className="dashboard-proposals__contact" href={`https://wa.me/55${proposal.clientPhone}`} target="_blank" rel="noreferrer">
+                    {proposal.status !== 'pending' && (proposal.clientPhone ? (
+                      <a className="dashboard-proposals__contact" href={whatsappUrl(proposal.clientPhone)} target="_blank" rel="noreferrer">
                         WhatsApp do contratante ↗
                       </a>
+                    ) : (
+                      <small className="dashboard-proposals__hint">Contratante sem WhatsApp cadastrado.</small>
+                    ))}
+                    {/* Show que ja passou: sem este aviso a reserva fica parada e o contratante nao pode avaliar. */}
+                    {proposal.isPast && (
+                      <small className="dashboard-proposals__hint dashboard-proposals__hint--due">
+                        {proposal.status === 'confirmed'
+                          ? 'O show já aconteceu? Marque como realizado para liberar a avaliação.'
+                          : 'A data já passou. Confirme se o show aconteceu ou cancele a reserva.'}
+                      </small>
                     )}
                   </div>
                   <b>{formatMoney(proposal.agreedPrice)}</b>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId } from 'react';
+import { useActionState, useEffect, useId, useState } from 'react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -9,6 +9,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { signIn, signUp } from '../../lib/accountActions.js';
+import { formatPhone } from '../../lib/phone.js';
 import crowdImage from '../../images/crowd_party.png';
 import stageImage from '../../images/concert_stage.png';
 import './Login.css';
@@ -82,6 +83,7 @@ function Login({ role = 'contractor', mode = 'login' }) {
   const submit = useActionSubmit(formAction);
   const idPrefix = useId().replace(/:/g, '');
   const next = searchParams.get('next') ?? '';
+  const [phone, setPhone] = useState('');
 
   // Preserva o destino (?next=) ao alternar entre login e cadastro.
   const withNext = (path) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
@@ -182,8 +184,8 @@ function Login({ role = 'contractor', mode = 'login' }) {
               )}
 
               {/*
-                Artista sem nome e sem telefone não é contratável: o WhatsApp é o
-                canal de contato efetivo. A categoria define o perfil público.
+                O artista informa também o responsável pelas contratações; a
+                categoria define o perfil público.
               */}
               {isRegister && isArtist && (
                 <>
@@ -200,18 +202,6 @@ function Login({ role = 'contractor', mode = 'login' }) {
                       placeholder="Responsável pelas contratações"
                     />
                   </motion.label>
-                  <motion.label htmlFor={`${idPrefix}-phone`} variants={itemVariants}>
-                    <span>WhatsApp</span>
-                    <input
-                      id={`${idPrefix}-phone`}
-                      name="phone"
-                      type="tel"
-                      autoComplete="tel"
-                      inputMode="tel"
-                      required
-                      placeholder="(51) 99999-9999"
-                    />
-                  </motion.label>
                   <motion.label htmlFor={`${idPrefix}-category`} variants={itemVariants}>
                     <span>Categoria</span>
                     <select id={`${idPrefix}-category`} name="category" required defaultValue="">
@@ -222,6 +212,26 @@ function Login({ role = 'contractor', mode = 'login' }) {
                     </select>
                   </motion.label>
                 </>
+              )}
+
+              {/* Artista e contratante: e por aqui que as partes se falam depois do aceite. */}
+              {isRegister && (
+                <motion.label htmlFor={`${idPrefix}-phone`} variants={itemVariants}>
+                  <span>WhatsApp</span>
+                  <input
+                    id={`${idPrefix}-phone`}
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="numeric"
+                    required
+                    minLength={14}
+                    maxLength={15}
+                    value={phone}
+                    onChange={(event) => setPhone(formatPhone(event.target.value))}
+                    placeholder="(51) 99999-9999"
+                  />
+                </motion.label>
               )}
 
               <motion.label htmlFor={`${idPrefix}-email`} variants={itemVariants}>

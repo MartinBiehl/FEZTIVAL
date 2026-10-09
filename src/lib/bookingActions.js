@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerSupabase, getCurrentUser } from './supabaseServer.js';
 import { ensureAccount } from './account.js';
 import { todayIso } from './bookingDisplay.js';
+import { normalizePhone } from './phone.js';
 
 /*
  * Server Actions de reservas e avaliacoes.
@@ -46,7 +47,8 @@ export async function createBooking(formData) {
   const date = field(formData, 'date');
   const time = field(formData, 'time');
   const location = field(formData, 'location');
-  const duration = Number(field(formData, 'duration'));
+  const serviceId = field(formData, 'serviceId');
+  const phoneInput = field(formData, 'phone');
   const soundStructure = SOUND_STRUCTURE[field(formData, 'soundStructure')] ?? 'unknown';
   const message = field(formData, 'message');
 
@@ -63,7 +65,7 @@ export async function createBooking(formData) {
 
   const { data: artist, error: artistError } = await supabase
     .from('artists')
-    .select('id, profile_id, base_price, artist_services ( id, price, duration_minutes )')
+    .select('id, profile_id, base_price, price_on_request, artist_services ( id, price, duration_minutes )')
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -78,16 +80,38 @@ export async function createBooking(formData) {
   await ensureAccount(supabase, user);
 
   /*
-   * O valor gravado agora e a estimativa exibida ao contratante. O valor final,
-   * a comissao e o repasse sao definidos pelo artista no aceite.
+   * Sem WhatsApp o artista nao tem como responder depois do aceite. Contas
+   * antigas de contratante nao informaram no cadastro: o formulario pede e
+   * gravamos aqui, so se o perfil ainda estiver sem.
    */
-  const service = (artist.artist_services ?? []).find((item) => item.duration_minutes === duration);
-  const estimate = service?.price ?? artist.base_price ?? null;
+  const { data: profile } = await supabase.from('profiles').select('phone').eq('id', user.id).maybeSingle();
+  if (!profile?.phone) {
+    const phone = normalizePhone(phoneInput);
+    if (!phone) return { error: 'Informe seu WhatsApp com DDD para o artista poder responder.' };
+    const { error: phoneError } = await supabase
+      .from('profiles')
+      .update({ phone })
+      .eq('id', user.id)
+      .is('phone', null);
+    if (phoneError) return { error: 'Não foi possível salvar seu WhatsApp. Tente novamente.' };
+  }
+
+  /*
+   * O valor gravado agora e a estimativa exibida ao contratante -- mesmo
+   * calculo de estimateFor (artistDisplay.js), que a revisao mostra. O valor
+   * final, a comissao e o repasse sao definidos pelo artista no aceite.
+   */
+  const services = artist.artist_services ?? [];
+  const service = services.find((item) => item.id === serviceId) ?? null;
+  if (serviceId && !service) return { error: 'Este formato não está mais disponível. Recarregue a página.' };
+  const basePrice = artist.price_on_request ? null : artist.base_price;
+  const estimate = service?.price ?? basePrice ?? null;
 
   const { error } = await supabase.from('bookings').insert({
     client_id: user.id,
     artist_id: artist.id,
     service_id: service?.id ?? null,
+    duration_minutes: service?.duration_minutes ?? null,
     event_date: date,
     event_time: time,
     event_location: location,

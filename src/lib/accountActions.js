@@ -89,18 +89,19 @@ export async function signUp(_prevState, formData) {
   if (formData.get('terms') !== 'on') return { error: 'É preciso aceitar os termos para continuar.' };
   if (fullName.length < 2 || fullName.length > 120) return { error: 'Informe seu nome completo.' };
 
-  const metadata = { signup_as: signupAs, full_name: fullName };
-
   /*
-   * Artista sem nome e sem telefone nao e contratavel: o WhatsApp e o canal de
-   * contato efetivo. As colunas sao nullable (rascunho e seed), entao a
-   * obrigatoriedade mora aqui.
+   * O WhatsApp e o canal de contato efetivo entre as duas partes depois do
+   * aceite, entao vale para artista e contratante. As colunas sao nullable
+   * (rascunho e seed), entao a obrigatoriedade mora aqui.
    */
+  if (phone.length < 10 || phone.length > 11) return { error: 'Informe um WhatsApp com DDD.' };
+
+  const metadata = { signup_as: signupAs, full_name: fullName, phone };
+
   if (signupAs === 'artist') {
     if (stageName.length < 2 || stageName.length > 80) return { error: 'Informe seu nome artístico.' };
     if (!ARTIST_CATEGORIES.includes(category)) return { error: 'Escolha a categoria do seu trabalho.' };
-    if (phone.length < 10 || phone.length > 11) return { error: 'Informe um WhatsApp com DDD.' };
-    Object.assign(metadata, { stage_name: stageName, category, phone });
+    Object.assign(metadata, { stage_name: stageName, category });
   }
 
   const supabase = await createServerSupabase();

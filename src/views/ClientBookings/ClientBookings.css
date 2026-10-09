@@ -283,6 +283,18 @@
   grid-column: 2 / -1;
 }
 
+.bookings-list__contact {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 999px;
+  background: #25d366;
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .bookings-list__actions:empty {
   display: none;
 }

@@ -17,7 +17,7 @@ async function loadSessionUser(supabase) {
   if (!authUser) return null;
 
   const [{ data: profile }, { data: artist }] = await Promise.all([
-    supabase.from('profiles').select('full_name, avatar_url').eq('id', authUser.id).maybeSingle(),
+    supabase.from('profiles').select('full_name, avatar_url, phone').eq('id', authUser.id).maybeSingle(),
     supabase
       .from('artists')
       .select('id, stage_name')
@@ -42,6 +42,8 @@ async function loadSessionUser(supabase) {
     role: artist ? 'artist' : 'contractor',
     name: artist?.stage_name || profile?.full_name || authUser.user_metadata?.full_name || authUser.email,
     avatarUrl: profile?.avatar_url ?? null,
+    // O formulario de proposta pede o WhatsApp a quem ainda nao informou.
+    hasPhone: Boolean(profile?.phone),
     notificationCount,
     destination: artist ? '/painel' : '/minhas-reservas',
   };

@@ -47,3 +47,25 @@ export function formatMaxDuration(artist) {
   if (!Array.isArray(minutes) || minutes.length === 0) return null;
   return `${Math.max(...minutes) / 60}h`;
 }
+
+/*
+ * Servico escolhido no formulario de proposta e a estimativa de valor que o
+ * contratante ve na revisao. Espelha o calculo de createBooking: preco do
+ * servico, senao o preco inicial (nulo quando o artista e "sob consulta").
+ */
+export function findService(artist, serviceId) {
+  return (artist.services ?? []).find((service) => service.id === serviceId) ?? null;
+}
+
+export function estimateFor(artist, serviceId) {
+  return findService(artist, serviceId)?.price ?? artist.price;
+}
+
+/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min"; null quando nao ha duracao. */
+export function formatMinutes(minutes) {
+  if (minutes == null) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, '0')}`;
+}

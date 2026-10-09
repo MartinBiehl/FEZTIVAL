@@ -67,6 +67,10 @@ export async function fetchArtistDashboard(supabase, userId) {
   }));
 
   const today = todayIso();
+  bookings.forEach((booking) => {
+    booking.isPast = booking.eventDate < today;
+  });
+
   const in30Days = addDaysIso(today, 30);
   const monthPrefix = today.slice(0, 7);
   const upcoming = bookings.filter((booking) => booking.eventDate >= today);
@@ -78,8 +82,16 @@ export async function fetchArtistDashboard(supabase, userId) {
       isPublished: artist.is_published,
       viewCount: artist.view_count ?? 0,
     },
-    /* Ativas e futuras primeiro; o historico fica fora do painel. */
-    proposals: upcoming.filter((booking) => ACTIVE_STATUSES.includes(booking.status)),
+    /*
+     * Reservas ativas. Aceitas e confirmadas continuam aqui depois da data:
+     * "Marcar como realizado" so faz sentido depois do show, e e a conclusao
+     * que libera a avaliacao do contratante. Se sumissem no dia seguinte,
+     * nenhuma reserva chegaria a completed. Pendente vencida nao tem mais o
+     * que responder e fica de fora. Ordenadas por data: as vencidas, que pedem
+     * acao, aparecem primeiro.
+     */
+    proposals: bookings.filter((booking) => ACTIVE_STATUSES.includes(booking.status)
+      && (!booking.isPast || booking.status !== 'pending')),
     nextShows: upcoming.filter((booking) => booking.status === 'confirmed').slice(0, 3),
     openQuestions,
     metrics: {
@@ -104,7 +116,7 @@ export async function fetchClientBookings(supabase, userId) {
       .from('bookings')
       .select(`
         id, status, event_date, event_time, event_type, event_location, agreed_price,
-        artist:artists ( slug, stage_name, color ),
+        artist:artists ( slug, stage_name, color, owner:profiles ( phone ) ),
         review:reviews ( id )
       `)
       .eq('client_id', userId)
@@ -128,6 +140,8 @@ export async function fetchClientBookings(supabase, userId) {
       artistName: row.artist?.stage_name ?? 'Artista indisponível',
       artistSlug: row.artist?.slug ?? null,
       artistColor: row.artist?.color ?? null,
+      // A RLS de profiles so libera o contato para a outra parte da reserva.
+      artistPhone: row.artist?.owner?.phone ?? null,
       reviewed: Boolean(review),
     };
   });

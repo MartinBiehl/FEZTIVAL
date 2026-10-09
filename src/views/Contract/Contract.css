@@ -120,6 +120,11 @@
   grid-column: 1 / -1;
 }
 
+.contract-form label small {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
 .contract-form__submit {
   display: flex;
   width: 100%;

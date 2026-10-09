@@ -7,18 +7,20 @@ import { useRouter } from 'next/navigation';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatMinutes, formatPrice, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
 import { createBooking } from '../../lib/bookingActions.js';
 import { todayIso } from '../../lib/bookingDisplay.js';
+import { formatPhone } from '../../lib/phone.js';
 import './Contract.css';
 
 function Contract({ artist }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [sent, setSent] = useState(false);
   const [reviewData, setReviewData] = useState(null);
   const [error, setError] = useState('');
+  const [phone, setPhone] = useState('');
   const [isSending, startSending] = useTransition();
   // Definida apos montar: a pagina e prerenderizada, e a data do build divergiria da do visitante.
   const [minDate, setMinDate] = useState(undefined);
@@ -47,8 +49,9 @@ function Contract({ artist }) {
         return;
       }
       setSent(true);
+      refresh();
     });
-  }, [artist.slug, loginPath, reviewData, router]);
+  }, [artist.slug, loginPath, refresh, reviewData, router]);
 
   function reviewProposal(event) {
     event.preventDefault();
@@ -116,6 +119,28 @@ function Contract({ artist }) {
                 Horário
                 <input name="time" type="time" required />
               </label>
+              {/*
+                Contas antigas de contratante nao tem WhatsApp: sem ele o artista
+                nao consegue responder depois do aceite. Pedido uma vez so.
+              */}
+              {user && !user.hasPhone && (
+                <label className="contract-form__full">
+                  Seu WhatsApp
+                  <input
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="numeric"
+                    required
+                    minLength={14}
+                    maxLength={15}
+                    value={phone}
+                    onChange={(event) => setPhone(formatPhone(event.target.value))}
+                    placeholder="(51) 99999-9999"
+                  />
+                  <small>O artista recebe seu contato quando aceitar a proposta.</small>
+                </label>
+              )}
             </div>
           </fieldset>
 
@@ -131,14 +156,23 @@ function Contract({ artist }) {
                   required
                 />
               </label>
-              <label>
-                Duração desejada
-                <select name="duration" defaultValue={artist.setMinutes[0]}>
-                  {artist.setMinutes.map((minutes) => (
-                    <option key={minutes} value={minutes}>{minutes / 60}h de apresentação</option>
-                  ))}
-                </select>
-              </label>
+              {/*
+                O servico vai pelo id, e nao pela duracao: dois servicos podem ter
+                a mesma duracao com precos diferentes, e a revisao precisa mostrar
+                exatamente o valor que o servidor vai gravar.
+              */}
+              {artist.services.length > 0 && (
+                <label>
+                  Formato
+                  <select name="serviceId" defaultValue={artist.services[0].id}>
+                    {artist.services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {[service.title, formatMinutes(service.durationMinutes)].filter(Boolean).join(' · ')}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 Estrutura de som
                 <select name="soundStructure" defaultValue="nao-sei">

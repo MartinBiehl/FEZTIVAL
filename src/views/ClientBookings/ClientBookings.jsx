@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import {
   STATUS_LABEL, formatEventTime, formatMoney, formatShortDate, initials,
 } from '../../lib/bookingDisplay.js';
+import { whatsappUrl } from '../../lib/phone.js';
 import './ClientBookings.css';
 
 const TABS = [
@@ -16,6 +17,8 @@ const TABS = [
   { id: 'completed', label: 'Concluídas', statuses: ['completed'] },
   { id: 'cancelled', label: 'Canceladas', statuses: ['declined', 'cancelled'] },
 ];
+
+const CONTACT_STATUSES = ['accepted', 'confirmed'];
 
 const EMPTY_MESSAGE = {
   active: 'Nenhum pedido em andamento.',
@@ -93,6 +96,17 @@ function ClientBookings({ clientName, bookings }) {
                 ? <Link className="bookings-list__link" href={`/artista/${booking.artistSlug}`}>Ver artista →</Link>
                 : <span />}
               <div className="bookings-list__actions">
+                {/* Mesmo criterio do painel do artista: o contato abre depois do aceite. */}
+                {CONTACT_STATUSES.includes(booking.status) && booking.artistPhone && (
+                  <a
+                    className="bookings-list__contact"
+                    href={whatsappUrl(booking.artistPhone)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Falar com {booking.artistName} no WhatsApp ↗
+                  </a>
+                )}
                 <BookingStatusActions booking={booking} side="client" contextLabel={`Pedido para ${booking.artistName}`} />
                 {booking.status === 'completed' && !booking.reviewed && <BookingReviewForm booking={booking} />}
               </div>

@@ -131,6 +131,10 @@ function ProfileEditor({ profile, catalogs }) {
                 <span>Exibir “Sob consulta” em vez do preço</span>
               </label>
             </div>
+            <p className="profile-editor__hint">
+              Com “Sob consulta” marcado, o preço inicial fica guardado mas não aparece no perfil nem no catálogo.
+              Preços de serviços continuam visíveis.
+            </p>
           </fieldset>
 
           <CheckboxGroup legend="Gêneros musicais" name="genres" options={catalogs.genres} selected={profile.genreIds} />

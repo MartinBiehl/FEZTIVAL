@@ -41,7 +41,12 @@ function toArtist(row, summary) {
       .map((link) => link.genres?.name)
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'pt-BR')),
-    price: row.base_price == null ? null : Number(row.base_price),
+    /*
+     * "Sob consulta" vence o preco: o artista pode ter um valor salvo e ainda
+     * assim escolher nao exibi-lo. Todas as telas tratam price nulo como
+     * "Sob consulta", entao a regra mora so aqui.
+     */
+    price: row.price_on_request || row.base_price == null ? null : Number(row.base_price),
     priceOnRequest: row.price_on_request,
     location: row.city,
     /* Token --artist-color, usado no cartao, no perfil e nos modais. */

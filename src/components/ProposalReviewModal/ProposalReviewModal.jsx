@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, hasRating,
+  NO_RATING_LABEL, estimateFor, findService, formatRating, hasRating,
 } from '../../lib/artistDisplay.js';
 import './ProposalReviewModal.css';
 
@@ -39,6 +39,8 @@ function ProposalReviewModal({
   });
   const titleId = 'proposal-review-title';
   const descriptionId = 'proposal-review-description';
+  const service = findService(artist, proposal.serviceId);
+  const estimate = estimateFor(artist, proposal.serviceId);
 
   return (
     <div className="proposal-review-layer">
@@ -111,13 +113,13 @@ function ProposalReviewModal({
             </article>
             <article>
               <span>Duração</span>
-              <strong>{formatDuration(proposal.duration)}</strong>
+              <strong>{formatDuration(service?.durationMinutes)}</strong>
             </article>
           </div>
 
           <div className="proposal-review-price">
-            <span>Valor inicial estimado</span>
-            <strong>{formatPrice(artist)}</strong>
+            <span>{service ? `Valor estimado · ${service.title}` : 'Valor inicial estimado'}</span>
+            <strong>{estimate == null ? 'Sob consulta' : `R$ ${estimate.toLocaleString('pt-BR')}`}</strong>
             <small>O valor final será confirmado pelo artista.</small>
           </div>
 

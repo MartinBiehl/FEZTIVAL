@@ -524,6 +524,22 @@
   text-decoration: underline;
 }
 
+.dashboard-proposals__hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+}
+
+.dashboard-proposals__hint--due {
+  width: fit-content;
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--yellow), transparent 70%);
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .dashboard-empty {
   margin: 0;
   padding: 1rem 0;
