@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import ArtistLogin from '../../../views/ArtistLogin/ArtistLogin.jsx';
+import { googleConfigured } from '../../../lib/googleAuth.js';
 
 export const metadata = {
   title: 'Criar perfil de artista',
@@ -10,7 +11,7 @@ export const metadata = {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <ArtistLogin mode="register" />
+      <ArtistLogin mode="register" googleEnabled={googleConfigured()} />
     </Suspense>
   );
 }

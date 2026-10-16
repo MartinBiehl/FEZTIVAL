@@ -81,7 +81,15 @@ function GoogleIcon(props) {
   );
 }
 
-function Login({ role = 'contractor', mode = 'login' }) {
+/* Avisos de ?erro= vindos de /auth/google/callback e de /cadastro/completar. */
+const GOOGLE_ERRORS = {
+  google: 'Não foi possível entrar com o Google. Tente novamente.',
+  'google-cancelado': 'O acesso com o Google foi cancelado.',
+  'google-expirado': 'O tempo para concluir o cadastro acabou. Clique em "Continuar com Google" de novo.',
+  'google-conta': 'Este e-mail já está ligado a outra conta Google. Entre com sua senha.',
+};
+
+function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
   const content = pageContent[role];
   const isRegister = mode === 'register';
   const isArtist = role === 'artist';
@@ -101,6 +109,11 @@ function Login({ role = 'contractor', mode = 'login' }) {
   const loginRoute = withNext('/entrar');
   const registerRoute = withNext('/cadastro');
   const alternateRoute = withNext(`/cadastro/${isArtist ? 'contratante' : 'artista'}`);
+  const googleParams = new URLSearchParams();
+  if (isRegister) googleParams.set('como', isArtist ? 'artista' : 'contratante');
+  if (next) googleParams.set('next', next);
+  const googleRoute = `/auth/google${googleParams.size ? `?${googleParams}` : ''}`;
+  const googleError = isRegister ? null : GOOGLE_ERRORS[searchParams.get('erro')];
 
   /*
    * A Server Action grava a sessao nos cookies; o AuthContext precisa reler
@@ -156,23 +169,31 @@ function Login({ role = 'contractor', mode = 'login' }) {
               </motion.div>
             )}
 
-            <motion.button
-              className="access-card__google"
-              type="button"
-              disabled
-              aria-label="Continuar com Google — em breve"
-              variants={itemVariants}
-            >
-              <GoogleIcon aria-hidden="true" />
-              <span>Continuar com Google</span>
-              <small>Em breve</small>
-            </motion.button>
+            {googleError && (
+              <motion.p className="access-card__error" role="alert" variants={itemVariants}>
+                {googleError}
+              </motion.p>
+            )}
 
-            <motion.div className="access-card__divider" variants={itemVariants} aria-hidden="true">
-              <span />
-              <small>ou</small>
-              <span />
-            </motion.div>
+            {/*
+              Link comum, nao <Link>: /auth/google e um Route Handler que
+              redireciona para fora do site. So aparece com as credenciais
+              do Google configuradas (googleConfigured).
+            */}
+            {googleEnabled && (
+              <>
+                <motion.a className="access-card__google" href={googleRoute} variants={itemVariants}>
+                  <GoogleIcon aria-hidden="true" />
+                  <span>Continuar com Google</span>
+                </motion.a>
+
+                <motion.div className="access-card__divider" variants={itemVariants} aria-hidden="true">
+                  <span />
+                  <small>ou</small>
+                  <span />
+                </motion.div>
+              </>
+            )}
 
             <form onSubmit={submit}>
               <input type="hidden" name="next" value={next} />

@@ -8,12 +8,14 @@ import {
   hashPassword, verifyPassword,
 } from './auth.js';
 import { sendEmailConfirmation, sendPasswordResetCode } from './mail.js';
+import { SIGNUP_COOKIE, findGoogleSignup } from './googleAuth.js';
 import {
   ARTIST_CATEGORIES, createAccountRows, destinationFor, findOwnArtist, safeNextPath,
 } from './account.js';
 
 /*
- * Server Actions de acesso: login, cadastro, saida e recuperacao de senha.
+ * Server Actions de acesso: login, cadastro (por senha ou completando o do
+ * Google), saida e recuperacao de senha.
  *
  * Devolvem { ok, ... } ou { error } em vez de chamar redirect(): a tela precisa
  * atualizar o AuthContext (que vive no navegador) antes de navegar, senao o
@@ -47,6 +49,38 @@ async function requestOrigin() {
   return `${protocol}://${host}`;
 }
 
+/*
+ * Regras comuns ao cadastro por senha e ao que completa o do Google. Devolve
+ * a mensagem de erro ou null.
+ *
+ * O WhatsApp e o canal de contato efetivo entre as duas partes depois do
+ * aceite, entao vale para artista e contratante. As colunas sao nullable
+ * (rascunho e seed), entao a obrigatoriedade mora aqui.
+ */
+function accountFieldsError({
+  signupAs, fullName, phone, stageName, category, terms,
+}) {
+  if (terms !== 'on') return 'É preciso aceitar os termos para continuar.';
+  if (fullName.length < 2 || fullName.length > 120) return 'Informe seu nome completo.';
+  if (phone.length < 10 || phone.length > 11) return 'Informe um WhatsApp com DDD.';
+  if (signupAs === 'artist') {
+    if (stageName.length < 2 || stageName.length > 80) return 'Informe seu nome artístico.';
+    if (!ARTIST_CATEGORIES.includes(category)) return 'Escolha a categoria do seu trabalho.';
+  }
+  return null;
+}
+
+function accountFields(formData, signupAs) {
+  return {
+    signupAs,
+    fullName: field(formData, 'fullName'),
+    stageName: field(formData, 'stageName'),
+    category: field(formData, 'category'),
+    phone: field(formData, 'phone').replace(/\D/g, ''),
+    terms: formData.get('terms'),
+  };
+}
+
 export async function signIn(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   const password = formData.get('password');
@@ -66,6 +100,10 @@ export async function signIn(_prevState, formData) {
   if (!user) {
     await burnPasswordCheck(password);
     return { error: 'E-mail ou senha incorretos.' };
+  }
+  // Conta criada pelo Google, ainda sem senha.
+  if (!user.password_hash) {
+    return { error: 'Esta conta entra pelo Google. Use "Continuar com Google" ou crie uma senha em "Esqueci minha senha".' };
   }
   if (user.locked) return { error: 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.' };
 
@@ -96,29 +134,14 @@ export async function signUp(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   const password = formData.get('password');
   const next = safeNextPath(field(formData, 'next'));
-  const fullName = field(formData, 'fullName');
-  const stageName = field(formData, 'stageName');
-  const category = field(formData, 'category');
-  const phone = field(formData, 'phone').replace(/\D/g, '');
+  const fields = accountFields(formData, signupAs);
 
   if (!EMAIL_PATTERN.test(email) || email.length > 254) return { error: 'Informe um e-mail válido.' };
   if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > 200) {
     return { error: `A senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` };
   }
-  if (formData.get('terms') !== 'on') return { error: 'É preciso aceitar os termos para continuar.' };
-  if (fullName.length < 2 || fullName.length > 120) return { error: 'Informe seu nome completo.' };
-
-  /*
-   * O WhatsApp e o canal de contato efetivo entre as duas partes depois do
-   * aceite, entao vale para artista e contratante. As colunas sao nullable
-   * (rascunho e seed), entao a obrigatoriedade mora aqui.
-   */
-  if (phone.length < 10 || phone.length > 11) return { error: 'Informe um WhatsApp com DDD.' };
-
-  if (signupAs === 'artist') {
-    if (stageName.length < 2 || stageName.length > 80) return { error: 'Informe seu nome artístico.' };
-    if (!ARTIST_CATEGORIES.includes(category)) return { error: 'Escolha a categoria do seu trabalho.' };
-  }
+  const fieldsError = accountFieldsError(fields);
+  if (fieldsError) return { error: fieldsError };
 
   const passwordHash = await hashPassword(password);
   let token;
@@ -136,9 +159,7 @@ export async function signUp(_prevState, formData) {
         'insert into users (email, password_hash) values ($1, $2) returning id',
         [email, passwordHash],
       );
-      await createAccountRows(tx, user.id, {
-        signupAs, fullName, phone, stageName, category,
-      });
+      await createAccountRows(tx, user.id, fields);
       return createEmailVerificationToken(tx, user.id);
     });
   } catch (error) {
@@ -161,6 +182,58 @@ export async function signUp(_prevState, formData) {
 
   // A conta e ativada em /auth/confirm, quando o usuario clicar no link.
   return { ok: true, needsConfirmation: true };
+}
+
+/*
+ * Conclui o cadastro de quem voltou do Google sem conta (/cadastro/completar):
+ * o Google ja provou o e-mail, entao a conta nasce confirmada, sem senha, e a
+ * sessao abre na hora. Faltam so os dados que o Google nao fornece.
+ */
+export async function completeGoogleSignup(_prevState, formData) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SIGNUP_COOKIE)?.value;
+  const expired = { error: 'O tempo para concluir o cadastro acabou. Clique em "Continuar com Google" de novo.' };
+  if (!token) return expired;
+
+  const signupAs = field(formData, 'signupAs') === 'artist' ? 'artist' : 'contractor';
+  const fields = accountFields(formData, signupAs);
+  const fieldsError = accountFieldsError(fields);
+  if (fieldsError) return { error: fieldsError };
+
+  let result;
+  try {
+    result = await transaction(async (tx) => {
+      const pending = await findGoogleSignup(token, tx);
+      if (!pending) return expired;
+
+      const existing = await tx.queryOne('select id, email_verified_at from users where email = $1', [pending.email]);
+      if (existing?.email_verified_at) {
+        return { error: 'Já existe uma conta com este e-mail. Entre com "Continuar com Google".' };
+      }
+      // Cadastro por senha nunca confirmado: a mesma regra de signUp.
+      if (existing) await tx.query('delete from users where id = $1', [existing.id]);
+      if (await tx.queryOne('select 1 from users where google_sub = $1', [pending.google_sub])) {
+        return { error: 'Esta conta Google já está cadastrada. Entre com "Continuar com Google".' };
+      }
+
+      const user = await tx.queryOne(
+        `insert into users (email, password_hash, email_verified_at, google_sub)
+         values ($1, null, now(), $2) returning id`,
+        [pending.email, pending.google_sub],
+      );
+      await createAccountRows(tx, user.id, fields);
+      await tx.query('delete from google_signups where id = $1', [pending.id]);
+      return { userId: user.id, next: pending.next_path };
+    });
+  } catch (error) {
+    console.error('completeGoogleSignup falhou', error.code ?? error.message);
+    return { error: GENERIC_ERROR };
+  }
+  if (result.error) return result;
+
+  cookieStore.delete(SIGNUP_COOKIE);
+  await createSession(result.userId);
+  return { ok: true, destination: result.next ?? destinationFor(await findOwnArtist(result.userId)) };
 }
 
 export async function signOut() {

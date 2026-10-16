@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import Login from '../../../views/Login/Login.jsx';
+import { googleConfigured } from '../../../lib/googleAuth.js';
 
 export const metadata = {
   title: 'Criar conta de contratante',
@@ -10,7 +11,7 @@ export const metadata = {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <Login mode="register" />
+      <Login mode="register" googleEnabled={googleConfigured()} />
     </Suspense>
   );
 }
