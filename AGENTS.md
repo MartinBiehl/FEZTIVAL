@@ -43,7 +43,7 @@ Tecnologias em uso:
 | Estilos | CSS puro, mobile-first |
 | Dados | PostgreSQL 17, lido em Server Components |
 | Cliente do banco | `pg` (node-postgres), SQL parametrizado, sem ORM |
-| Autenticação | Própria (`src/lib/auth.js`): e-mail e senha, sessão em cookie |
+| Autenticação | Própria (`src/lib/auth.js`): e-mail e senha ou Google (OpenID Connect, `src/lib/googleAuth.js`), sessão em cookie |
 | E-mail | `nodemailer` via `SMTP_URL`; em desenvolvimento, impresso no terminal |
 | Arquivos | Disco local (`MEDIA_DIR`), servido pelo Route Handler `/media` |
 | Escrita | Server Actions; Route Handlers para o link de confirmação, a sessão do Header e as fotos |
@@ -100,9 +100,10 @@ src/
 |---|---|
 | `db.js` | pool do Postgres: `query`, `queryOne`, `transaction` (só servidor) |
 | `auth.js` | senhas, sessão (`getCurrentUser`, `createSession`), tokens de e-mail |
+| `googleAuth.js` | "Continuar com Google": ida ao Google, troca do code, entrada ou cadastro pendente |
 | `mail.js` | e-mails de confirmação e de código de recuperação |
 | `account.js` | `createAccountRows` (cria `profiles` e o rascunho em `artists`), `findOwnArtist`, `safeNextPath`, `slugify` |
-| `accountActions.js` | Server Actions de login, cadastro, saída e recuperação de senha |
+| `accountActions.js` | Server Actions de login, cadastro (inclusive o que completa o do Google), saída e recuperação de senha |
 | `bookingActions.js` | Server Actions de proposta, mudança de status e avaliação |
 | `bookingQueries.js` | leituras do painel (propostas e perguntas sem resposta) e de "Minhas reservas" |
 | `questionActions.js` | Server Actions de pergunta pública e resposta do artista |
@@ -181,11 +182,13 @@ revisitar em fase futura.
 | Login legado | `/entrar/contratante`, `/entrar/artista` | Redirecionam para `/entrar` mantendo a query |
 | Escolha de cadastro | `/cadastro` | Escolha entre contratante e artista (preserva `?next=`) |
 | Cadastro | `/cadastro/contratante`, `/cadastro/artista` | Criação de conta |
+| Completar cadastro | `/cadastro/completar` | Quem voltou do Google sem conta informa WhatsApp e termos |
 | Recuperação de senha | `/recuperar-senha`, `/codigo`, `/nova-senha` | E-mail → código → nova senha |
 | Painel do artista | `/painel` | Propostas recebidas e agenda (exige login) |
 | Editor de perfil | `/painel/perfil` | Cadastro público do artista e publicação (exige login) |
 | Reservas do cliente | `/minhas-reservas` | Acompanhamento de pedidos (exige login) |
 | Confirmação de e-mail | `/auth/confirm` | Route Handler: abre a sessão do link enviado no cadastro |
+| Google | `/auth/google`, `/auth/google/callback` | Route Handlers: ida ao Google e volta |
 | Redirect legado | `/artistas` | Redireciona (307) para `/explorar` |
 | Não encontrada | qualquer outra | 404 real, com link para início e catálogo |
 
@@ -298,6 +301,7 @@ Variáveis de ambiente (todas só do servidor; nenhuma é `NEXT_PUBLIC_`):
 | `MEDIA_DIR` | pasta das fotos enviadas (padrão `storage/media`). Precisa de disco persistente |
 | `SMTP_URL` | SMTP dos e-mails de conta. Vazio só em desenvolvimento: os e-mails vão para o terminal. Em produção a falta dele é erro |
 | `MAIL_FROM` | remetente dos e-mails |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | credenciais do "Continuar com Google" (ver "Login com Google"). Vazias, o botão não aparece. Lidas a cada acesso: `/entrar` e os cadastros são dinâmicos por causa delas |
 
 > **Hospedagem.** Fotos em disco local exigem um servidor com disco persistente (VPS,
 > container com volume). Em plataformas sem disco próprio (Vercel e afins) as fotos se
@@ -390,7 +394,7 @@ por lá não vai para o Git, não é revisável e não se reproduz em outro ambi
 Migration nova sempre, mesmo para um `alter table` de uma linha.
 
 `0001_schema.sql` é o schema; `0002_catalogs.sql` traz os catálogos (gêneros, formas
-de pagamento, tipos de local). Catálogo é dado de referência, não de demonstração:
+de pagamento, tipos de local); `0003_google.sql` acrescenta o login com Google. Catálogo é dado de referência, não de demonstração:
 sem gêneros ninguém publica perfil, então ele roda em todo ambiente — ao contrário do
 seed.
 
@@ -399,6 +403,7 @@ seed.
 | Tabela | Papel |
 |---|---|
 | `users`, `sessions`, `auth_tokens` | Contas, sessões abertas e tokens enviados por e-mail (ver "Autenticação e escrita") |
+| `google_signups` | Quem voltou do Google sem conta, por 30 minutos, até completar o cadastro |
 | `profiles` | Estende `users` 1:1. A PK **é** o `users.id` |
 | `artists` | Cadastro artístico. `slug` único alimenta `/artista/[slug]` |
 | `genres`, `artist_genres` | Catálogo de gêneros e o vínculo N:N |
@@ -723,6 +728,35 @@ revelar quais e-mails estão cadastrados.
 
 `?next=` só aceita caminho interno (`safeNextPath`): `//site.com` e URLs absolutas são
 descartados, para o login não virar redirecionamento aberto.
+
+### Login com Google
+
+"Continuar com Google" aparece em `/entrar` e nos dois cadastros quando
+`GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` estão definidas. OAuth 2.0 / OpenID Connect
+com code + PKCE, sem biblioteca (`src/lib/googleAuth.js`):
+
+1. `/auth/google` sorteia state, nonce e verificador PKCE, guarda-os no cookie httpOnly
+   `fz_google_oauth` (10 minutos) e redireciona ao Google. `?como=contratante|artista`
+   vem das telas de cadastro; `?next=` passa por `safeNextPath`.
+2. `/auth/google/callback` confere o state, troca o code pelo ID token direto com o
+   Google (servidor a servidor, por isso a assinatura não é conferida — OIDC Core
+   3.1.3.7) e confere emissor, audiência, validade, nonce e `email_verified`.
+3. A conta é reconhecida por `users.google_sub` (o `sub` do Google), não pelo e-mail.
+   Sem vínculo, um e-mail **confirmado** igual vincula a conta e entra; um cadastro por
+   senha **nunca confirmado** é apagado, como em `signUp`.
+4. Sem conta, a pessoa vai a `/cadastro/completar` (cookie `fz_google_signup`, linha em
+   `google_signups`, 30 minutos) e informa o que o Google não dá: WhatsApp, termos e,
+   para artista, nome artístico e categoria. `completeGoogleSignup` cria a conta já
+   confirmada, sem senha, e abre a sessão.
+
+Conta sem senha (`password_hash` nulo) recebe em `signIn` o aviso para usar o Google
+ou criar uma senha em "Esqueci minha senha". Falhas voltam a `/entrar?erro=google…`.
+
+No Google Cloud Console, o cliente OAuth é do tipo "Aplicativo da Web", com os URIs de
+redirecionamento `http://localhost:3000/auth/google/callback` e o do domínio de
+produção. Os escopos são só `openid`, `email` e `profile`. Atrás de um proxy que termina o HTTPS, o
+endereço de volta sai de `X-Forwarded-Proto`/`X-Forwarded-Host` (`publicOrigin`): o proxy
+precisa enviá-los, senão o Google recusa com `redirect_uri_mismatch`.
 
 ### Recuperação de senha
 

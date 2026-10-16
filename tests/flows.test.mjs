@@ -445,6 +445,170 @@ test('visualizacao conta uma vez por visitante', async () => {
   assert.equal((await one('select view_count from artists where id = $1', [artistId])).view_count, before + 2);
 });
 
+/*
+ * "Continuar com Google". O Google e simulado: fetch devolve um ID token com
+ * as claims de cada caso, e o callback recebe o state guardado na ida.
+ */
+process.env.GOOGLE_CLIENT_ID = 'cliente-teste.apps.googleusercontent.com';
+process.env.GOOGLE_CLIENT_SECRET = 'segredo-teste';
+const googleStart = await import(`${L}/app/auth/google/route.js`);
+const googleCallback = await import(`${L}/app/auth/google/callback/route.js`);
+
+const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const idToken = (claims) => `${b64({ alg: 'RS256' })}.${b64(claims)}.assinatura`;
+
+async function googleLogin(who, claims = {}, { start = '', callback = {} } = {}) {
+  as(who);
+  const go = await googleStart.GET(new Request(`http://localhost:3000/auth/google${start}`));
+  const google = new URL(go.headers.get('location'));
+  const sent = Object.fromEntries(google.searchParams);
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    assert.equal(String(url), 'https://oauth2.googleapis.com/token');
+    const body = new URLSearchParams(String(init.body));
+    assert.equal(body.get('code'), 'code-do-google');
+    assert.equal(body.get('client_secret'), 'segredo-teste');
+    assert.ok(body.get('code_verifier'));
+    return Response.json({
+      id_token: idToken({
+        iss: 'https://accounts.google.com',
+        aud: process.env.GOOGLE_CLIENT_ID,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+        nonce: sent.nonce,
+        email_verified: true,
+        ...claims,
+      }),
+    });
+  };
+  try {
+    const back = new URL('http://localhost:3000/auth/google/callback');
+    back.search = new URLSearchParams({ code: 'code-do-google', state: sent.state, ...callback }).toString();
+    const res = await googleCallback.GET(new Request(back));
+    return { sent, location: res.headers.get('location') };
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+test('google: a ida leva ao Google com PKCE, state e o endereco de volta', async () => {
+  as('g0');
+  const res = await googleStart.GET(new Request('http://localhost:3000/auth/google?como=artista&next=/reservar/dj-kauan'));
+  const url = new URL(res.headers.get('location'));
+  assert.equal(url.origin + url.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(url.searchParams.get('redirect_uri'), 'http://localhost:3000/auth/google/callback');
+  assert.equal(url.searchParams.get('scope'), 'openid email profile');
+  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+  assert.ok(url.searchParams.get('state'));
+  assert.ok(jars.g0.get('fz_google_oauth'));
+  assert.ok(!res.headers.get('location').includes('segredo-teste'));
+});
+
+test('google: conta nova completa o cadastro e entra sem senha', async () => {
+  const { location } = await googleLogin('g1', { sub: 'google-1', email: 'Nova@Gmail.test', name: 'Nova Pessoa' });
+  assert.equal(location, 'http://localhost:3000/cadastro/completar');
+  assert.ok(jars.g1.get('fz_google_signup'));
+  assert.equal(jars.g1.get('fz_session'), undefined);
+
+  const missing = await acc.completeGoogleSignup(null, form({ signupAs: 'artist', fullName: 'Nova Pessoa', terms: 'on' }));
+  assert.match(missing.error, /WhatsApp/);
+
+  const r = await acc.completeGoogleSignup(null, form({
+    signupAs: 'artist', fullName: 'Nova Pessoa', phone: '(51) 97777-6666', terms: 'on', stageName: 'DJ Nova', category: 'dj',
+  }));
+  assert.deepEqual(r, { ok: true, destination: '/painel' });
+  assert.equal((await getCurrentUser()).email, 'nova@gmail.test');
+  assert.ok(!jars.g1.has('fz_google_signup'));
+
+  const row = await one(`select u.password_hash, u.email_verified_at, u.google_sub, a.slug
+    from users u join artists a on a.profile_id = u.id where u.email = 'nova@gmail.test'`);
+  assert.equal(row.password_hash, null);
+  assert.ok(row.email_verified_at);
+  assert.equal(row.google_sub, 'google-1');
+  assert.equal(row.slug, 'dj-nova');
+  assert.equal((await one('select count(*)::int n from google_signups')).n, 0);
+
+  // Sem senha, o login por senha explica o caminho.
+  const pw = await acc.signIn(null, form({ email: 'nova@gmail.test', password: 'qualquer' }));
+  assert.match(pw.error, /entra pelo Google/);
+
+  // Na volta seguinte, entra direto.
+  const again = await googleLogin('g1b', { sub: 'google-1', email: 'nova@gmail.test' });
+  assert.equal(again.location, 'http://localhost:3000/painel');
+  assert.ok(jars.g1b.get('fz_session'));
+});
+
+test('google: conta com senha e o mesmo e-mail entra e fica vinculada', async () => {
+  const { location } = await googleLogin('g2', { sub: 'google-2', email: 'cliente@test.local' }, { start: '?next=/reservar/dj-kauan' });
+  assert.equal(location, 'http://localhost:3000/reservar/dj-kauan');
+  assert.equal((await getCurrentUser()).email, 'cliente@test.local');
+  const row = await one(`select google_sub, password_hash from users where email = 'cliente@test.local'`);
+  assert.equal(row.google_sub, 'google-2');
+  assert.ok(row.password_hash);
+  // A senha continua valendo (trocada para nova-senha-1 no teste de recuperacao).
+  as('g2b');
+  assert.equal((await acc.signIn(null, form({ email: 'cliente@test.local', password: 'nova-senha-1' }))).ok, true);
+});
+
+test('google: cadastro por senha nunca confirmado e substituido', async () => {
+  as('g3');
+  await acc.signUp(null, form(signupFields({ email: 'pendente@test.local', fullName: 'Quem Nao Confirmou' })));
+  const { location } = await googleLogin('g3', { sub: 'google-3', email: 'pendente@test.local', name: 'Dona Do Email' }, { start: '?como=contratante' });
+  assert.equal(location, 'http://localhost:3000/cadastro/completar');
+  const r = await acc.completeGoogleSignup(null, form({
+    signupAs: 'contractor', fullName: 'Dona Do Email', phone: '(51) 96666-5555', terms: 'on',
+  }));
+  assert.deepEqual(r, { ok: true, destination: '/minhas-reservas' });
+  const row = await one(`select count(*)::int n, max(p.full_name) name, bool_and(u.password_hash is null) no_password
+    from users u join profiles p on p.id = u.id where u.email = 'pendente@test.local'`);
+  assert.deepEqual(row, { n: 1, name: 'Dona Do Email', no_password: true });
+});
+
+test('google: volta falsificada, cancelada ou com token invalido nao entra', async () => {
+  const forged = await googleLogin('g4', { sub: 'google-4', email: 'g4@test.local' }, { callback: { state: 'outro' } });
+  assert.equal(forged.location, 'http://localhost:3000/entrar?erro=google');
+  const cancelled = await googleLogin('g4', {}, { callback: { error: 'access_denied' } });
+  assert.equal(cancelled.location, 'http://localhost:3000/entrar?erro=google-cancelado');
+  const unverified = await googleLogin('g4', { sub: 'google-4', email: 'g4@test.local', email_verified: false });
+  assert.equal(unverified.location, 'http://localhost:3000/entrar?erro=google');
+  const otherApp = await googleLogin('g4', { sub: 'google-4', email: 'g4@test.local', aud: 'outro-app' });
+  assert.equal(otherApp.location, 'http://localhost:3000/entrar?erro=google');
+  const badNonce = await googleLogin('g4', { sub: 'google-4', email: 'g4@test.local', nonce: 'outro' });
+  assert.equal(badNonce.location, 'http://localhost:3000/entrar?erro=google');
+  assert.equal(jars.g4.get('fz_session'), undefined);
+  assert.equal(await one(`select 1 from users where email = 'g4@test.local'`), undefined);
+
+  // Outra conta Google com o e-mail de uma conta ja vinculada.
+  const conflict = await googleLogin('g4', { sub: 'google-outra', email: 'nova@gmail.test' });
+  assert.equal(conflict.location, 'http://localhost:3000/entrar?erro=google-conta');
+
+  as('g5');
+  const expired = await acc.completeGoogleSignup(null, form({
+    signupAs: 'contractor', fullName: 'Sem Cookie', phone: '(51) 96666-5555', terms: 'on',
+  }));
+  assert.match(expired.error, /tempo para concluir/);
+});
+
+test('google: atras de proxy HTTPS, o endereco de volta e o publico', async () => {
+  as('g6');
+  const res = await googleStart.GET(new Request('http://127.0.0.1:3000/auth/google', {
+    headers: { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'feztival.com.br' },
+  }));
+  const url = new URL(res.headers.get('location'));
+  assert.equal(url.searchParams.get('redirect_uri'), 'https://feztival.com.br/auth/google/callback');
+});
+
+test('google: conta sem senha cria uma pela recuperacao e passa a entrar das duas formas', async () => {
+  as('g7');
+  await acc.requestPasswordReset(null, form({ email: 'nova@gmail.test' }));
+  const code = lastMail().match(/\b\d{6}\b/)[0];
+  assert.deepEqual(await acc.verifyRecoveryCode(null, form({ email: 'nova@gmail.test', code })), { ok: true });
+  assert.deepEqual(await acc.updatePassword(null, form({ password: 'senha-criada-1', confirmation: 'senha-criada-1' })), { ok: true });
+  assert.equal((await acc.signIn(null, form({ email: 'nova@gmail.test', password: 'senha-criada-1' }))).ok, true);
+  const google = await googleLogin('g7b', { sub: 'google-1', email: 'nova@gmail.test' });
+  assert.equal(google.location, 'http://localhost:3000/painel');
+});
+
 test('sair encerra a sessao no banco', async () => {
   as('a');
   const token = jars.a.get('fz_session');
