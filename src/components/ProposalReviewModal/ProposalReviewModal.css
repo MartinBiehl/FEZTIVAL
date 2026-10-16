@@ -1,3 +1,7 @@
+/*
+ * Revisao da proposta: o ingresso do formulario, completo. Superficie clara
+ * como o resto do fluxo; a cor do artista fica so na faixa do topo.
+ */
 .proposal-review-layer {
   position: fixed;
   z-index: 110;
@@ -10,347 +14,302 @@
 .proposal-review-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(4, 4, 4, 0.82);
-  backdrop-filter: blur(12px);
+  background: rgba(17, 17, 17, 0.5);
+  backdrop-filter: blur(4px);
 }
 
-.proposal-review-dialog {
+.proposal-review {
   position: relative;
   z-index: 1;
   display: flex;
   overflow: hidden;
-  width: min(760px, 100%);
+  width: min(560px, 100%);
   max-height: calc(100dvh - 1.5rem);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 26px;
-  background: #0d0d0d;
-  color: white;
-  box-shadow: 0 42px 120px -28px rgba(0, 0, 0, 0.9);
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 40px 100px -40px rgba(17, 17, 17, 0.6);
   flex-direction: column;
 }
 
-.proposal-review-dialog__header {
-  display: flex;
-  padding: 1.5rem 1.5rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+.proposal-review:focus {
+  outline: none;
 }
 
-.proposal-review-dialog__header p {
-  margin: 0 0 0.25rem;
-  color: var(--artist-color);
-  font-size: 0.65rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.proposal-review-dialog__header h2 {
-  margin: 0;
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(2rem, 5vw, 3.2rem);
-  letter-spacing: -0.06em;
-  line-height: 1;
-}
-
-.proposal-review-dialog__header span {
-  display: block;
-  margin-top: 0.5rem;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 0.72rem;
-}
-
-.proposal-review-dialog__header button {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  color: white;
-  font-size: 1.4rem;
-  cursor: pointer;
-  place-items: center;
-}
-
-.proposal-review-dialog__header button:hover {
-  border-color: var(--artist-color);
-  background: var(--artist-color);
-  color: #111;
-}
-
-.proposal-review-dialog__content {
+.proposal-review__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 1.2rem 1.5rem 1.5rem;
   flex: 1 1 auto;
 }
 
-.proposal-review-artist {
-  display: flex;
-  padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.035);
+/* Faixa do artista */
+.proposal-review__band {
+  display: grid;
+  padding: 1.5rem;
+  background: var(--artist-color);
   align-items: center;
-  gap: 0.9rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
 }
 
-.proposal-review-artist > span {
+.proposal-review__avatar {
   display: grid;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
-  border-radius: 13px;
-  background: linear-gradient(135deg, var(--artist-color), #282828);
-  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 14px;
+  background: rgba(17, 17, 17, 0.16);
+  color: rgba(17, 17, 17, 0.6);
   font-family: 'Syne', sans-serif;
-  font-weight: 900;
+  font-size: 1.375rem;
+  font-weight: 800;
   place-items: center;
 }
 
-.proposal-review-artist > span {
-  overflow: hidden;
-}
-
-.proposal-review-artist > span img {
+.proposal-review__avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.proposal-review-artist div {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.proposal-review-artist small {
-  color: var(--artist-color);
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.proposal-review-artist strong {
+.proposal-review__band h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
   font-family: 'Syne', sans-serif;
+  font-size: clamp(1.5rem, 4vw, 1.875rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
-.proposal-review-artist p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.68rem;
-}
-
-.proposal-review-details {
-  display: grid;
-  margin-top: 0.8rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
-}
-
-.proposal-review-details article {
-  display: grid;
-  min-height: 84px;
-  padding: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
-  align-content: space-between;
-  gap: 0.5rem;
-}
-
-.proposal-review-details__location,
-.proposal-review-details__message {
-  grid-column: 1 / -1;
-}
-
-/* Mensagem longa nao empurra o botao de envio para fora da tela. */
-.proposal-review-details__message p {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
-  white-space: pre-line;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.proposal-review-details article span {
-  color: rgba(255, 255, 255, 0.42);
-  font-size: 0.64rem;
-  font-weight: 700;
-}
-
-.proposal-review-details article strong {
-  font-family: var(--font-numeric);
-  font-size: 0.8rem;
+.proposal-review__band p {
+  margin: 0.35rem 0 0;
+  color: rgba(17, 17, 17, 0.72);
+  font-size: 0.9375rem;
   line-height: 1.4;
 }
 
-.proposal-review-price {
+.proposal-review__close {
   display: grid;
-  margin-top: 0.8rem;
-  padding: 1.2rem;
-  border: 1px solid color-mix(in srgb, var(--artist-color), transparent 65%);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--artist-color), transparent 94%);
-  text-align: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(17, 17, 17, 0.1);
+  color: var(--ink);
+  align-self: start;
+  cursor: pointer;
+  place-items: center;
+  transition: background 150ms ease;
 }
 
-.proposal-review-price span,
-.proposal-review-price small {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.65rem;
+.proposal-review__close:hover {
+  background: rgba(17, 17, 17, 0.2);
 }
 
-.proposal-review-price strong {
-  color: var(--artist-color);
-  font-family: var(--font-numeric);
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  letter-spacing: -0.045em;
+.proposal-review__close:focus-visible,
+.proposal-review__actions button:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
 }
 
-.proposal-review-payments {
+/* Dados do evento */
+.proposal-review__body {
   display: grid;
-  margin-top: 1rem;
-  gap: 0.75rem;
+  padding: 1.5rem;
+  gap: 1.25rem;
 }
 
-.proposal-review-payments > div > span {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+.proposal-review__place,
+.proposal-review__message {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.proposal-review__place > span,
+.proposal-review__message > span,
+.proposal-review__rows dt {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.proposal-review__place strong {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.proposal-review__place p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.proposal-review__place strong + p {
+  color: var(--text-secondary);
+}
+
+.proposal-review__rows {
+  display: grid;
+  margin: 0;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.proposal-review__rows div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.proposal-review__rows dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* A data por extenso ocupa a linha toda. */
+.proposal-review__rows div:first-child {
+  grid-column: 1 / -1;
+}
+
+.proposal-review__rows div:first-child dd::first-letter {
   text-transform: uppercase;
 }
 
-.proposal-review-payments h3 {
-  margin: 0.15rem 0 0;
-  font-family: 'Syne', sans-serif;
-  font-size: 0.95rem;
+.proposal-review__message {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--background);
 }
 
-.proposal-review-payments ul {
-  display: flex;
+.proposal-review__message p {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
-  padding: 0;
-  flex-wrap: wrap;
-  list-style: none;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+/* Canhoto: picote e valor */
+.proposal-review__stub {
+  display: grid;
+  padding: 1.5rem;
+  border-top: 2px dashed var(--border-strong);
   gap: 0.5rem;
 }
 
-.proposal-review-payments li {
+.proposal-review__stub > div {
   display: flex;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.68rem;
-  font-weight: 700;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
 }
 
-.proposal-review-payments li span {
-  color: var(--artist-color);
+.proposal-review__stub > div span {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
 }
 
-.proposal-review-notice {
-  display: flex;
-  margin: 1rem 0 0;
-  padding: 0.8rem;
-  border-radius: 12px;
-  background: rgba(0, 191, 231, 0.08);
-  color: rgba(255, 255, 255, 0.58);
-  gap: 0.55rem;
-  font-size: 0.66rem;
+.proposal-review__stub strong {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.875rem, 6vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.proposal-review__stub p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
-.proposal-review-notice span {
-  display: grid;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 auto;
-  border: 1px solid var(--cyan);
-  border-radius: 50%;
-  color: var(--cyan);
-  font-weight: 900;
-  place-items: center;
-}
-
-.proposal-review-dialog__footer {
+/* Acoes */
+.proposal-review__actions {
   display: flex;
   flex: 0 0 auto;
   padding: 1rem 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: #0a0a0a;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
-.proposal-review-dialog__footer button {
-  padding: 0.85rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 11px;
+.proposal-review__actions button {
+  min-height: 52px;
+  padding: 0 1.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
   background: transparent;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 800;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
-.proposal-review-dialog__footer button:last-child {
-  display: flex;
-  min-width: 190px;
-  border-color: var(--artist-color);
-  background: var(--artist-color);
-  color: #111;
-  justify-content: space-between;
+.proposal-review__actions button:hover {
+  border-color: var(--ink);
 }
 
-.proposal-review-dialog__footer button:hover {
-  transform: translateY(-1px);
+.proposal-review__actions button:last-child {
+  flex: 1;
+  max-width: 16rem;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: white;
+}
+
+.proposal-review__actions button:last-child:hover:not(:disabled) {
+  border-color: var(--pink);
+  background: var(--pink);
+}
+
+.proposal-review__actions button:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 @media (max-width: 580px) {
   .proposal-review-layer {
-    padding: 0.5rem;
+    padding: 0;
     align-items: end;
   }
 
-  .proposal-review-dialog {
-    max-height: calc(100dvh - 1rem);
-    border-radius: 22px;
+  .proposal-review {
+    max-height: 94dvh;
+    border-radius: 24px 24px 0 0;
   }
 
-  .proposal-review-dialog__header,
-  .proposal-review-dialog__content,
-  .proposal-review-dialog__footer {
-    padding-inline: 1rem;
+  .proposal-review__band,
+  .proposal-review__body,
+  .proposal-review__stub {
+    padding-inline: 1.25rem;
   }
 
-  .proposal-review-details {
-    grid-template-columns: 1fr 1fr;
+  .proposal-review__band {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .proposal-review-details article:last-child {
-    grid-column: 1 / -1;
+  .proposal-review__avatar {
+    display: none;
   }
 
-  .proposal-review-dialog__footer {
-    align-items: stretch;
+  .proposal-review__actions {
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
     flex-direction: column-reverse;
   }
 
-  .proposal-review-dialog__footer button,
-  .proposal-review-dialog__footer button:last-child {
-    width: 100%;
+  .proposal-review__actions button:last-child {
+    max-width: none;
   }
 }

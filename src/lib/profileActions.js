@@ -72,8 +72,12 @@ function parseProfile(formData) {
     const isAvailable = formData.get(`day_${weekday}`) === 'on';
     const opensAt = text(formData, `opens_${weekday}`, 5);
     const closesAt = text(formData, `closes_${weekday}`, 5);
-    if (isAvailable && !(TIME.test(opensAt) && TIME.test(closesAt) && opensAt < closesAt)) {
-      throw new ValidationError(`Confira o horário de ${label}: o início precisa ser antes do fim.`);
+    // Fim antes do inicio e expediente que vira o dia (23h as 3h); igual nao fecha horario nenhum.
+    if (isAvailable && !(TIME.test(opensAt) && TIME.test(closesAt))) {
+      throw new ValidationError(`Informe o início e o fim do horário de ${label}.`);
+    }
+    if (isAvailable && opensAt === closesAt) {
+      throw new ValidationError(`Confira o horário de ${label}: o início e o fim não podem ser iguais.`);
     }
     return {
       weekday,

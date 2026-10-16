@@ -210,6 +210,48 @@ label.contract-field > small {
   outline-offset: 1px;
 }
 
+/* Campo com erro: borda e anel vermelhos, e a mensagem logo abaixo. */
+.contract-field input[aria-invalid='true'] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.14);
+}
+
+.contract-field input[aria-invalid='true']:focus-visible {
+  border-color: var(--danger);
+  outline-color: rgba(180, 35, 24, 0.35);
+}
+
+.contract-field.has-error .contract-chips span {
+  border-color: var(--danger);
+}
+
+.contract-field > .contract-field__error {
+  display: flex;
+  margin: 0;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: var(--danger);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.contract-field > .contract-field__error svg {
+  margin-top: 0.05rem;
+  flex-shrink: 0;
+}
+
+/* Endereco e cidade lado a lado; o nome do local, opcional, embaixo. */
+.contract-address {
+  gap: 1rem;
+}
+
+.contract-address__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
 .contract-field textarea {
   min-height: 8rem;
   line-height: 1.5;
@@ -610,7 +652,8 @@ label.contract-field > small {
     grid-column: 1 / -1;
   }
 
-  .contract-options {
+  .contract-options,
+  .contract-address__grid {
     grid-template-columns: 1fr;
   }
 

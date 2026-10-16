@@ -33,6 +33,24 @@ export function todayIso(now = new Date()) {
   }).format(now);
 }
 
+/* "14:05" no fuso de Sao Paulo: com todayIso, diz se um horario de hoje ja passou. */
+export function nowTimeIso(now = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(now);
+}
+
+/*
+ * Data digitada no formulario ("2026-12-19") como Date, ou null. O campo de
+ * data aceita ano com 5 ou 6 digitos enquanto se digita, e Intl.DateTimeFormat
+ * lanca RangeError com data invalida: formatar sem esta checagem derruba a tela.
+ */
+export function parseFormDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 /* Soma dias a uma data ISO sem passar por fuso. */
 export function addDaysIso(iso, days) {
   const date = new Date(`${iso}T12:00:00Z`);
@@ -85,6 +103,36 @@ export function formatEventTime(value) {
   return minute === '00' ? `${hour}h` : `${hour}h${minute}`;
 }
 
+const DAY_MINUTES = 24 * 60;
+
+/*
+ * Horario de termino a partir do inicio ("23:00" ou "23:00:00" do banco) e da
+ * duracao. Show que passa da meia-noite termina no dia seguinte: 23h + 3h
+ * acaba as 2h, com nextDay. Sem duracao nao ha termino a mostrar.
+ */
+export function eventEnd(time, durationMinutes) {
+  const duration = Number(durationMinutes);
+  if (!/^\d{2}:\d{2}/.test(time ?? '') || !Number.isInteger(duration) || duration <= 0) return null;
+  const [hour, minute] = time.split(':').map(Number);
+  const total = hour * 60 + minute + duration;
+  const end = total % DAY_MINUTES;
+  const pad = (value) => String(value).padStart(2, '0');
+  return { time: `${pad(Math.floor(end / 60))}:${pad(end % 60)}`, nextDay: total > DAY_MINUTES };
+}
+
+/* "23h às 2h do dia seguinte"; sem duracao, so o inicio ("23h"). */
+export function formatEventTimeRange(time, durationMinutes) {
+  const start = formatEventTime(time);
+  const end = eventEnd(time, durationMinutes);
+  if (!start || !end) return start;
+  return `${start} às ${formatEventTime(end.time)}${end.nextDay ? ' do dia seguinte' : ''}`;
+}
+
+/* Inicio entre meia-noite e 6h: a data do evento e a do dia que comeca depois da meia-noite. */
+export function startsAfterMidnight(time) {
+  return /^0[0-5]:/.test(time ?? '');
+}
+
 /* "R$ 2.800", ou "A combinar" quando ainda nao ha valor. */
 export function formatMoney(value) {
   if (value == null) return 'A combinar';
@@ -117,4 +165,17 @@ export function initials(name) {
 export function estimatePrice(artist, durationMinutes) {
   const service = (artist.services ?? []).find((item) => item.durationMinutes === Number(durationMinutes));
   return service?.price ?? artist.price ?? null;
+}
+
+/*
+ * Local do evento como fica gravado em bookings.event_location: o formulario
+ * pede nome do local (opcional), endereco e cidade separados, e a reserva
+ * guarda uma linha so ("Salao Aurora, Rua A, 123, Ivoti"). Usado pelo envio
+ * (bookingActions.js) e pela previa do formulario, para os dois baterem.
+ */
+export function joinEventLocation({ venueName, address, city }) {
+  return [venueName, address, city]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join(', ');
 }

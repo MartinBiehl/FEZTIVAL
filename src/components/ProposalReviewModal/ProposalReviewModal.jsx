@@ -1,18 +1,23 @@
 import { motion, useReducedMotion } from 'motion/react';
+import { X } from 'lucide-react';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import {
-  NO_RATING_LABEL, formatMoney, formatRating, hasRating,
+  NO_RATING_LABEL, formatMoney, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
-import { estimatePrice } from '../../lib/bookingDisplay.js';
+import {
+  estimatePrice, formatEventTimeRange, joinEventLocation, parseFormDate,
+} from '../../lib/bookingDisplay.js';
 import './ProposalReviewModal.css';
 
 function formatDate(value) {
-  if (!value) return 'Data não informada';
+  const date = parseFormDate(value);
+  if (!date) return 'Data não informada';
   return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
+    weekday: 'long',
+    day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(new Date(`${value}T12:00:00`));
+  }).format(date);
 }
 
 /* Mesmos textos de SOUND_OPTIONS em Contract.jsx. */
@@ -31,6 +36,14 @@ function formatDuration(value) {
   return `${hours.toLocaleString('pt-BR')} ${hours === 1 ? 'hora' : 'horas'}`;
 }
 
+function initials(name) {
+  return name.split(' ').map((part) => part[0]).slice(0, 2).join('');
+}
+
+/*
+ * Ultima etapa da proposta: o mesmo ingresso do formulario, agora completo.
+ * Faixa na cor do artista, os dados do evento e, depois do picote, o valor.
+ */
 function ProposalReviewModal({
   artist,
   proposal,
@@ -47,6 +60,20 @@ function ProposalReviewModal({
   });
   const titleId = 'proposal-review-title';
   const descriptionId = 'proposal-review-description';
+  const estimate = estimatePrice(artist, proposal.duration);
+  const message = proposal.message?.trim();
+  const venueName = proposal.venueName?.trim();
+  // Rascunho salvo antes da troca de campos ainda traz "location" pronto.
+  const address = joinEventLocation({ address: proposal.address, city: proposal.city }) || proposal.location;
+
+  const rows = [
+    ['Data', formatDate(proposal.date)],
+    ['Horário', formatEventTimeRange(proposal.time, proposal.duration)],
+    ['Duração', formatDuration(proposal.duration)],
+    ['Evento', proposal.eventType],
+    ['Convidados', Number(proposal.guestCount).toLocaleString('pt-BR')],
+    ['Som', SOUND_LABEL[proposal.soundStructure] ?? SOUND_LABEL['nao-sei']],
+  ];
 
   return (
     <div className="proposal-review-layer">
@@ -62,122 +89,88 @@ function ProposalReviewModal({
 
       <motion.section
         ref={dialogRef}
-        className="proposal-review-dialog"
-        style={{ '--artist-color': artist.color }}
+        className="proposal-review"
+        style={{ '--artist-color': artist.color || 'var(--yellow)' }}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
-        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}
-        transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 360, damping: 34 }}
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 28 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+        transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 380, damping: 36 }}
       >
-        <header className="proposal-review-dialog__header">
-          <div>
-            <p>Última etapa</p>
-            <h2 id={titleId}>Revisar e enviar</h2>
-            <span id={descriptionId}>Confira os dados principais antes de enviar a solicitação.</span>
-          </div>
-          <button
-            ref={initialFocusRef}
-            type="button"
-            aria-label="Fechar revisão da proposta"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="proposal-review-dialog__content">
-          <div className="proposal-review-artist">
-            <span aria-hidden="true">
-              {artist.coverUrl
-                ? <img src={artist.coverUrl} alt="" />
-                : artist.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
+        <div className="proposal-review__scroll">
+          <header className="proposal-review__band">
+            <span className="proposal-review__avatar" aria-hidden="true">
+              {artist.coverUrl ? <img src={artist.coverUrl} alt="" /> : initials(artist.name)}
             </span>
             <div>
-              <small>{artist.category}</small>
-              <strong>{artist.name}</strong>
-              <p>
-                {[...artist.genres, hasRating(artist) ? `★ ${formatRating(artist)}` : NO_RATING_LABEL].join(' · ')}
+              <h2 id={titleId}>Sua proposta para {artist.name}</h2>
+              <p id={descriptionId}>
+                Confira os dados. {hasRating(artist)
+                  ? `${artist.category}, ★ ${formatRating(artist)} (${formatReviewCount(artist)}).`
+                  : `${artist.category}, ${NO_RATING_LABEL.toLowerCase()}.`}
               </p>
             </div>
-          </div>
+            <button
+              ref={initialFocusRef}
+              className="proposal-review__close"
+              type="button"
+              aria-label="Fechar e voltar ao formulário"
+              onClick={onClose}
+            >
+              <X size={20} aria-hidden="true" />
+            </button>
+          </header>
 
-          <div className="proposal-review-details">
-            <article className="proposal-review-details__location">
-              <span>Local do evento</span>
-              <strong>{proposal.location}</strong>
-            </article>
-            <article>
-              <span>Data</span>
-              <strong>{formatDate(proposal.date)}</strong>
-            </article>
-            <article>
-              <span>Horário</span>
-              <strong>{proposal.time}</strong>
-            </article>
-            <article>
-              <span>Duração</span>
-              <strong>{formatDuration(proposal.duration)}</strong>
-            </article>
-            <article>
-              <span>Tipo de evento</span>
-              <strong>{proposal.eventType}</strong>
-            </article>
-            <article>
-              <span>Convidados</span>
-              <strong>{Number(proposal.guestCount).toLocaleString('pt-BR')}</strong>
-            </article>
-            <article>
-              <span>Estrutura de som</span>
-              <strong>{SOUND_LABEL[proposal.soundStructure] ?? SOUND_LABEL['nao-sei']}</strong>
-            </article>
-            {proposal.message?.trim() && (
-              <article className="proposal-review-details__message">
-                <span>Mensagem</span>
-                <p>{proposal.message.trim()}</p>
-              </article>
+          <div className="proposal-review__body">
+            <div className="proposal-review__place">
+              <span>Local</span>
+              {venueName && <strong>{venueName}</strong>}
+              <p>{address}</p>
+            </div>
+
+            <dl className="proposal-review__rows">
+              {rows.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {message && (
+              <div className="proposal-review__message">
+                <span>Seu recado</span>
+                <p>{message}</p>
+              </div>
             )}
           </div>
 
-          <div className="proposal-review-price">
-            <span>Valor inicial estimado</span>
-            <strong>{formatMoney(estimatePrice(artist, proposal.duration))}</strong>
-            <small>O valor final será confirmado pelo artista.</small>
+          <div className="proposal-review__stub">
+            <div>
+              <span>Valor estimado</span>
+              <strong>{formatMoney(estimate)}</strong>
+            </div>
+            <p>
+              {artist.name} confirma o valor final ao aceitar. Enviar não gera cobrança.
+            </p>
+            {/* Sem formas de pagamento cadastradas, a lista ficaria so com o titulo. */}
+            {artist.paymentMethods?.length > 0 && (
+              <p className="proposal-review__payments">
+                Aceita {new Intl.ListFormat('pt-BR', { type: 'conjunction' })
+                  .format(artist.paymentMethods.map((method) => method.name))}.
+              </p>
+            )}
           </div>
-
-          {/* Sem formas de pagamento cadastradas, a secao ficaria so com o titulo. */}
-          {artist.paymentMethods?.length > 0 && (
-            <section className="proposal-review-payments" aria-labelledby="accepted-payments-title">
-              <div>
-                <span>Informação</span>
-                <h3 id="accepted-payments-title">Formas de pagamento aceitas</h3>
-              </div>
-              <ul>
-                {artist.paymentMethods.map((method) => (
-                  <li key={method.name}>
-                    <span aria-hidden="true">✓</span>
-                    {method.name}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <p className="proposal-review-notice">
-            <span aria-hidden="true">i</span>
-            Enviar esta proposta não gera cobrança. O preço pode variar conforme duração,
-            deslocamento e estrutura necessária.
-          </p>
         </div>
 
-        <footer className="proposal-review-dialog__footer">
-          <button type="button" onClick={onClose}>← Voltar e editar</button>
+        <footer className="proposal-review__actions">
+          <button type="button" onClick={onClose}>Voltar e editar</button>
           <button type="button" onClick={onConfirm} disabled={isSending} aria-busy={isSending}>
-            {isSending ? 'Enviando…' : 'Enviar proposta'} <span aria-hidden="true">→</span>
+            {isSending ? 'Enviando…' : 'Enviar proposta'}
           </button>
         </footer>
       </motion.section>
@@ -186,4 +179,3 @@ function ProposalReviewModal({
 }
 
 export default ProposalReviewModal;
-

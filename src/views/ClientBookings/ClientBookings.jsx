@@ -7,7 +7,7 @@ import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { BookingReviewForm, BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  STATUS_LABEL, formatEventTime, formatMoney, formatShortDate, initials,
+  STATUS_LABEL, formatEventTimeRange, formatMoney, formatShortDate, initials,
 } from '../../lib/bookingDisplay.js';
 import { formatMinutes } from '../../lib/artistDisplay.js';
 import { whatsappUrl } from '../../lib/phone.js';
@@ -170,7 +170,7 @@ function ClientBookings({ clientName, bookings }) {
               </div>
               <div>
                 <span>Data</span>
-                <strong>{[formatShortDate(booking.eventDate), formatEventTime(booking.eventTime)].filter(Boolean).join(' · ')}</strong>
+                <strong>{[formatShortDate(booking.eventDate), formatEventTimeRange(booking.eventTime, booking.durationMinutes)].filter(Boolean).join(' · ')}</strong>
               </div>
               <div>
                 <span>Status · {formatMoney(booking.agreedPrice)}</span>

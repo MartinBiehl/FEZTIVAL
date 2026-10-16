@@ -141,7 +141,8 @@ function toArtistDetail(row, summary, reviews) {
     weeklyHours: row.weekly_hours.map((entry) => ({
       day: WEEKDAY_LABEL[entry.weekday] ?? `Dia ${entry.weekday}`,
       hours: entry.is_available
-        ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}`
+        ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}${
+          entry.closes_at < entry.opens_at ? ' do dia seguinte' : ''}`
         : 'Não atende',
       available: entry.is_available,
     })),

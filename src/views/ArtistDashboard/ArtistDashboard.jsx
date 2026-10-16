@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useActionState, useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
@@ -10,7 +10,7 @@ import { BookingStatusActions } from '../../components/BookingActions/BookingAct
 import { useAuth } from '../../context/AuthContext.jsx';
 import { whatsappUrl } from '../../lib/phone.js';
 import {
-  STATUS_LABEL, dateParts, formatCompactMoney, formatEventTime, formatMoney, initials,
+  STATUS_LABEL, dateParts, formatCompactMoney, formatEventTimeRange, formatMoney, initials,
 } from '../../lib/bookingDisplay.js';
 import './ArtistDashboard.css';
 
@@ -28,7 +28,7 @@ const SOUND_LABEL = {
 function proposalSummary(proposal) {
   return [
     proposal.eventType,
-    formatEventTime(proposal.eventTime),
+    formatEventTimeRange(proposal.eventTime, proposal.durationMinutes),
     proposal.location,
     proposal.guestCount ? `${proposal.guestCount} convidados` : null,
     SOUND_LABEL[proposal.soundStructure],
@@ -58,43 +58,11 @@ function AnswerForm({ question }) {
   );
 }
 
-/* Secoes do painel, na ordem da pagina; a lateral marca a que esta na tela. */
-const SECTIONS = [
-  { id: 'visao', icon: '⌂', label: 'Visão geral' },
-  { id: 'propostas', icon: '◇', label: 'Propostas' },
-  { id: 'perguntas', icon: '?', label: 'Perguntas' },
-  { id: 'agenda', icon: '□', label: 'Agenda' },
-];
-
-function useActiveSection() {
-  const [active, setActive] = useState(SECTIONS[0].id);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') return undefined;
-    // Faixa estreita no terco superior da tela: a secao que passa por ela e a "atual".
-    // "visao" e o <main> inteiro, que sempre cruza a faixa: o cabecalho o representa.
-    const targets = new Map(SECTIONS.map(({ id }) => [
-      id === 'visao' ? document.querySelector('.dashboard-header') : document.getElementById(id),
-      id,
-    ]).filter(([element]) => element));
-    const observer = new IntersectionObserver((entries) => {
-      const entry = entries.find((item) => item.isIntersecting);
-      if (entry) setActive(targets.get(entry.target));
-    }, { rootMargin: '-25% 0px -70% 0px' });
-    targets.forEach((_id, element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, []);
-
-  return active;
-}
-
 function ArtistDashboard({
   artist, proposals, nextShows, openQuestions, answeredQuestions = [], metrics, todayLabel, greetingText,
 }) {
   const router = useRouter();
   const { logout } = useAuth();
-  const activeSection = useActiveSection();
-  const badges = { propostas: metrics.pending, perguntas: openQuestions.length };
 
   const handleLogout = async () => {
     await logout();
@@ -107,16 +75,6 @@ function ArtistDashboard({
       <aside className="dashboard-sidebar">
         <BrandLogo />
         <nav>
-          {SECTIONS.map((section) => (
-            <a
-              key={section.id}
-              className={section.id === activeSection ? 'active' : undefined}
-              aria-current={section.id === activeSection ? 'location' : undefined}
-              href={`#${section.id}`}
-            >
-              <span>{section.icon}</span> {section.label} {badges[section.id] > 0 && <b>{badges[section.id]}</b>}
-            </a>
-          ))}
           <Link href="/painel/perfil"><span>○</span> Meu perfil</Link>
         </nav>
         <div className="dashboard-sidebar__user">
@@ -247,7 +205,7 @@ function ArtistDashboard({
                   <span>{day}<small>{month}</small></span>
                   <div>
                     <strong>{show.eventType ?? 'Show'}</strong>
-                    <p>{[formatEventTime(show.eventTime), show.location].filter(Boolean).join(' · ')}</p>
+                    <p>{[formatEventTimeRange(show.eventTime, show.durationMinutes), show.location].filter(Boolean).join(' · ')}</p>
                   </div>
                   <b>Confirmado</b>
                 </div>

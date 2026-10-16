@@ -44,6 +44,7 @@ const profile = await import(`${L}/lib/profileActions.js`);
 const { fetchProfileEditor } = await import(`${L}/lib/profileEditor.js`);
 const { fetchArtistDashboard, fetchClientBookings } = await import(`${L}/lib/bookingQueries.js`);
 const { fetchArtistBySlug, fetchArtists } = await import(`${L}/lib/artistQueries.js`);
+const { formatEventTimeRange } = await import(`${L}/lib/bookingDisplay.js`);
 const { recordArtistView } = await import(`${L}/lib/artistActions.js`);
 const confirmRoute = await import(`${L}/app/auth/confirm/route.js`);
 const sessionRoute = await import(`${L}/app/api/session/route.js`);
@@ -164,6 +165,7 @@ test('editor: publicar exige cidade; salva tudo e preserva o id do servico', asy
     paymentMethods: editor.catalogs.paymentMethods.map((m) => m.id),
     serviceTitle: 'Show de 2h', serviceId: '', serviceDescription: '', servicePrice: '2000', serviceDuration: '120',
     serviceAreas: 'Ivoti\nDois Irmãos', day_1: 'on', opens_1: '09:00', closes_1: '18:00',
+    day_6: 'on', opens_6: '23:00', closes_6: '03:00',
     infraTitle: 'Som', infraStatus: 'included', infraDetail: '', infraId: '',
   };
   assert.match((await profile.saveArtistProfile(null, form(base))).error, /informe sua cidade/);
@@ -175,6 +177,11 @@ test('editor: publicar exige cidade; salva tudo e preserva o id do servico', asy
   assert.equal(saved.profile.isPublished, true);
   assert.deepEqual(saved.profile.serviceAreas, ['Ivoti', 'Dois Irmãos']);
   assert.equal(saved.profile.weeklyHours[1].opensAt, '09:00');
+  // Sabado das 23h as 3h: o expediente vira o dia.
+  assert.equal(saved.profile.weeklyHours[6].closesAt, '03:00');
+  const saturday = (await fetchArtistBySlug(saved.profile.slug)).weeklyHours.find((day) => day.day === 'Sábado');
+  assert.equal(saturday.hours, '23h às 03h do dia seguinte');
+  assert.match((await profile.saveArtistProfile(null, form({ ...base, city: 'Ivoti', closes_6: '23:00' }))).error, /não podem ser iguais/);
   assert.equal(saved.profile.paymentMethodIds.length, 3);
   const serviceId = saved.profile.services[0].id;
 
@@ -202,7 +209,7 @@ test('rascunho de outro artista nao aparece no publico', async () => {
 
 const bookingForm = (extra = {}) => form({
   slug, eventType: 'Casamento', guestCount: '80', date: '2099-12-31', time: '20:00',
-  location: 'Salão em Ivoti', duration: '120', soundStructure: 'local', message: 'Olá', ...extra,
+  venueName: 'Salão Aurora', address: 'Rua das Flores, 120', city: 'Ivoti', duration: '120', soundStructure: 'local', message: 'Olá', ...extra,
 });
 
 test('proposta: contratante envia; artista nao propoe ao proprio perfil', async () => {
@@ -211,8 +218,11 @@ test('proposta: contratante envia; artista nao propoe ao proprio perfil', async 
   as('nobody');
   assert.deepEqual(await bookings.createBooking(bookingForm()), { needsAuth: true });
   as('b');
+  assert.match((await bookings.createBooking(bookingForm({ city: '' }))).error, /cidade/);
+  assert.match((await bookings.createBooking(bookingForm({ date: '2000-01-01' }))).error, /a partir de hoje/);
   assert.deepEqual(await bookings.createBooking(bookingForm()), { ok: true });
-  const row = await one(`select id, status, agreed_price, sound_structure from bookings where artist_id = $1`, [artistId]);
+  const row = await one(`select id, status, agreed_price, sound_structure, event_location from bookings where artist_id = $1`, [artistId]);
+  assert.equal(row.event_location, 'Salão Aurora, Rua das Flores, 120, Ivoti');
   assert.equal(row.status, 'pending');
   assert.equal(Number(row.agreed_price), 2200);
   assert.equal(row.sound_structure, 'venue');
@@ -623,4 +633,10 @@ test.after(async () => {
   console.info = info;
   await db.end();
   fs.rmSync(process.env.MEDIA_DIR, { recursive: true, force: true });
+});
+
+test('horario da reserva: show que passa da meia-noite termina no dia seguinte', () => {
+  assert.equal(formatEventTimeRange('23:00', 180), '23h às 02h do dia seguinte');
+  assert.equal(formatEventTimeRange('22:00:00', 120), '22h às 00h');
+  assert.equal(formatEventTimeRange('20:00', null), '20h');
 });

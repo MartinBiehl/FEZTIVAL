@@ -346,7 +346,10 @@ function ProfileEditor({ profile, catalogs }) {
 
               <fieldset className="editor-field editor-hours">
                 <legend>Horário de atendimento</legend>
-                <p className="editor-hint">Sem nenhum dia ativo, o perfil não mostra horário.</p>
+                <p className="editor-hint">
+                  Sem nenhum dia ativo, o perfil não mostra horário. Para tocar de madrugada, use
+                  um fim antes do início: 23:00 até 03:00 termina no dia seguinte.
+                </p>
                 <div className="editor-hours__list">
                   {profile.weeklyHours.map((day) => (
                     <div className="editor-hours__day" key={day.weekday}>

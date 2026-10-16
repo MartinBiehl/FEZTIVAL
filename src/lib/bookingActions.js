@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from './auth.js';
 import { query, queryOne, transaction } from './db.js';
-import { todayIso } from './bookingDisplay.js';
+import { joinEventLocation, todayIso } from './bookingDisplay.js';
 import { normalizePhone } from './phone.js';
 
 /*
@@ -48,7 +48,9 @@ export async function createBooking(formData) {
   const guestCount = Number(field(formData, 'guestCount'));
   const date = field(formData, 'date');
   const time = field(formData, 'time');
-  const location = field(formData, 'location');
+  const venueName = field(formData, 'venueName');
+  const address = field(formData, 'address');
+  const city = field(formData, 'city');
   const duration = Number(field(formData, 'duration'));
   const phoneInput = field(formData, 'phone');
   const soundStructure = SOUND_STRUCTURE[field(formData, 'soundStructure')] ?? 'unknown';
@@ -62,7 +64,10 @@ export async function createBooking(formData) {
     return { error: 'Escolha uma data a partir de hoje.' };
   }
   if (!/^\d{2}:\d{2}$/.test(time)) return { error: 'Informe o horário do evento.' };
-  if (location.length < 3 || location.length > 200) return { error: 'Informe o local do evento.' };
+  if (address.length < 3 || address.length > 120) return { error: 'Informe o endereço do evento.' };
+  if (city.length < 2 || city.length > 60) return { error: 'Informe a cidade do evento.' };
+  if (venueName.length > 80) return { error: 'O nome do local pode ter até 80 caracteres.' };
+  const location = joinEventLocation({ venueName, address, city });
   if (message.length > 2000) return { error: 'A mensagem pode ter até 2.000 caracteres.' };
 
   const artist = await queryOne(

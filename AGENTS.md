@@ -542,7 +542,9 @@ slugs exatos** — as URLs já estão no sitemap.
 É dado de demonstração, identificável de duas formas: e-mails em
 `@seed.feztival.local` (domínio reservado, nunca será real) e UUIDs fixos começando em
 `5eed0000` / `5eed1111`. As contas têm `password_hash = '!'`, que não corresponde a
-nenhuma senha: ninguém entra nelas. Para remover
+nenhuma senha: ninguém entra nelas. As exceções são as duas contas de teste do fim do
+arquivo, com a senha `feztival123` (listadas no README): `dj-kauan@seed.feztival.local`
+(artista) e `contratante@seed.feztival.local` (contratante). Para remover
 tudo, sem risco de tocar em cadastro legítimo:
 
 ```sql
@@ -776,6 +778,18 @@ Três passos, com o mesmo visual de antes:
 precisam ser iguais.
 
 ### Propostas e reservas
+
+O formulário pede endereço, cidade e nome do local (opcional) em campos separados;
+`createBooking` valida cada um e grava a junção em `event_location`
+(`joinEventLocation`, em `bookingDisplay.js`). Data e horário passados são barrados no
+campo (data antes de hoje, ou horário já passado quando a data é hoje, no fuso de São
+Paulo) e a data também no servidor.
+
+Show pode atravessar a meia-noite: a reserva guarda só início e duração, e
+`formatEventTimeRange` mostra "23h às 02h do dia seguinte" no formulário, na revisão, no
+painel e em "Minhas reservas". No horário de atendimento do artista
+(`artist_weekly_hours`), `closes_at` menor que `opens_at` quer dizer que o expediente
+termina na madrugada seguinte (migration `0004`); só início igual ao fim é recusado.
 
 `createBooking` grava a proposta como `pending`, com `agreed_price` igual à estimativa
 exibida (preço do serviço da duração escolhida, ou `base_price`, ou nulo). No aceite o

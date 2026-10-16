@@ -24,7 +24,7 @@ export async function fetchArtistDashboard(userId) {
     /* O contato do contratante aparece so para o artista da reserva. */
     query(
       `select b.id, b.status, b.event_date, b.event_time, b.event_location, b.event_type,
-              b.guest_count, b.sound_structure, b.message, b.agreed_price, b.artist_payout,
+              b.duration_minutes, b.guest_count, b.sound_structure, b.message, b.agreed_price, b.artist_payout,
               p.full_name as client_name, p.phone as client_phone
          from bookings b
          join profiles p on p.id = b.client_id
@@ -55,6 +55,7 @@ export async function fetchArtistDashboard(userId) {
     status: row.status,
     eventDate: row.event_date,
     eventTime: row.event_time,
+    durationMinutes: row.duration_minutes,
     location: row.event_location,
     eventType: row.event_type,
     guestCount: row.guest_count,

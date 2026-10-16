@@ -38,7 +38,8 @@
 
 -- UUIDs fixos no formato 5eed....-0000-4000-8000-00000000000N ("seed" em
 -- leetspeak) para serem reconheciveis a olho nu em qualquer consulta.
--- password_hash '!' nao corresponde a nenhuma senha: ninguem entra nessas contas.
+-- password_hash '!' nao corresponde a nenhuma senha: ninguem entra nessas contas
+-- (exceto as contas de teste no fim do arquivo).
 insert into users (id, email, password_hash, email_verified_at) values
   ('5eed0000-0000-4000-8000-000000000001', 'dj-kauan@seed.feztival.local', '!', now()),
   ('5eed0000-0000-4000-8000-000000000002', 'marina-santos@seed.feztival.local', '!', now()),
@@ -242,3 +243,24 @@ where a.slug in ('dj-kauan', 'marina-santos', 'banda-nativus', 'dj-vitoria', 'ra
     select 1 from artist_media x
     where x.artist_id = a.id and x.caption = m.caption
   );
+
+-- ---------------------------------------------------------------------------
+-- Contas de teste com login (senha: feztival123)
+-- ---------------------------------------------------------------------------
+
+-- As demais contas do seed usam '!' e nao entram. Estas duas existem para
+-- testar o site localmente, uma de cada lado:
+--   dj-kauan@seed.feztival.local      artista (DJ Kauan, publicado) -> /painel
+--   contratante@seed.feztival.local   contratante -> /minhas-reservas
+-- O hash e scrypt no formato de src/lib/auth.js. O "do update" aplica a senha
+-- tambem em bancos onde o seed ja rodou antes.
+insert into users (id, email, password_hash, email_verified_at) values
+  ('5eed0000-0000-4000-8000-000000000001', 'dj-kauan@seed.feztival.local',
+   'scrypt$32768$8$3$6R8SFOnSbEawVp/dHXM+eQ==$t4+EFnSdSka8zPtdzntNE7MWTLqEhX7x9PyuVMfGcQz1Dez0+sXfQBFW+LnS6Mra7h3WX07fFsfNofibrp568Q==', now()),
+  ('5eed0000-0000-4000-8000-000000000009', 'contratante@seed.feztival.local',
+   'scrypt$32768$8$3$6R8SFOnSbEawVp/dHXM+eQ==$t4+EFnSdSka8zPtdzntNE7MWTLqEhX7x9PyuVMfGcQz1Dez0+sXfQBFW+LnS6Mra7h3WX07fFsfNofibrp568Q==', now())
+on conflict (id) do update set password_hash = excluded.password_hash;
+
+insert into profiles (id, full_name, phone, avatar_url, city) values
+  ('5eed0000-0000-4000-8000-000000000009', 'Contratante de Teste', '51999999999', null, 'Ivoti')
+on conflict (id) do nothing;

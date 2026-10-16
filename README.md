@@ -19,6 +19,16 @@ npm run db:seed              # 8 artistas de demonstração (nunca em produção
 npm run dev
 ```
 
+### Contas de teste
+
+O `npm run db:seed` também cria duas contas que conseguem entrar, ambas com a senha
+`feztival123` e o e-mail já confirmado. Use só no ambiente local.
+
+| Tipo | E-mail | Depois de entrar |
+|---|---|---|
+| Artista (DJ Kauan) | `dj-kauan@seed.feztival.local` | `/painel` |
+| Contratante | `contratante@seed.feztival.local` | `/minhas-reservas` |
+
 ### Windows (cmd)
 
 O instalador do Postgres pede uma senha para o usuário `postgres` e deixa o serviço

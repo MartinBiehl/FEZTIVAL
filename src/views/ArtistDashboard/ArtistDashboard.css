@@ -38,19 +38,6 @@
   font-size: 1rem;
 }
 
-.dashboard-sidebar nav a b {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  margin-left: auto;
-  border-radius: 50%;
-  background: var(--pink);
-  color: white;
-  font-size: 0.65rem;
-  place-items: center;
-}
-
-.dashboard-sidebar nav a.active,
 .dashboard-sidebar nav a:hover {
   background: var(--ink);
   color: white;
@@ -408,7 +395,6 @@
     font-size: 1.1rem;
   }
 
-  .dashboard-sidebar nav a b,
   .dashboard-sidebar__user div {
     display: none;
   }
@@ -431,36 +417,13 @@
     display: block;
   }
 
+  /* A lateral so tem o link do perfil, que o cabecalho ja oferece. */
   .dashboard-sidebar {
-    position: fixed;
-    z-index: 20;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: auto;
-    height: 68px;
-    padding: 0.5rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .dashboard-sidebar > .brand-logo__link,
-  .dashboard-sidebar__user {
     display: none;
   }
 
-  .dashboard-sidebar nav {
-    display: flex;
-    margin: 0;
-    justify-content: space-around;
-  }
-
-  .dashboard-sidebar nav a {
-    width: 48px;
-  }
-
   .dashboard-main {
-    padding: 2rem 1rem 6rem;
+    padding: 2rem 1rem 3rem;
   }
 
   .dashboard-header {
