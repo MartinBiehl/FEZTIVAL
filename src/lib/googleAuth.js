@@ -48,6 +48,20 @@ export function cookieOptions(maxAgeSeconds) {
   };
 }
 
+/*
+ * Endereco publico do site, como o navegador o ve. Atras de um proxy que
+ * termina o HTTPS (nginx, Caddy, balanceador), request.url chega como http e
+ * o endereco de volta nao bateria com o cadastrado no Google; o proxy informa
+ * o original em X-Forwarded-Proto e X-Forwarded-Host.
+ */
+export function publicOrigin(request) {
+  const url = new URL(request.url);
+  const first = (value) => value?.split(',')[0].trim() || null;
+  const host = first(request.headers.get('x-forwarded-host')) ?? first(request.headers.get('host')) ?? url.host;
+  const protocol = first(request.headers.get('x-forwarded-proto')) ?? url.protocol.slice(0, -1);
+  return `${protocol}://${host}`;
+}
+
 /* Mesmo endereco na ida e na troca do code; precisa estar cadastrado no Google. */
 export function redirectUri(origin) {
   return new URL('/auth/google/callback', origin).toString();
@@ -125,11 +139,12 @@ export async function exchangeGoogleCode({ code, verifier, nonce, origin }) {
     return null;
   }
 
-  const { id_token: idToken } = await response.json();
   let claims;
   try {
+    const { id_token: idToken } = await response.json();
     claims = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString('utf8'));
   } catch {
+    console.error('Google: resposta do token endpoint ilegivel');
     return null;
   }
 

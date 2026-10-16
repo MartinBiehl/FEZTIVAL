@@ -301,7 +301,7 @@ Variáveis de ambiente (todas só do servidor; nenhuma é `NEXT_PUBLIC_`):
 | `MEDIA_DIR` | pasta das fotos enviadas (padrão `storage/media`). Precisa de disco persistente |
 | `SMTP_URL` | SMTP dos e-mails de conta. Vazio só em desenvolvimento: os e-mails vão para o terminal. Em produção a falta dele é erro |
 | `MAIL_FROM` | remetente dos e-mails |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | credenciais do "Continuar com Google" (ver "Login com Google"). Vazias, o botão não aparece. Lidas no build: defina antes do `npm run build` |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | credenciais do "Continuar com Google" (ver "Login com Google"). Vazias, o botão não aparece. Lidas a cada acesso: `/entrar` e os cadastros são dinâmicos por causa delas |
 
 > **Hospedagem.** Fotos em disco local exigem um servidor com disco persistente (VPS,
 > container com volume). Em plataformas sem disco próprio (Vercel e afins) as fotos se
@@ -754,7 +754,9 @@ ou criar uma senha em "Esqueci minha senha". Falhas voltam a `/entrar?erro=googl
 
 No Google Cloud Console, o cliente OAuth é do tipo "Aplicativo da Web", com os URIs de
 redirecionamento `http://localhost:3000/auth/google/callback` e o do domínio de
-produção. Os escopos são só `openid`, `email` e `profile`.
+produção. Os escopos são só `openid`, `email` e `profile`. Atrás de um proxy que termina o HTTPS, o
+endereço de volta sai de `X-Forwarded-Proto`/`X-Forwarded-Host` (`publicOrigin`): o proxy
+precisa enviá-los, senão o Google recusa com `redirect_uri_mismatch`.
 
 ### Recuperação de senha
 

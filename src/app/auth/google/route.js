@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
-  OAUTH_COOKIE, OAUTH_MAX_AGE, cookieOptions, googleConfigured, startGoogleLogin,
+  OAUTH_COOKIE, OAUTH_MAX_AGE, cookieOptions, googleConfigured, publicOrigin, startGoogleLogin,
 } from '../../../lib/googleAuth.js';
 import { safeNextPath } from '../../../lib/account.js';
 
@@ -16,7 +16,8 @@ import { safeNextPath } from '../../../lib/account.js';
 const SIGNUP_AS = { contratante: 'contractor', artista: 'artist' };
 
 export async function GET(request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = publicOrigin(request);
   if (!googleConfigured()) {
     return NextResponse.redirect(new URL('/entrar?erro=google', origin));
   }

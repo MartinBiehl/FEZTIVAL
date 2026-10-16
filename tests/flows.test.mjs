@@ -589,6 +589,26 @@ test('google: volta falsificada, cancelada ou com token invalido nao entra', asy
   assert.match(expired.error, /tempo para concluir/);
 });
 
+test('google: atras de proxy HTTPS, o endereco de volta e o publico', async () => {
+  as('g6');
+  const res = await googleStart.GET(new Request('http://127.0.0.1:3000/auth/google', {
+    headers: { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'feztival.com.br' },
+  }));
+  const url = new URL(res.headers.get('location'));
+  assert.equal(url.searchParams.get('redirect_uri'), 'https://feztival.com.br/auth/google/callback');
+});
+
+test('google: conta sem senha cria uma pela recuperacao e passa a entrar das duas formas', async () => {
+  as('g7');
+  await acc.requestPasswordReset(null, form({ email: 'nova@gmail.test' }));
+  const code = lastMail().match(/\b\d{6}\b/)[0];
+  assert.deepEqual(await acc.verifyRecoveryCode(null, form({ email: 'nova@gmail.test', code })), { ok: true });
+  assert.deepEqual(await acc.updatePassword(null, form({ password: 'senha-criada-1', confirmation: 'senha-criada-1' })), { ok: true });
+  assert.equal((await acc.signIn(null, form({ email: 'nova@gmail.test', password: 'senha-criada-1' }))).ok, true);
+  const google = await googleLogin('g7b', { sub: 'google-1', email: 'nova@gmail.test' });
+  assert.equal(google.location, 'http://localhost:3000/painel');
+});
+
 test('sair encerra a sessao no banco', async () => {
   as('a');
   const token = jars.a.get('fz_session');

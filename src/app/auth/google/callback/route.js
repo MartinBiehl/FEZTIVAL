@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
   OAUTH_COOKIE, SIGNUP_COOKIE, SIGNUP_MAX_AGE, cookieOptions, exchangeGoogleCode,
-  finishGoogleLogin, googleConfigured, readOAuthCookie, sameValue,
+  finishGoogleLogin, googleConfigured, publicOrigin, readOAuthCookie, sameValue,
 } from '../../../../lib/googleAuth.js';
 
 /*
@@ -13,7 +13,8 @@ import {
  * conta. Qualquer falha volta a /entrar com um aviso, sem detalhes.
  */
 export async function GET(request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = publicOrigin(request);
   const cookieStore = await cookies();
   const saved = readOAuthCookie(cookieStore.get(OAUTH_COOKIE)?.value ?? '');
   cookieStore.delete(OAUTH_COOKIE);
