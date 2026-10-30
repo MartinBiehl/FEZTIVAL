@@ -441,7 +441,7 @@ Decisões que não se leem no schema:
   já existentes, não.
 - **`agreed_price`, `platform_fee` e `artist_payout` são gravados na reserva**, não
   derivados do serviço em tempo de leitura. Se o artista mudar o preço depois, o
-  histórico e o repasse já acordado não mudam junto. A comissão é de 12%, aplicada no
+  histórico e o repasse já acordado não mudam junto. A comissão é de 5%, aplicada no
   aceite.
 - **`updated_at` com trigger compartilhado** (`set_updated_at`) nas tabelas mutáveis.
   Também é o campo que permite preencher o `lastModified` do sitemap, hoje ausente.
@@ -801,7 +801,7 @@ termina na madrugada seguinte (migration `0004`); só início igual ao fim é re
 
 `createBooking` grava a proposta como `pending`, com `agreed_price` igual à estimativa
 exibida (preço do serviço da duração escolhida, ou `base_price`, ou nulo). No aceite o
-artista informa o valor final, e `updateBookingStatus` grava junto a comissão (12%) e o
+artista informa o valor final, e `updateBookingStatus` grava junto a comissão (5%) e o
 repasse — depois disso o trigger congela os três valores.
 
 As Server Actions **são a proteção de papel** (ver "Autorização"): quem pode disparar

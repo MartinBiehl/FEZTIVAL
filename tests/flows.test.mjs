@@ -278,7 +278,7 @@ test('status: artista aceita com valor final; valores congelam', async () => {
   as('a');
   assert.deepEqual(await status('accept', { price: '1000' }), { ok: true });
   const row = await one('select agreed_price, platform_fee, artist_payout from bookings where id = $1', [bookingId]);
-  assert.deepEqual([row.agreed_price, row.platform_fee, row.artist_payout].map(Number), [1000, 120, 880]);
+  assert.deepEqual([row.agreed_price, row.platform_fee, row.artist_payout].map(Number), [1000, 50, 950]);
   assert.match((await status('accept', { price: '5000' })).error, /não é permitida/);
   assert.match((await status('complete')).error, /não é permitida/);
 });

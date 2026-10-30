@@ -89,7 +89,7 @@ export function BookingStatusActions({ booking, side, contextLabel }) {
       </div>
       {needsPrice && (
         <small className="booking-actions__hint">
-          Ao aceitar, o valor fica fixo. A comissão da Feztival é de 12%.
+          Ao aceitar, o valor fica fixo. A comissão da Feztival é de 5%.
         </small>
       )}
       {state?.error && <p className="booking-actions__error" role="alert">{state.error}</p>}

@@ -16,7 +16,7 @@ import { normalizePhone } from './phone.js';
  */
 
 /* Comissao da plataforma, aplicada no aceite (ver AGENTS.md). */
-const PLATFORM_FEE_RATE = 0.12;
+const PLATFORM_FEE_RATE = 0.05;
 const MAX_PRICE = 1_000_000;
 
 const EVENT_TYPES = ['Casamento', 'Aniversário', 'Evento corporativo', 'Bar ou restaurante', 'Outro'];

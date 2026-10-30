@@ -102,7 +102,7 @@ retrocede nem sai de um desfecho definitivo.
 contratante apenas cancela. Sem isso, o contratante marcaria a própria reserva
 como concluída — transição válida, papel errado.
 
-**Valores congelados:** preço acordado, taxa da plataforma (12%) e repasse ao
+**Valores congelados:** preço acordado, taxa da plataforma (5%) e repasse ao
 artista podem ser negociados enquanto a reserva está `pending`; depois disso
 ficam imutáveis. Se o artista mudar o preço de tabela, o histórico e o repasse
 já acordado não mudam junto.
@@ -130,7 +130,7 @@ descartada. Enviar ou remover vale na hora, sem precisar salvar o perfil.
 Propostas em aberto (cliente, evento, data, local, convidados, estrutura de som,
 mensagem e valor) e próximos shows confirmados. Em cada proposta o artista:
 
-- **aceita**, informando o valor final — a comissão de 12% e o repasse são
+- **aceita**, informando o valor final — a comissão de 5% e o repasse são
   calculados e congelados nesse momento — ou **recusa**;
 - depois **confirma** o show e, por fim, **marca como realizado**; pode cancelar
   antes disso.
