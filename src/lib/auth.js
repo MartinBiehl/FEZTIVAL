@@ -150,6 +150,21 @@ export async function createEmailVerificationToken(tx, userId) {
   return token;
 }
 
+/*
+ * Novo link de confirmacao ("Reenviar link"): o anterior deixa de valer.
+ * Devolve null (sem enviar nada) se um link foi gerado ha menos de 1 minuto.
+ */
+export async function renewEmailVerificationToken(tx, userId) {
+  const recent = await tx.queryOne(
+    `select 1 from auth_tokens
+      where user_id = $1 and purpose = 'email_verification' and created_at > now() - interval '1 minute'`,
+    [userId],
+  );
+  if (recent) return null;
+  await tx.query(`delete from auth_tokens where user_id = $1 and purpose = 'email_verification'`, [userId]);
+  return createEmailVerificationToken(tx, userId);
+}
+
 /* Consome o link de confirmacao. Devolve o id do usuario ou null. */
 export async function consumeEmailVerificationToken(token) {
   const row = await queryOne(

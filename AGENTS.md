@@ -714,6 +714,14 @@ Cadastro com e-mail já **confirmado** é recusado. Com e-mail cadastrado e **nu
 confirmado**, o novo cadastro substitui o anterior — ninguém provou ser dono daquele
 e-mail — e o link antigo deixa de valer.
 
+Depois do cadastro a tela vai para `/entrar?confirme=1`, que mostra a quem o link foi
+enviado (o e-mail vem do cookie httpOnly `fz_pending_confirmation`, apagado quando a
+conta é confirmada ou entra) e oferece "Reenviar link". O mesmo botão aparece no erro
+de login de conta não confirmada (`signIn` devolve `unverified: true`).
+`resendEmailConfirmation` responde sempre igual, exista ou não o cadastro pendente,
+gera no máximo um link por minuto e invalida o anterior. Sem `SMTP_URL` em
+desenvolvimento (`mailGoesToTerminal`), o aviso diz que o link está no terminal.
+
 O formulário envia `signupAs`, que é só a intenção do cadastro, **não** um papel. Quem
 tem linha em `artists` vai para `/painel`; os demais, para `/minhas-reservas`.
 

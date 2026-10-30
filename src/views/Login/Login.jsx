@@ -1,6 +1,8 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import {
+  startTransition, useActionState, useEffect, useId, useRef, useState,
+} from 'react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,7 +10,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, MailCheck } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { signIn, signUp } from '../../lib/accountActions.js';
+import { resendEmailConfirmation, signIn, signUp } from '../../lib/accountActions.js';
 import { formatPhone } from '../../lib/phone.js';
 import crowdImage from '../../images/crowd_party.png';
 import stageImage from '../../images/concert_stage.png';
@@ -89,7 +91,38 @@ const GOOGLE_ERRORS = {
   'google-conta': 'Este e-mail já está ligado a outra conta Google. Entre com sua senha.',
 };
 
-function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
+/*
+ * O que acompanha o aviso de conta nao confirmada: o botao "Reenviar link" e,
+ * sem SMTP_URL em desenvolvimento, onde o link realmente esta.
+ */
+function ConfirmationHelp({
+  mailInTerminal, onResend, isResending, resendState,
+}) {
+  return (
+    <div className="access-card__confirm-help">
+      {mailInTerminal && (
+        <p>
+          Ambiente de desenvolvimento: nenhum e-mail é enviado de verdade. O link aparece
+          na janela do terminal onde o site está rodando.
+        </p>
+      )}
+      {resendState?.ok ? (
+        <p role="status">
+          Se houver um cadastro esperando confirmação para {resendState.email}, enviamos um novo link.
+        </p>
+      ) : (
+        <button type="button" onClick={onResend} disabled={isResending} aria-busy={isResending}>
+          {isResending ? 'Reenviando...' : 'Não chegou? Reenviar link'}
+        </button>
+      )}
+      {resendState?.error && <p role="alert">{resendState.error}</p>}
+    </div>
+  );
+}
+
+function Login({
+  role = 'contractor', mode = 'login', googleEnabled = false, pendingEmail = '', mailInTerminal = false,
+}) {
   const content = pageContent[role];
   const isRegister = mode === 'register';
   const isArtist = role === 'artist';
@@ -98,7 +131,9 @@ function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
   const searchParams = useSearchParams();
   const { refresh } = useAuth();
   const [state, formAction, isPending] = useActionState(isRegister ? signUp : signIn, null);
+  const [resendState, resendAction, isResending] = useActionState(resendEmailConfirmation, null);
   const submit = useActionSubmit(formAction);
+  const emailRef = useRef(null);
   const idPrefix = useId().replace(/:/g, '');
   const next = searchParams.get('next') ?? '';
   const [phone, setPhone] = useState('');
@@ -114,15 +149,41 @@ function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
   if (next) googleParams.set('next', next);
   const googleRoute = `/auth/google${googleParams.size ? `?${googleParams}` : ''}`;
   const googleError = isRegister ? null : GOOGLE_ERRORS[searchParams.get('erro')];
+  // Recem-cadastrado: /entrar?confirme=1 explica que falta abrir o link do e-mail.
+  const confirmParams = new URLSearchParams({ confirme: '1' });
+  if (next) confirmParams.set('next', next);
+  const confirmRoute = `/entrar?${confirmParams}`;
+  const justSignedUp = !isRegister && searchParams.has('confirme');
+
+  // O e-mail sai do campo; vazio, a action pede para preenche-lo.
+  const resend = () => {
+    const formData = new FormData();
+    formData.set('email', emailRef.current?.value ?? '');
+    formData.set('next', next);
+    startTransition(() => resendAction(formData));
+  };
+  const confirmationHelp = (
+    <ConfirmationHelp
+      mailInTerminal={mailInTerminal}
+      onResend={resend}
+      isResending={isResending}
+      resendState={resendState}
+    />
+  );
 
   /*
    * A Server Action grava a sessao nos cookies; o AuthContext precisa reler
-   * antes de navegar, senao o Header seguiria mostrando "Entrar".
+   * antes de navegar, senao o Header seguiria mostrando "Entrar". O cadastro
+   * ainda nao abre sessao: vai direto para o login, que pede a confirmacao.
    */
   useEffect(() => {
+    if (state?.needsConfirmation) {
+      router.push(confirmRoute);
+      return;
+    }
     if (!state?.ok || !state.destination) return;
     refresh().then(() => router.push(state.destination));
-  }, [refresh, router, state]);
+  }, [confirmRoute, refresh, router, state]);
 
   return (
     <main className={`access-page${isArtist ? ' access-page--artist' : ''}`} style={{ '--access-accent': content.accent }}>
@@ -162,10 +223,17 @@ function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
               </motion.p>
             )}
 
-            {state?.needsConfirmation && (
-              <motion.div className="access-card__success" role="status" variants={itemVariants}>
-                <MailCheck size={17} aria-hidden="true" />
-                Conta criada. Confirme pelo link que enviamos ao seu e-mail para entrar.
+            {justSignedUp && (
+              <motion.div className="access-card__confirm" role="status" variants={itemVariants}>
+                <p>
+                  <MailCheck size={17} aria-hidden="true" />
+                  <span>
+                    <strong>Conta criada!</strong> Enviamos um link de confirmação para{' '}
+                    {pendingEmail ? <strong>{pendingEmail}</strong> : 'o seu e-mail'}.
+                    Abra o link para ativar sua conta e depois entre aqui.
+                  </span>
+                </p>
+                {confirmationHelp}
               </motion.div>
             )}
 
@@ -269,10 +337,12 @@ function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
               <motion.label htmlFor={`${idPrefix}-email`} variants={itemVariants}>
                 <span>E-mail</span>
                 <input
+                  ref={emailRef}
                   id={`${idPrefix}-email`}
                   name="email"
                   type="email"
                   autoComplete="email"
+                  defaultValue={isRegister ? undefined : pendingEmail}
                   required
                   placeholder={isArtist ? 'artista@email.com' : 'voce@email.com'}
                 />
@@ -307,7 +377,10 @@ function Login({ role = 'contractor', mode = 'login', googleEnabled = false }) {
               )}
 
               {state?.error && (
-                <p className="access-card__error" role="alert">{state.error}</p>
+                <div className="access-card__error" role="alert">
+                  {state.error}
+                  {state.unverified && !justSignedUp && confirmationHelp}
+                </div>
               )}
 
               <motion.button className="access-card__submit" type="submit" disabled={isPending} aria-busy={isPending} variants={itemVariants}>

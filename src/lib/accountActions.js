@@ -5,12 +5,13 @@ import { query, queryOne, transaction } from './db.js';
 import {
   burnPasswordCheck, consumePasswordResetGrant, createEmailVerificationToken,
   createPasswordResetCode, createSession, destroySession, exchangePasswordResetCode,
-  hashPassword, verifyPassword,
+  hashPassword, renewEmailVerificationToken, verifyPassword,
 } from './auth.js';
 import { sendEmailConfirmation, sendPasswordResetCode } from './mail.js';
 import { SIGNUP_COOKIE, findGoogleSignup } from './googleAuth.js';
 import {
-  ARTIST_CATEGORIES, createAccountRows, destinationFor, findOwnArtist, safeNextPath,
+  ARTIST_CATEGORIES, PENDING_CONFIRMATION_COOKIE, createAccountRows, destinationFor,
+  findOwnArtist, safeNextPath,
 } from './account.js';
 
 /*
@@ -47,6 +48,14 @@ async function requestOrigin() {
   const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
   const protocol = headerList.get('x-forwarded-proto') ?? 'https';
   return `${protocol}://${host}`;
+}
+
+/* Monta o link /auth/confirm do token e o envia. Erro de envio sobe. */
+async function sendConfirmationLink(email, token, next) {
+  const confirmUrl = new URL('/auth/confirm', await requestOrigin());
+  confirmUrl.searchParams.set('token', token);
+  if (next) confirmUrl.searchParams.set('next', next);
+  await sendEmailConfirmation(email, confirmUrl.toString());
 }
 
 /*
@@ -121,11 +130,12 @@ export async function signIn(_prevState, formData) {
   }
 
   if (!user.email_verified_at) {
-    return { error: 'Confirme seu e-mail pelo link que enviamos antes de entrar.' };
+    return { error: 'Confirme seu e-mail pelo link que enviamos antes de entrar.', unverified: true };
   }
 
   await query('update users set failed_login_count = 0 where id = $1', [user.id]);
   await createSession(user.id);
+  (await cookies()).delete(PENDING_CONFIRMATION_COOKIE);
   return { ok: true, destination: next ?? destinationFor(await findOwnArtist(user.id)) };
 }
 
@@ -169,19 +179,51 @@ export async function signUp(_prevState, formData) {
 
   if (!token) return { error: 'Já existe uma conta com este e-mail. Entre ou recupere sua senha.' };
 
-  const confirmUrl = new URL('/auth/confirm', await requestOrigin());
-  confirmUrl.searchParams.set('token', token);
-  if (next) confirmUrl.searchParams.set('next', next);
-
   try {
-    await sendEmailConfirmation(email, confirmUrl.toString());
+    await sendConfirmationLink(email, token, next);
   } catch (error) {
     console.error('Envio da confirmacao falhou', error.message);
     return { error: 'Não foi possível enviar o e-mail de confirmação. Tente novamente.' };
   }
 
-  // A conta e ativada em /auth/confirm, quando o usuario clicar no link.
+  /*
+   * A conta e ativada em /auth/confirm, quando o usuario clicar no link. A
+   * tela leva a /entrar, que le este cookie para dizer a quem o link foi.
+   */
+  (await cookies()).set(PENDING_CONFIRMATION_COOKIE, email, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 24 * 60 * 60,
+  });
   return { ok: true, needsConfirmation: true };
+}
+
+/*
+ * "Reenviar link" de /entrar. Como requestPasswordReset, sempre responde ok,
+ * exista ou nao um cadastro esperando confirmacao para o e-mail.
+ */
+export async function resendEmailConfirmation(_prevState, formData) {
+  const email = field(formData, 'email').toLowerCase();
+  const next = safeNextPath(field(formData, 'next'));
+  if (!EMAIL_PATTERN.test(email)) return { error: 'Informe seu e-mail no campo acima para reenviar o link.' };
+
+  try {
+    const token = await transaction(async (tx) => {
+      const user = await tx.queryOne(
+        'select id from users where email = $1 and email_verified_at is null and password_hash is not null',
+        [email],
+      );
+      return user ? renewEmailVerificationToken(tx, user.id) : null;
+    });
+    if (token) await sendConfirmationLink(email, token, next);
+  } catch (error) {
+    console.error('Reenvio da confirmacao falhou', error.message);
+    return { error: GENERIC_ERROR };
+  }
+
+  return { ok: true, email };
 }
 
 /*

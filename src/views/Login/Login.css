@@ -212,6 +212,61 @@
   font-weight: 650;
 }
 
+/* Aviso depois do cadastro: maior que __success, porque e a proxima tarefa da pessoa. */
+.access-card__confirm {
+  margin: -0.55rem 0 1rem;
+  padding: 0.9rem 0.95rem;
+  border: 1px solid rgba(0, 191, 91, 0.35);
+  border-radius: 0.85rem;
+  background: rgba(0, 191, 91, 0.1);
+  color: #126c39;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.access-card__confirm > p {
+  display: flex;
+  margin: 0;
+  gap: 0.55rem;
+}
+
+.access-card__confirm > p svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.access-card__confirm strong {
+  font-weight: 750;
+}
+
+.access-card__confirm-help {
+  display: grid;
+  margin-top: 0.6rem;
+  gap: 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.access-card__confirm-help p {
+  margin: 0;
+}
+
+.access-card__confirm-help button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.access-card__confirm-help button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .access-card__submit {
   display: flex;
   width: 100%;

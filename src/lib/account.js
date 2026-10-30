@@ -10,6 +10,12 @@ import { queryOne } from './db.js';
 export const ARTIST_CATEGORIES = ['dj', 'solo', 'band'];
 
 /*
+ * E-mail do cadastro que espera confirmacao, para /entrar mostrar a quem o
+ * link foi enviado e preencher o campo. Some quando a conta e confirmada.
+ */
+export const PENDING_CONFIRMATION_COOKIE = 'fz_pending_confirmation';
+
+/*
  * "/painel" e aceito, "//evil.com" e "https://evil.com" nao: o parametro
  * ?next= vem da URL e nao pode virar redirecionamento para fora do site.
  */

@@ -16,6 +16,11 @@ const FROM = process.env.MAIL_FROM || 'Feztival <nao-responda@feztival.local>';
 
 const transport = process.env.SMTP_URL ? nodemailer.createTransport(process.env.SMTP_URL) : null;
 
+/* Sem SMTP_URL em desenvolvimento: a tela avisa que o link esta no terminal. */
+export function mailGoesToTerminal() {
+  return !transport && process.env.NODE_ENV !== 'production';
+}
+
 async function send({ to, subject, text }) {
   if (transport) {
     await transport.sendMail({ from: FROM, to, subject, text });

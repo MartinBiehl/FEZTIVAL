@@ -1,6 +1,9 @@
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { consumeEmailVerificationToken, createSession } from '../../../lib/auth.js';
-import { destinationFor, findOwnArtist, safeNextPath } from '../../../lib/account.js';
+import {
+  PENDING_CONFIRMATION_COOKIE, destinationFor, findOwnArtist, safeNextPath,
+} from '../../../lib/account.js';
 
 /*
  * Destino do link de confirmacao de cadastro enviado por e-mail (signUp).
@@ -20,5 +23,6 @@ export async function GET(request) {
   }
 
   await createSession(userId);
+  (await cookies()).delete(PENDING_CONFIRMATION_COOKIE);
   return NextResponse.redirect(new URL(next ?? destinationFor(await findOwnArtist(userId)), origin));
 }

@@ -128,6 +128,39 @@ test('cadastro nao confirmado pode ser refeito; o link antigo deixa de valer', a
   assert.equal(users.n, 1);
 });
 
+test('reenviar link: novo link substitui o anterior, no maximo um por minuto', async () => {
+  as('r');
+  await acc.signUp(null, form(signupFields({ email: 'reenvio@test.local' })));
+  assert.equal(jars.r.get('fz_pending_confirmation'), 'reenvio@test.local');
+  const firstLink = lastMail().match(/http\S+/)[0];
+  const blocked = await acc.signIn(null, form({ email: 'reenvio@test.local', password: 'senha-forte-1' }));
+  assert.equal(blocked.unverified, true);
+
+  // Menos de 1 minuto depois do cadastro: responde ok, mas nao envia.
+  const mails = inbox.length;
+  const resend = (email, extra) => acc.resendEmailConfirmation(null, form({ email, ...extra }));
+  assert.deepEqual(await resend('reenvio@test.local'), { ok: true, email: 'reenvio@test.local' });
+  assert.equal(inbox.length, mails);
+
+  await db.query(
+    `update auth_tokens set created_at = now() - interval '2 minutes'
+      where user_id = (select id from users where email = 'reenvio@test.local')`,
+  );
+  await resend('Reenvio@Test.local', { next: '/painel' });
+  assert.equal(inbox.length, mails + 1);
+  const newLink = lastMail().match(/http\S+/)[0];
+  assert.match(newLink, /next=%2Fpainel/);
+  assert.match((await confirmRoute.GET(new Request(firstLink))).headers.get('location'), /erro=link/);
+  assert.equal((await confirmRoute.GET(new Request(newLink))).headers.get('location'), 'http://localhost:3000/painel');
+  assert.equal(jars.r.has('fz_pending_confirmation'), false);
+
+  // Conta ja confirmada ou inexistente: a mesma resposta, sem e-mail.
+  assert.deepEqual(await resend('reenvio@test.local'), { ok: true, email: 'reenvio@test.local' });
+  assert.deepEqual(await resend('ninguem@test.local'), { ok: true, email: 'ninguem@test.local' });
+  assert.equal(inbox.length, mails + 1);
+  assert.match((await resend('')).error, /Informe seu e-mail/);
+});
+
 test('contratante e terceiro se cadastram', async () => {
   const { res } = await signUpAndConfirm('b', { email: 'cliente@test.local', fullName: 'Cliente Teste' });
   assert.equal(res.headers.get('location'), 'http://localhost:3000/minhas-reservas');
