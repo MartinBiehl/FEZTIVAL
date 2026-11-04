@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, CircleAlert } from 'lucide-react';
 import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalReviewModal.jsx';
+import TimeInput from '../../components/TimeInput/TimeInput.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
   NO_RATING_LABEL, formatMoney, formatRating, formatReviewCount, hasRating,
@@ -16,6 +17,7 @@ import {
   parseFormDate, startsAfterMidnight, todayIso,
 } from '../../lib/bookingDisplay.js';
 import { formatPhone } from '../../lib/phone.js';
+import { TIME_LENGTH, isTimeOfDay } from '../../lib/timeOfDay.js';
 import './Contract.css';
 
 /*
@@ -67,7 +69,7 @@ const FIELD_MESSAGES = {
   },
   time: {
     valueMissing: 'Informe o horário de início.',
-    badInput: 'Esse horário não existe.',
+    patternMismatch: 'Use um horário entre 00:00 e 23:59.',
     past: 'Esse horário já passou. Escolha um horário mais tarde.',
   },
   guestCount: {
@@ -91,7 +93,7 @@ const FIELD_MESSAGES = {
   },
 };
 
-const VALIDITY_KEYS = ['valueMissing', 'badInput', 'rangeUnderflow', 'rangeOverflow', 'stepMismatch', 'tooShort'];
+const VALIDITY_KEYS = ['valueMissing', 'badInput', 'patternMismatch', 'rangeUnderflow', 'rangeOverflow', 'stepMismatch', 'tooShort'];
 
 /* Erro atual de um campo, ou null. Os campos ausentes (ex.: phone) passam. */
 function validateField(form, name) {
@@ -110,7 +112,7 @@ function validateField(form, name) {
   const today = todayIso();
   if (name === 'date' && field.value && !parseFormDate(field.value)) return messages.badInput;
   if (name === 'date' && field.value && field.value < today) return messages.rangeUnderflow;
-  if (name === 'time' && field.value && form.elements.namedItem('date').value === today
+  if (name === 'time' && isTimeOfDay(field.value) && form.elements.namedItem('date').value === today
     && field.value <= nowTimeIso()) {
     return messages.past;
   }
@@ -175,7 +177,7 @@ function ProposalTicket({ artist, draft }) {
   const rows = [
     ['Evento', draft.eventType],
     ['Data', formatEventDate(draft.date)],
-    ['Horário', formatEventTimeRange(draft.time, draft.duration)],
+    ['Horário', isTimeOfDay(draft.time) ? formatEventTimeRange(draft.time, draft.duration) : null],
     ['Local', joinEventLocation(draft)],
     ['Duração', draft.duration ? formatMinutes(Number(draft.duration)) : null],
     ['Convidados', draft.guestCount],
@@ -288,14 +290,16 @@ function Contract({ artist }) {
   }
 
   /*
-   * Enquanto digita, so limpa erro ja mostrado; data e horario avisam na hora,
-   * porque o seletor entrega o valor pronto.
+   * Enquanto digita, so limpa erro ja mostrado; a data avisa na hora, porque o
+   * seletor entrega o valor pronto, e o horario assim que estiver completo.
    */
   function updateDraft(event) {
     const form = event.currentTarget;
     setDraft(Object.fromEntries(new FormData(form).entries()));
-    const { name } = event.target;
-    if (LINKED_FIELDS[name]) {
+    const { name, value } = event.target;
+    if (name === 'time' && value.length < TIME_LENGTH) {
+      if (fieldErrors.time) setFieldErrors((current) => ({ ...current, time: null }));
+    } else if (LINKED_FIELDS[name]) {
       // O vizinho (data <-> horario) so e revalidado se ja foi preenchido ou acusado.
       const partners = LINKED_FIELDS[name].filter((linked) => linked !== name
         && (form.elements.namedItem(linked).value || fieldErrors[linked]));
@@ -408,10 +412,10 @@ function Contract({ artist }) {
               </label>
               <label className="contract-field">
                 <span>Horário de início</span>
-                <input name="time" type="time" required {...errorProps('time', fieldErrors.time)} />
+                <TimeInput name="time" required placeholder="Ex.: 20:30" {...errorProps('time', fieldErrors.time)} />
                 {fieldErrors.time
                   ? <FieldError name="time" message={fieldErrors.time} />
-                  : <TimeHint time={draft.time} duration={draft.duration} />}
+                  : isTimeOfDay(draft.time) && <TimeHint time={draft.time} duration={draft.duration} />}
               </label>
               <label className="contract-field">
                 <span>Convidados</span>

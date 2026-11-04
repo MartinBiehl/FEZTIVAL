@@ -111,6 +111,7 @@ src/
 | `artistActions.js` | contagem de visualização do perfil |
 | `profileEditor.js` | leitura do editor de perfil e catálogos |
 | `profileOptions.js` | opções fixas do editor (durações, infraestrutura), usadas pela tela e pela validação |
+| `timeOfDay.js` | horário digitado (HH:MM): formatação do campo `TimeInput` e validação das Server Actions |
 | `profileActions.js` | Server Actions do perfil do artista: salvar o formulário, foto principal e galeria |
 | `artistMedia.js` | imagens: caminhos, URL pública e redução da foto no navegador (servidor e navegador) |
 | `mediaStorage.js` | grava, lê e apaga as fotos em `MEDIA_DIR` (só servidor) |
@@ -291,7 +292,9 @@ TEST_DATABASE_URL=postgres://localhost:5432/feztival_test npm test
 recusa a rodar se ele for o mesmo de `DATABASE_URL`.
 
 Migration nova é um arquivo `db/migrations/NNNN_nome.sql` com o próximo número.
-`schema_migrations` registra o que já rodou; cada arquivo roda numa transação.
+`schema_migrations` registra o que já rodou; cada arquivo roda numa transação. Depois de
+puxar código novo, rode `npm run db:migrate`: um banco atrasado recusa o que o código já
+aceita. O atalho do Windows (`Desktop\Feztival.cmd`) faz isso ao abrir.
 
 Variáveis de ambiente (todas só do servidor; nenhuma é `NEXT_PUBLIC_`):
 

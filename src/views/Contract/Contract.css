@@ -168,6 +168,11 @@ label.contract-field > span {
   margin-bottom: 0;
 }
 
+/* O envoltorio do campo de horario nao e o titulo do campo. */
+.contract-field > .time-input {
+  font-weight: 400;
+}
+
 /* Dica abaixo do campo (ex.: o WhatsApp pedido a contas antigas). */
 label.contract-field > small {
   color: var(--text-tertiary);

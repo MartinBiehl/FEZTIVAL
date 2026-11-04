@@ -24,6 +24,8 @@ if (process.env.TEST_DATABASE_URL === process.env.DATABASE_URL) {
   throw new Error('TEST_DATABASE_URL nao pode ser o mesmo banco de DATABASE_URL.');
 }
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+// O .env.local pode ter um SMTP de verdade: teste nunca envia e-mail, so usa a caixa de entrada abaixo.
+process.env.SMTP_URL = '';
 process.env.MEDIA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'feztival-media-'));
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -46,6 +48,7 @@ const { fetchArtistDashboard, fetchClientBookings } = await import(`${L}/lib/boo
 const { fetchArtistBySlug, fetchArtists } = await import(`${L}/lib/artistQueries.js`);
 const { formatEventTimeRange } = await import(`${L}/lib/bookingDisplay.js`);
 const { recordArtistView } = await import(`${L}/lib/artistActions.js`);
+const { completeTime, isTimeOfDay, shapeTime } = await import(`${L}/lib/timeOfDay.js`);
 const confirmRoute = await import(`${L}/app/auth/confirm/route.js`);
 const sessionRoute = await import(`${L}/app/api/session/route.js`);
 
@@ -260,6 +263,49 @@ test('proposta: contratante envia; artista nao propoe ao proprio perfil', async 
   assert.equal(Number(row.agreed_price), 2200);
   assert.equal(row.sound_structure, 'venue');
   bookingId = row.id;
+});
+
+test('horario: campo de digitar formata, completa e o servidor recusa o que nao existe', async () => {
+  assert.equal(shapeTime('2230'), '22:30');
+  assert.equal(shapeTime('22h3'), '22:3');
+  assert.equal(shapeTime('7'), '07');
+  assert.equal(shapeTime('930'), '09:30');
+  assert.equal(shapeTime('1:30'), '01:30');
+  assert.equal(shapeTime('2h'), '02');
+  assert.equal(completeTime('22'), '22:00');
+  assert.equal(completeTime('7'), '07:00');
+  assert.equal(completeTime('2'), '02:00');
+  assert.equal(completeTime('22:3'), '22:30');
+  assert.equal(completeTime(''), '');
+  assert.ok(isTimeOfDay('00:00') && isTimeOfDay('23:59'));
+  assert.ok(!isTimeOfDay('24:00') && !isTimeOfDay('12:60') && !isTimeOfDay('7'));
+
+  as('b');
+  assert.match((await bookings.createBooking(bookingForm({ time: '25:00' }))).error, /entre 00:00 e 23:59/);
+
+  as('a');
+  const fields = { stageName: 'Banda Teste', category: 'band', day_6: 'on', opens_6: '25:00', closes_6: '03:00' };
+  assert.match((await profile.saveArtistProfile(null, form(fields))).error, /entre 00:00 e 23:59/);
+});
+
+test('perfil: regra de horario recusada pelo banco nao vira aviso de preco', async () => {
+  as('a');
+  const fields = { stageName: 'Banda Teste', category: 'band', day_6: 'on', opens_6: '22:00', closes_6: '12:00' };
+  const rule = 'artist_weekly_hours_times_consistent';
+  const { def } = await one('select pg_get_constraintdef(oid) def from pg_constraint where conname = $1', [rule]);
+  const swapRule = async (check) => {
+    await db.query(`alter table artist_weekly_hours drop constraint if exists ${rule}`);
+    await db.query(`alter table artist_weekly_hours add constraint ${rule} ${check}`);
+  };
+  try {
+    // Banco sem a migration 0004, como aconteceu de verdade: exige o fim depois do inicio.
+    await swapRule('check (opens_at < closes_at or not is_available) not valid');
+    const { error } = await profile.saveArtistProfile(null, form(fields));
+    assert.match(error, /horário de atendimento/);
+    assert.doesNotMatch(error, /preço/);
+  } finally {
+    await swapRule(def);
+  }
 });
 
 const status = (action, extra = {}) => bookings.updateBookingStatus(null, form({ bookingId, action, ...extra }));

@@ -7,6 +7,7 @@ import { ARTIST_CATEGORIES, findOwnArtist } from './account.js';
 import { MAX_GALLERY_PHOTOS, objectPathFromUrl, publicUrl } from './artistMedia.js';
 import { deleteArtistImage, saveArtistImage } from './mediaStorage.js';
 import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from './profileOptions.js';
+import { isTimeOfDay } from './timeOfDay.js';
 
 /*
  * Salva o perfil do artista a partir do editor (/painel/perfil).
@@ -22,9 +23,17 @@ import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from './profileOptions.js'
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TIME = /^\d{2}:\d{2}$/;
 const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const MAX_PRICE = 1_000_000;
+
+/*
+ * O que dizer quando um CHECK do banco recusa o salvamento (erro 23514). Cada
+ * regra tem a sua mensagem: uma resposta unica mandaria corrigir o campo errado.
+ */
+const CHECK_MESSAGES = {
+  artists_price_defined: 'Para publicar, informe o preço inicial ou marque "sob consulta".',
+  artist_weekly_hours_times_consistent: 'Não foi possível salvar o horário de atendimento. Confira o início e o fim de cada dia.',
+};
 
 class ValidationError extends Error {}
 
@@ -73,8 +82,11 @@ function parseProfile(formData) {
     const opensAt = text(formData, `opens_${weekday}`, 5);
     const closesAt = text(formData, `closes_${weekday}`, 5);
     // Fim antes do inicio e expediente que vira o dia (23h as 3h); igual nao fecha horario nenhum.
-    if (isAvailable && !(TIME.test(opensAt) && TIME.test(closesAt))) {
+    if (isAvailable && !(opensAt && closesAt)) {
       throw new ValidationError(`Informe o início e o fim do horário de ${label}.`);
+    }
+    if (isAvailable && !(isTimeOfDay(opensAt) && isTimeOfDay(closesAt))) {
+      throw new ValidationError(`Confira o horário de ${label}: use um horário entre 00:00 e 23:59.`);
     }
     if (isAvailable && opensAt === closesAt) {
       throw new ValidationError(`Confira o horário de ${label}: o início e o fim não podem ser iguais.`);
@@ -272,9 +284,8 @@ export async function saveArtistProfile(_prevState, formData) {
       await syncRows(tx, 'artist_infrastructure', artist.id, input.infrastructure);
     });
   } catch (error) {
-    // 23514: o CHECK artists_price_defined recusou publicar sem preco.
-    if (error.code === '23514') return { error: 'Para publicar, informe o preço inicial ou marque "sob consulta".' };
-    console.error('saveArtistProfile falhou', error.code ?? error.message);
+    if (CHECK_MESSAGES[error.constraint]) return { error: CHECK_MESSAGES[error.constraint] };
+    console.error('saveArtistProfile falhou', error.code ?? error.message, error.constraint ?? '');
     return { error: 'Não foi possível salvar. Confira os dados e tente de novo.' };
   }
 

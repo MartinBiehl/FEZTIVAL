@@ -34,7 +34,6 @@ textarea {
 
 input[type='number'],
 input[type='date'],
-input[type='time'],
 input[inputmode='numeric'],
 time {
   font-family: var(--font-numeric);

@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { ArrowLeft, ArrowUpRight, Check, Plus, Trash2 } from 'lucide-react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import TimeInput from '../../components/TimeInput/TimeInput.jsx';
 import { saveArtistProfile } from '../../lib/profileActions.js';
 import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from '../../lib/profileOptions.js';
+import { TIME_LENGTH, isTimeOfDay } from '../../lib/timeOfDay.js';
 import MediaManager from './MediaManager.jsx';
 import './ProfileEditor.css';
 
@@ -71,16 +73,92 @@ function Section({ id, title, description, children }) {
   );
 }
 
-function Switch({ name, defaultChecked, children, hint }) {
+function Switch({ name, defaultChecked, children, hint, onChange }) {
   return (
     <label className="editor-switch">
-      <input type="checkbox" role="switch" name={name} defaultChecked={defaultChecked} />
+      <input type="checkbox" role="switch" name={name} defaultChecked={defaultChecked} onChange={onChange} />
       <span className="editor-switch__track" aria-hidden="true" />
       <span className="editor-switch__text">
         {children}
         {hint && <small>{hint}</small>}
       </span>
     </label>
+  );
+}
+
+/* Horario pela metade ainda esta sendo digitado: nao e erro. */
+const isWrongTime = (value) => value.length === TIME_LENGTH && !isTimeOfDay(value);
+
+/* Aviso ao lado do horario do dia, com os campos a marcar, ou null quando nao ha o que dizer. */
+function hoursNote(opens, closes) {
+  const wrongOpens = isWrongTime(opens);
+  const wrongCloses = isWrongTime(closes);
+  if (wrongOpens || wrongCloses) {
+    return { wrongOpens, wrongCloses, text: 'Use um horário entre 00:00 e 23:59.' };
+  }
+  if (!isTimeOfDay(opens) || !isTimeOfDay(closes)) return null;
+  if (opens === closes) {
+    return { wrongOpens: true, wrongCloses: true, text: 'O início e o fim não podem ser iguais.' };
+  }
+  if (closes < opens) return { text: `Termina às ${closes} do dia seguinte.` };
+  return null;
+}
+
+function HoursDay({ day }) {
+  const label = WEEKDAY_LABEL[day.weekday];
+  const [isOn, setIsOn] = useState(day.isAvailable);
+  const [opens, setOpens] = useState(day.opensAt);
+  const [closes, setCloses] = useState(day.closesAt);
+  // Dia desligado nao tem expediente: o servidor ignora o que estiver nos campos.
+  const note = isOn ? hoursNote(opens, closes) : null;
+  const isError = note?.wrongOpens || note?.wrongCloses;
+  const noteId = `hours-note-${day.weekday}`;
+  const describedBy = note ? noteId : undefined;
+
+  return (
+    <div className="editor-hours__day">
+      <Switch
+        name={`day_${day.weekday}`}
+        defaultChecked={day.isAvailable}
+        onChange={(event) => setIsOn(event.target.checked)}
+      >
+        {label}
+      </Switch>
+      <div className="editor-hours__control">
+        <div className="editor-hours__times">
+          <TimeInput
+            name={`opens_${day.weekday}`}
+            defaultValue={day.opensAt}
+            placeholder="Ex.: 22:30"
+            aria-label={`Início de ${label}`}
+            validate={isOn}
+            aria-invalid={note?.wrongOpens || undefined}
+            aria-describedby={describedBy}
+            onChange={(event) => setOpens(event.target.value)}
+          />
+          <span aria-hidden="true">até</span>
+          <TimeInput
+            name={`closes_${day.weekday}`}
+            defaultValue={day.closesAt}
+            placeholder="Ex.: 03:00"
+            aria-label={`Fim de ${label}`}
+            validate={isOn}
+            aria-invalid={note?.wrongCloses || undefined}
+            aria-describedby={describedBy}
+            onChange={(event) => setCloses(event.target.value)}
+          />
+        </div>
+        {note && (
+          <small
+            className={`editor-hours__note${isError ? ' is-error' : ''}`}
+            id={noteId}
+            role={isError ? 'alert' : 'status'}
+          >
+            {note.text}
+          </small>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -347,22 +425,12 @@ function ProfileEditor({ profile, catalogs }) {
               <fieldset className="editor-field editor-hours">
                 <legend>Horário de atendimento</legend>
                 <p className="editor-hint">
-                  Sem nenhum dia ativo, o perfil não mostra horário. Para tocar de madrugada, use
-                  um fim antes do início: 23:00 até 03:00 termina no dia seguinte.
+                  Digite a hora, como 2230 para 22:30. Sem nenhum dia ativo, o perfil não mostra
+                  horário. Para tocar de madrugada, use um fim antes do início: 23:00 até 03:00
+                  termina no dia seguinte.
                 </p>
                 <div className="editor-hours__list">
-                  {profile.weeklyHours.map((day) => (
-                    <div className="editor-hours__day" key={day.weekday}>
-                      <Switch name={`day_${day.weekday}`} defaultChecked={day.isAvailable}>
-                        {WEEKDAY_LABEL[day.weekday]}
-                      </Switch>
-                      <div className="editor-hours__times">
-                        <input type="time" name={`opens_${day.weekday}`} defaultValue={day.opensAt} aria-label={`Início de ${WEEKDAY_LABEL[day.weekday]}`} />
-                        <span aria-hidden="true">até</span>
-                        <input type="time" name={`closes_${day.weekday}`} defaultValue={day.closesAt} aria-label={`Fim de ${WEEKDAY_LABEL[day.weekday]}`} />
-                      </div>
-                    </div>
-                  ))}
+                  {profile.weeklyHours.map((day) => <HoursDay key={day.weekday} day={day} />)}
                 </div>
               </fieldset>
             </Section>

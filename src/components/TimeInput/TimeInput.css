@@ -1,0 +1,18 @@
+.time-input {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.time-input .time-input__field {
+  padding-right: 2.6rem;
+}
+
+.time-input svg {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+  transform: translateY(-50%);
+}

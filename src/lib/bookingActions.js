@@ -5,6 +5,7 @@ import { getCurrentUser } from './auth.js';
 import { query, queryOne, transaction } from './db.js';
 import { joinEventLocation, todayIso } from './bookingDisplay.js';
 import { normalizePhone } from './phone.js';
+import { isTimeOfDay } from './timeOfDay.js';
 
 /*
  * Server Actions de reservas e avaliacoes.
@@ -63,7 +64,7 @@ export async function createBooking(formData) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayIso()) {
     return { error: 'Escolha uma data a partir de hoje.' };
   }
-  if (!/^\d{2}:\d{2}$/.test(time)) return { error: 'Informe o horário do evento.' };
+  if (!isTimeOfDay(time)) return { error: 'Informe o horário do evento, entre 00:00 e 23:59.' };
   if (address.length < 3 || address.length > 120) return { error: 'Informe o endereço do evento.' };
   if (city.length < 2 || city.length > 60) return { error: 'Informe a cidade do evento.' };
   if (venueName.length > 80) return { error: 'O nome do local pode ter até 80 caracteres.' };
