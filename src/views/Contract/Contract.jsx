@@ -9,7 +9,7 @@ import ProposalReviewModal from '../../components/ProposalReviewModal/ProposalRe
 import TimeInput from '../../components/TimeInput/TimeInput.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import {
-  NO_RATING_LABEL, formatMoney, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatMinutes, formatMoney, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
 import { createBooking } from '../../lib/bookingActions.js';
 import {
@@ -17,6 +17,7 @@ import {
   parseFormDate, startsAfterMidnight, todayIso,
 } from '../../lib/bookingDisplay.js';
 import { formatPhone } from '../../lib/phone.js';
+import { SERVICE_DURATIONS } from '../../lib/profileOptions.js';
 import { TIME_LENGTH, isTimeOfDay } from '../../lib/timeOfDay.js';
 import './Contract.css';
 
@@ -91,6 +92,7 @@ const FIELD_MESSAGES = {
     valueMissing: 'Informe a cidade do evento.',
     tooShort: 'Informe o nome completo da cidade.',
   },
+  duration: { valueMissing: 'Escolha a duração do show.' },
 };
 
 const VALIDITY_KEYS = ['valueMissing', 'badInput', 'patternMismatch', 'rangeUnderflow', 'rangeOverflow', 'stepMismatch', 'tooShort'];
@@ -152,11 +154,6 @@ function errorProps(name, message) {
   return message
     ? { 'aria-invalid': true, 'aria-describedby': `${name}-error` }
     : {};
-}
-
-function formatMinutes(minutes) {
-  if (minutes < 60) return `${minutes} min`;
-  return `${(minutes / 60).toLocaleString('pt-BR')}h`;
 }
 
 function formatEventDate(value) {
@@ -221,6 +218,7 @@ function Contract({ artist }) {
   const { user, refresh } = useAuth();
   const [sent, setSent] = useState(false);
   const [reviewData, setReviewData] = useState(null);
+  const hasOwnDurations = artist.setMinutes.length > 0;
   const [draft, setDraft] = useState({ duration: artist.setMinutes[0] ?? '', soundStructure: 'nao-sei' });
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
@@ -509,11 +507,18 @@ function Contract({ artist }) {
               </label>
             </fieldset>
 
-            {artist.setMinutes.length > 0 && (
-              <fieldset className="contract-field">
-                <legend>Duração da apresentação</legend>
-                <div className="contract-chips">
-                  {artist.setMinutes.map((minutes, index) => {
+            {/*
+              Com servicos, as duracoes do artista, com o preco de cada uma e a
+              primeira marcada. Sem eles, as duracoes padrao, e quem pede escolhe.
+            */}
+            <fieldset
+              className={`contract-field${fieldErrors.duration ? ' has-error' : ''}`}
+              aria-describedby={fieldErrors.duration ? 'duration-error' : undefined}
+            >
+              <legend>Duração da apresentação</legend>
+              <div className="contract-chips">
+                {hasOwnDurations
+                  ? artist.setMinutes.map((minutes, index) => {
                     const price = estimatePrice(artist, minutes);
                     return (
                       <label key={minutes}>
@@ -524,10 +529,16 @@ function Contract({ artist }) {
                         </span>
                       </label>
                     );
-                  })}
-                </div>
-              </fieldset>
-            )}
+                  })
+                  : SERVICE_DURATIONS.map((minutes, index) => (
+                    <label key={minutes}>
+                      <input type="radio" name="duration" value={minutes} required={index === 0} />
+                      <span>{formatMinutes(minutes)}</span>
+                    </label>
+                  ))}
+              </div>
+              <FieldError name="duration" message={fieldErrors.duration} />
+            </fieldset>
 
             <fieldset className="contract-field">
               <legend>Equipamento de som</legend>

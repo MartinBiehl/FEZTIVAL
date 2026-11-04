@@ -12,6 +12,7 @@ import {
 import { Check, ChevronDown } from 'lucide-react';
 import ArtistCard from '../../components/ArtistCard/ArtistCard.jsx';
 import ArtistPreviewModal from '../../components/ArtistPreviewModal/ArtistPreviewModal.jsx';
+import { OPEN_ENDED_DURATION } from '../../lib/profileOptions.js';
 import './Explore.css';
 
 /*
@@ -30,6 +31,7 @@ const DURATION_OPTIONS = [
   { label: '1h a 2h', value: '1h-2h', min: 61, max: 120 },
   { label: '2h a 3h', value: '2h-3h', min: 121, max: 180 },
   { label: 'Mais de 3h', value: 'mais-3h', min: 181, max: Infinity },
+  { label: '6h+', value: '6h-mais', min: OPEN_ENDED_DURATION, max: Infinity },
 ];
 
 const SORT_VALUES = ['recommended', 'price-low', 'price-high'];

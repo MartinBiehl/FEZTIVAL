@@ -5,6 +5,7 @@ import { getCurrentUser } from './auth.js';
 import { query, queryOne, transaction } from './db.js';
 import { joinEventLocation, todayIso } from './bookingDisplay.js';
 import { normalizePhone } from './phone.js';
+import { SERVICE_DURATIONS } from './profileOptions.js';
 import { isTimeOfDay } from './timeOfDay.js';
 
 /*
@@ -83,6 +84,11 @@ export async function createBooking(formData) {
   if (!artist) return { error: 'Este artista não está mais disponível.' };
   if (artist.profile_id === user.id) {
     return { error: 'Você não pode enviar proposta para o seu próprio perfil.' };
+  }
+  // Artista sem duracao cadastrada: quem pede escolhe uma das duracoes padrao.
+  const hasOwnDurations = artist.services.some((item) => item.duration_minutes != null);
+  if (!hasOwnDurations && !SERVICE_DURATIONS.includes(duration)) {
+    return { error: 'Escolha a duração do show.' };
   }
 
   /*

@@ -1,3 +1,5 @@
+import { OPEN_ENDED_DURATION } from './profileOptions.js';
+
 /*
  * Rotulos e formatacao de reservas, compartilhados pelo painel do artista e
  * por "Minhas reservas". Datas do banco sao `date` sem fuso; o fuso de
@@ -108,11 +110,13 @@ const DAY_MINUTES = 24 * 60;
 /*
  * Horario de termino a partir do inicio ("23:00" ou "23:00:00" do banco) e da
  * duracao. Show que passa da meia-noite termina no dia seguinte: 23h + 3h
- * acaba as 2h, com nextDay. Sem duracao nao ha termino a mostrar.
+ * acaba as 2h, com nextDay. Sem duracao, ou com "6h+", que nao tem fim
+ * definido, nao ha termino a mostrar.
  */
 export function eventEnd(time, durationMinutes) {
   const duration = Number(durationMinutes);
   if (!/^\d{2}:\d{2}/.test(time ?? '') || !Number.isInteger(duration) || duration <= 0) return null;
+  if (duration >= OPEN_ENDED_DURATION) return null;
   const [hour, minute] = time.split(':').map(Number);
   const total = hour * 60 + minute + duration;
   const end = total % DAY_MINUTES;
@@ -120,9 +124,10 @@ export function eventEnd(time, durationMinutes) {
   return { time: `${pad(Math.floor(end / 60))}:${pad(end % 60)}`, nextDay: total > DAY_MINUTES };
 }
 
-/* "23h às 2h do dia seguinte"; sem duracao, so o inicio ("23h"). */
+/* "23h às 2h do dia seguinte"; "23h, 6h ou mais"; sem duracao, so o inicio ("23h"). */
 export function formatEventTimeRange(time, durationMinutes) {
   const start = formatEventTime(time);
+  if (start && Number(durationMinutes) >= OPEN_ENDED_DURATION) return `${start}, 6h ou mais`;
   const end = eventEnd(time, durationMinutes);
   if (!start || !end) return start;
   return `${start} às ${formatEventTime(end.time)}${end.nextDay ? ' do dia seguinte' : ''}`;

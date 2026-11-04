@@ -49,6 +49,7 @@ const { fetchArtistBySlug, fetchArtists } = await import(`${L}/lib/artistQueries
 const { formatEventTimeRange } = await import(`${L}/lib/bookingDisplay.js`);
 const { recordArtistView } = await import(`${L}/lib/artistActions.js`);
 const { completeTime, isTimeOfDay, shapeTime } = await import(`${L}/lib/timeOfDay.js`);
+const { formatMinutes, formatSetLength } = await import(`${L}/lib/artistDisplay.js`);
 const confirmRoute = await import(`${L}/app/auth/confirm/route.js`);
 const sessionRoute = await import(`${L}/app/api/session/route.js`);
 
@@ -263,6 +264,34 @@ test('proposta: contratante envia; artista nao propoe ao proprio perfil', async 
   assert.equal(Number(row.agreed_price), 2200);
   assert.equal(row.sound_structure, 'venue');
   bookingId = row.id;
+});
+
+test('duracao: artista sem servicos exige que quem pede escolha uma duracao padrao', async () => {
+  as('b');
+  const { id } = await one(
+    `insert into artists (profile_id, slug, stage_name, category, is_published, price_on_request)
+     select profile_id, 'sem-servicos', 'Sem Servicos', 'dj', true, true from artists where slug = 'dj-kauan' returning id`,
+  );
+  try {
+    const propose = (duration) => bookings.createBooking(bookingForm({ slug: 'sem-servicos', duration }));
+    assert.match((await propose('')).error, /duração/);
+    assert.match((await propose('45')).error, /duração/);
+    assert.deepEqual(await propose('90'), { ok: true });
+    const row = await one('select duration_minutes, service_id from bookings where artist_id = $1', [id]);
+    assert.equal(row.duration_minutes, 90);
+    assert.equal(row.service_id, null);
+
+    // "6h+" e aceito e nao tem horario de termino.
+    assert.deepEqual(await propose('360'), { ok: true });
+    assert.equal(formatMinutes(360), '6h+');
+    assert.equal(formatMinutes(90), '1h30');
+    assert.equal(formatEventTimeRange('22:00', 360), '22h, 6h ou mais');
+    assert.equal(formatSetLength({ setMinutes: [60, 360] }), 'Sets de 6h ou mais');
+    assert.equal(formatSetLength({ setMinutes: [60, 180] }), 'Sets de até 3h');
+  } finally {
+    await db.query('delete from bookings where artist_id = $1', [id]);
+    await db.query('delete from artists where id = $1', [id]);
+  }
 });
 
 test('horario: campo de digitar formata, completa e o servidor recusa o que nao existe', async () => {

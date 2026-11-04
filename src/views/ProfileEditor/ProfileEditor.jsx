@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, Check, Plus, Trash2 } from 'lucide-react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
 import TimeInput from '../../components/TimeInput/TimeInput.jsx';
+import { formatMinutes } from '../../lib/artistDisplay.js';
 import { saveArtistProfile } from '../../lib/profileActions.js';
 import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from '../../lib/profileOptions.js';
 import { TIME_LENGTH, isTimeOfDay } from '../../lib/timeOfDay.js';
@@ -382,7 +383,7 @@ function ProfileEditor({ profile, catalogs }) {
                         <select name="serviceDuration" defaultValue={row.durationMinutes}>
                           <option value="">A combinar</option>
                           {SERVICE_DURATIONS.map((minutes) => (
-                            <option key={minutes} value={minutes}>{minutes < 60 ? `${minutes} min` : `${minutes / 60}h`}</option>
+                            <option key={minutes} value={minutes}>{formatMinutes(minutes)}</option>
                           ))}
                         </select>
                       </label>

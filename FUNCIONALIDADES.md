@@ -36,7 +36,7 @@ contagem real de artistas em cada uma, calculada a partir do banco.
 
 | Filtro | Opções |
 |---|---|
-| Tempo de set | 30 min, 1h, 2h, 3h, 4h+ |
+| Tempo de set | Até 1h, 1h a 2h, 2h a 3h, Mais de 3h, 6h+ |
 | Gênero musical | vem do catálogo de gêneros do banco |
 
 **Ordenação** — três critérios:

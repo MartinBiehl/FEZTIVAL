@@ -465,9 +465,11 @@ label.contract-field > small {
   opacity: 0.75;
 }
 
+/* minmax(0, 1fr): sem isso, um endereco comprido alarga a coluna para fora do cartao. */
 .proposal-ticket__rows {
   display: grid;
   margin: 0;
+  grid-template-columns: minmax(0, 1fr);
   padding: 1.1rem 1.25rem;
   gap: 0.65rem;
 }
@@ -481,15 +483,16 @@ label.contract-field > small {
 
 .proposal-ticket__rows dt {
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
+/* O texto longo quebra a linha: o endereco inteiro continua visivel para conferir. */
 .proposal-ticket__rows dd {
   margin: 0;
-  overflow: hidden;
+  min-width: 0;
   color: var(--text-tertiary);
+  overflow-wrap: anywhere;
   text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .proposal-ticket__rows .is-filled dd {

@@ -796,6 +796,11 @@ O formulário pede endereço, cidade e nome do local (opcional) em campos separa
 campo (data antes de hoje, ou horário já passado quando a data é hoje, no fuso de São
 Paulo) e a data também no servidor.
 
+A duração é obrigatória na proposta. Artista com duração cadastrada nos serviços oferece
+essas opções, com a primeira marcada. Sem nenhuma, o formulário mostra `SERVICE_DURATIONS`
+sem nada marcado, e `createBooking` recusa outro valor. A opção "6h+" fica gravada como
+360 minutos (`OPEN_ENDED_DURATION`) e não tem horário de término: `eventEnd` devolve null.
+
 Show pode atravessar a meia-noite: a reserva guarda só início e duração, e
 `formatEventTimeRange` mostra "23h às 02h do dia seguinte" no formulário, na revisão, no
 painel e em "Minhas reservas". No horário de atendimento do artista

@@ -9,7 +9,7 @@ import useActionSubmit from '../../hooks/useActionSubmit.js';
 import { recordArtistView } from '../../lib/artistActions.js';
 import { askQuestion } from '../../lib/questionActions.js';
 import {
-  NO_RATING_LABEL, formatMaxDuration, formatPrice, formatRating, formatReviewCount,
+  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, formatSetLength,
   hasRating, priceLabel,
 } from '../../lib/artistDisplay.js';
 import './ArtistProfile.css';
@@ -468,8 +468,8 @@ function ArtistProfile({ artist }) {
           <small>por apresentação</small>
           <dl>
             <div><dt>Local</dt><dd>{artist.location}</dd></div>
-            {formatMaxDuration(artist) && (
-              <div><dt>Duração</dt><dd>Sets de até {formatMaxDuration(artist)}</dd></div>
+            {formatSetLength(artist) && (
+              <div><dt>Duração</dt><dd>{formatSetLength(artist)}</dd></div>
             )}
             {hasRating(artist) && (
               <div><dt>Avaliação</dt><dd>★ {formatRating(artist)}</dd></div>

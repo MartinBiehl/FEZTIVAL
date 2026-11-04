@@ -1,18 +1,10 @@
 import Link from 'next/link';
 import { motion, useReducedMotion } from 'motion/react';
 import {
-  NO_RATING_LABEL, formatPrice, formatRating, formatReviewCount, hasRating,
+  NO_RATING_LABEL, formatMinutes, formatPrice, formatRating, formatReviewCount, hasRating,
 } from '../../lib/artistDisplay.js';
 import useModalDialog from '../../hooks/useModalDialog.js';
 import './ArtistPreviewModal.css';
-
-/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min". */
-function formatDuration(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (hours === 0) return `${rest} min`;
-  return rest === 0 ? `${hours}h` : `${hours}h${String(rest).padStart(2, '0')}`;
-}
 
 function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
   const shouldReduceMotion = useReducedMotion();
@@ -137,7 +129,7 @@ function ArtistPreviewModal({ artist, onClose, returnFocusRef }) {
                   </div>
                   {service.durationMinutes != null && (
                     <span className="artist-preview-dialog__duration">
-                      {formatDuration(service.durationMinutes)}
+                      {formatMinutes(service.durationMinutes)}
                     </span>
                   )}
                 </li>

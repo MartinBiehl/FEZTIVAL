@@ -1,3 +1,5 @@
+import { OPEN_ENDED_DURATION } from './profileOptions.js';
+
 /*
  * Formatacao de campos de artista que podem estar vazios.
  *
@@ -61,9 +63,17 @@ export function formatMaxDuration(artist) {
   return formatMinutes(Math.max(...minutes));
 }
 
-/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min"; null quando nao ha duracao. */
+/* "Sets de até 3h". Quem faz 6h+ nao tem teto: "Sets de 6h ou mais". */
+export function formatSetLength(artist) {
+  const longest = formatMaxDuration(artist);
+  if (!longest) return null;
+  return Math.max(...artist.setMinutes) >= OPEN_ENDED_DURATION ? 'Sets de 6h ou mais' : `Sets de até ${longest}`;
+}
+
+/* 90 -> "1h30", 180 -> "3h", 45 -> "45 min", 360 -> "6h+"; null quando nao ha duracao. */
 export function formatMinutes(minutes) {
   if (minutes == null) return null;
+  if (minutes >= OPEN_ENDED_DURATION) return '6h+';
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   if (hours === 0) return `${rest} min`;

@@ -7,6 +7,7 @@ import {
 import {
   estimatePrice, formatEventTimeRange, joinEventLocation, parseFormDate,
 } from '../../lib/bookingDisplay.js';
+import { OPEN_ENDED_DURATION } from '../../lib/profileOptions.js';
 import './ProposalReviewModal.css';
 
 function formatDate(value) {
@@ -29,8 +30,8 @@ const SOUND_LABEL = {
 
 function formatDuration(value) {
   const minutes = Number(value);
-  // Artista sem servicos cadastrados nao oferece duracao para escolher.
   if (!value || !Number.isFinite(minutes)) return 'A combinar';
+  if (minutes >= OPEN_ENDED_DURATION) return '6 horas ou mais';
   if (minutes < 60) return `${minutes} min`;
   const hours = minutes / 60;
   return `${hours.toLocaleString('pt-BR')} ${hours === 1 ? 'hora' : 'horas'}`;

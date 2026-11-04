@@ -9,4 +9,7 @@ export const INFRASTRUCTURE_STATUSES = [
   { value: 'required', label: 'O local precisa ter' },
 ];
 
-export const SERVICE_DURATIONS = [30, 60, 90, 120, 180, 240, 300];
+/* A ultima opcao, "6h+", nao tem fim definido: fica gravada como 360 minutos. */
+export const OPEN_ENDED_DURATION = 360;
+
+export const SERVICE_DURATIONS = [30, 60, 90, 120, 180, 240, 300, OPEN_ENDED_DURATION];
