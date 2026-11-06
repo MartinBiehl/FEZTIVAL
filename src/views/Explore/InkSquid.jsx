@@ -1,18 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import {
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-  useTransform,
-  useVelocity,
-} from 'motion/react';
+import { motion, useMotionValue, useReducedMotion, useSpring } from 'motion/react';
 
 /*
- * Mascote do hero do /explorar: uma lula que segue o mouse e solta tinta em
- * ladrilhos, no estilo da grade do github.com. Fica so no hero (areaRef), so
+ * Mascote do hero do /explorar: uma lula 3D (squidScene.js) que segue o mouse
+ * e solta tinta em ladrilhos, no estilo da grade do github.com. Fica so no hero (areaRef), so
  * com mouse de verdade e nunca com prefers-reduced-motion. As cores sao as da
  * marca mais as dos dois brilhos que ja seguiam o mouse (#FF3CAC e #00BFE7).
  */
@@ -26,10 +19,9 @@ const TILE_HOLD_MS = 520;
 const TILE_LIFE_MS = 1700;
 const GRID_FADE_MS = 400;
 // A tinta sai dos tentaculos, abaixo do centro do mascote.
-const INK_OFFSET_Y = 26;
+const INK_OFFSET_Y = 34;
 
 const squidSpring = { stiffness: 120, damping: 18, mass: 0.6 };
-const tiltSpring = { stiffness: 220, damping: 20 };
 const showSpring = { type: 'spring', stiffness: 380, damping: 22 };
 
 const PRECISE_HOVER = '(hover: hover) and (pointer: fine)';
@@ -66,17 +58,12 @@ function pick(list, except) {
 
 function InkSquidLayer({ areaRef }) {
   const canvasRef = useRef(null);
+  const squidCanvasRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const targetX = useMotionValue(0);
   const targetY = useMotionValue(0);
   const x = useSpring(targetX, squidSpring);
   const y = useSpring(targetY, squidSpring);
-  const velocityX = useVelocity(x);
-  const velocityY = useVelocity(y);
-  // Inclina para o lado em que nada e olha para onde vai.
-  const tilt = useSpring(useTransform(velocityX, [-1400, 0, 1400], [-24, 0, 24]), tiltSpring);
-  const lookX = useTransform(velocityX, [-900, 0, 900], [-3, 0, 3]);
-  const lookY = useTransform(velocityY, [-900, 0, 900], [-2.5, 0, 2.5]);
 
   useEffect(() => {
     const area = areaRef.current;
@@ -93,6 +80,18 @@ function InkSquidLayer({ areaRef }) {
     let lastTime = 0;
     let lastPoint = null;
     let lastCell = null;
+    let squid = null;
+    let disposed = false;
+
+    /*
+     * three.js so baixa aqui, em desktop com mouse. Sem WebGL a lula nao
+     * aparece, mas a tinta continua.
+     */
+    import('./squidScene.js')
+      .then(({ createSquidScene }) => {
+        if (!disposed) squid = createSquidScene(squidCanvasRef.current);
+      })
+      .catch(() => {});
 
     function resize() {
       const bounds = area.getBoundingClientRect();
@@ -191,6 +190,7 @@ function InkSquidLayer({ areaRef }) {
       gridAlpha = Math.min(1, Math.max(0, gridAlpha + (inside ? 1 : -1) * (elapsed / GRID_FADE_MS)));
       if (inside) trail(x.get(), y.get() + INK_OFFSET_Y, now);
       draw(now);
+      squid?.render(now, x.getVelocity(), y.getVelocity());
       // O laco para sozinho quando o mouse sai e a tinta termina de secar.
       frame = inside || gridAlpha > 0 || tiles.size ? requestAnimationFrame(tick) : 0;
     }
@@ -232,6 +232,8 @@ function InkSquidLayer({ areaRef }) {
     area.addEventListener('pointerleave', handleLeave);
 
     return () => {
+      disposed = true;
+      squid?.dispose();
       observer.disconnect();
       area.removeEventListener('pointermove', handleMove);
       area.removeEventListener('pointerleave', handleLeave);
@@ -242,106 +244,17 @@ function InkSquidLayer({ areaRef }) {
   return (
     <>
       <canvas ref={canvasRef} className="explore-ink" aria-hidden="true" />
-      <motion.div className="explore-squid" aria-hidden="true" style={{ x, y, rotate: tilt }}>
+      <motion.div className="explore-squid" aria-hidden="true" style={{ x, y }}>
         <motion.div
           className="explore-squid__body"
           initial={false}
           animate={visible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.35 }}
           transition={showSpring}
         >
-          <SquidArt lookX={lookX} lookY={lookY} />
+          <canvas ref={squidCanvasRef} />
         </motion.div>
       </motion.div>
     </>
-  );
-}
-
-/*
- * Desenho proprio (nao e o personagem de nenhum jogo): lula rosa-roxa com
- * fone amarelo. O volume vem dos degrades radiais e dos reflexos brancos.
- */
-function SquidArt({ lookX, lookY }) {
-  return (
-    <svg viewBox="0 -14 120 164" focusable="false">
-      <defs>
-        <radialGradient id="fez-squid-body" cx="35%" cy="28%" r="80%">
-          <stop offset="0" stopColor="#FFB8E2" />
-          <stop offset="0.35" stopColor="#FF3CAC" />
-          <stop offset="0.8" stopColor="#C2188A" />
-          <stop offset="1" stopColor="#7A0F63" />
-        </radialGradient>
-        <linearGradient id="fez-squid-tentacle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#E0249A" />
-          <stop offset="1" stopColor="#9B4DFF" />
-        </linearGradient>
-        <radialGradient id="fez-squid-eye" cx="40%" cy="35%" r="75%">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#D9D2E6" />
-        </radialGradient>
-        <radialGradient id="fez-squid-pupil" cx="35%" cy="30%" r="80%">
-          <stop offset="0" stopColor="#5A4680" />
-          <stop offset="1" stopColor="#0D0718" />
-        </radialGradient>
-        <linearGradient id="fez-squid-cup" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FFF08A" />
-          <stop offset="0.5" stopColor="#FFD600" />
-          <stop offset="1" stopColor="#B89400" />
-        </linearGradient>
-      </defs>
-
-      <g className="explore-squid__tentacle explore-squid__tentacle--left">
-        <path d="M34 88C28 110 18 124 22 140C24 148 36 148 38 140C40 130 46 116 50 90Z" fill="url(#fez-squid-tentacle)" />
-        <circle cx="27" cy="137" r="3.2" fill="#fff" opacity="0.3" />
-        <circle cx="32" cy="128" r="2.4" fill="#fff" opacity="0.3" />
-      </g>
-      <g className="explore-squid__tentacle explore-squid__tentacle--right">
-        <path d="M86 88C92 110 102 124 98 140C96 148 84 148 82 140C80 130 74 116 70 90Z" fill="url(#fez-squid-tentacle)" />
-        <circle cx="93" cy="137" r="3.2" fill="#fff" opacity="0.3" />
-        <circle cx="88" cy="128" r="2.4" fill="#fff" opacity="0.3" />
-      </g>
-      <path
-        className="explore-squid__tentacle explore-squid__tentacle--middle"
-        d="M53 92C53 106 55 116 60 122C65 116 67 106 67 92Z"
-        fill="url(#fez-squid-tentacle)"
-      />
-
-      <path
-        d="M20 84H100V90Q96 104 89 96Q83 106 76 97Q70 107 64 98Q60 106 56 98Q50 107 44 97Q37 106 31 96Q24 104 20 90Z"
-        fill="#B5157E"
-      />
-
-      <path d="M14 66C8 -28 112 -28 106 66" fill="none" stroke="#D9B400" strokeWidth="6" strokeLinecap="round" />
-
-      <path
-        d="M60 6C68 6 80 18 92 34C104 50 114 60 112 72C110 84 94 90 60 90C26 90 10 84 8 72C6 60 16 50 28 34C40 18 52 6 60 6Z"
-        fill="url(#fez-squid-body)"
-      />
-      <ellipse cx="40" cy="30" rx="11" ry="6" fill="#fff" opacity="0.55" transform="rotate(-38 40 30)" />
-      <circle cx="53" cy="17" r="2.6" fill="#fff" opacity="0.65" />
-      <path d="M100 76C96 84 84 87 70 88" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" opacity="0.18" />
-
-      <path d="M31 43L52 49M89 43L68 49" stroke="#2B0B3F" strokeWidth="4.5" strokeLinecap="round" />
-      <g className="explore-squid__eyes">
-        <ellipse cx="44" cy="62" rx="15.5" ry="17" fill="#2B0B3F" />
-        <ellipse cx="76" cy="62" rx="15.5" ry="17" fill="#2B0B3F" />
-        <ellipse cx="44" cy="62" rx="11.5" ry="13" fill="url(#fez-squid-eye)" />
-        <ellipse cx="76" cy="62" rx="11.5" ry="13" fill="url(#fez-squid-eye)" />
-        <motion.g style={{ x: lookX, y: lookY }}>
-          <circle cx="46" cy="64" r="6.5" fill="url(#fez-squid-pupil)" />
-          <circle cx="78" cy="64" r="6.5" fill="url(#fez-squid-pupil)" />
-          <circle cx="44" cy="61" r="2.3" fill="#fff" />
-          <circle cx="76" cy="61" r="2.3" fill="#fff" />
-          <circle cx="48.5" cy="67" r="1" fill="#fff" />
-          <circle cx="80.5" cy="67" r="1" fill="#fff" />
-        </motion.g>
-      </g>
-      <path d="M55 82Q60 86 65 82" fill="none" stroke="#2B0B3F" strokeWidth="2.5" strokeLinecap="round" />
-
-      <rect x="1" y="52" width="17" height="28" rx="8" fill="url(#fez-squid-cup)" transform="rotate(-8 9 66)" />
-      <rect x="102" y="52" width="17" height="28" rx="8" fill="url(#fez-squid-cup)" transform="rotate(8 111 66)" />
-      <ellipse cx="7" cy="60" rx="2.5" ry="5" fill="#fff" opacity="0.5" transform="rotate(-8 7 60)" />
-      <ellipse cx="108" cy="60" rx="2.5" ry="5" fill="#fff" opacity="0.5" transform="rotate(8 108 60)" />
-    </svg>
   );
 }
 

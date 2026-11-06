@@ -19,6 +19,7 @@
     "nodemailer": "^10.0.16",
     "pg": "^8.23.1",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "three": "^0.187.0"
   }
 }
