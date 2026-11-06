@@ -13,6 +13,7 @@ import { Check, ChevronDown, X } from 'lucide-react';
 import ArtistCard from '../../components/ArtistCard/ArtistCard.jsx';
 import ArtistPreviewModal from '../../components/ArtistPreviewModal/ArtistPreviewModal.jsx';
 import { OPEN_ENDED_DURATION } from '../../lib/profileOptions.js';
+import InkSquid from './InkSquid.jsx';
 import './Explore.css';
 
 /*
@@ -267,6 +268,7 @@ function Explore({ artists = [], genres = [] }) {
   const [urlRead, setUrlRead] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const previewTriggerRef = useRef(null);
+  const heroRef = useRef(null);
   const shouldReduceMotion = useReducedMotion();
   const pinkTargetX = useMotionValue(0.78);
   const pinkTargetY = useMotionValue(0.3);
@@ -452,7 +454,8 @@ function Explore({ artists = [], genres = [] }) {
 
   return (
     <div className="explore-page">
-      <section className="explore-hero" onPointerMove={followPointer}>
+      <section className="explore-hero" ref={heroRef} onPointerMove={followPointer}>
+        <InkSquid areaRef={heroRef} />
         <motion.span
           className="explore-hero__glow explore-hero__glow--pink"
           aria-hidden="true"
