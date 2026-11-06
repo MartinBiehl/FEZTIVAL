@@ -18,11 +18,27 @@ export const PENDING_CONFIRMATION_COOKIE = 'fz_pending_confirmation';
 /*
  * "/painel" e aceito, "//evil.com" e "https://evil.com" nao: o parametro
  * ?next= vem da URL e nao pode virar redirecionamento para fora do site.
+ *
+ * Conferir so o comeco da string nao basta: o navegador e o new URL() jogam
+ * fora tabs e quebras de linha e tratam "\" como "/", entao "/<tab>/evil.com"
+ * (?next=/%09/evil.com) virava "//evil.com" e levava para fora depois do login.
+ * Por isso a string e recusada com qualquer caractere de controle ou "\", e o
+ * resultado e conferido de novo depois de interpretado como URL.
  */
+const SAME_SITE_BASE = 'http://feztival.invalid';
+
 export function safeNextPath(value) {
-  if (typeof value !== 'string') return null;
-  if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) return null;
-  return value;
+  if (typeof value !== 'string' || value.length > 512) return null;
+  if (!value.startsWith('/') || value.startsWith('//')) return null;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f\\]/.test(value)) return null;
+  try {
+    const url = new URL(value, SAME_SITE_BASE);
+    if (url.origin !== SAME_SITE_BASE) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
 }
 
 /* "Banda Nativus Ivoti!" -> "banda-nativus-ivoti", no formato do CHECK de artists.slug. */

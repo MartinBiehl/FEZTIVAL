@@ -1,10 +1,9 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, ArrowUpRight, Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Plus, Trash2 } from 'lucide-react';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
-import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import AccountBar from '../../components/AccountBar/AccountBar.jsx';
 import TimeInput from '../../components/TimeInput/TimeInput.jsx';
 import { formatMinutes } from '../../lib/artistDisplay.js';
 import { saveArtistProfile } from '../../lib/profileActions.js';
@@ -271,19 +270,7 @@ function ProfileEditor({ profile, catalogs }) {
 
   return (
     <div className="profile-editor">
-      <header className="editor-topbar">
-        <div className="page-container">
-          <BrandLogo />
-          <nav aria-label="Atalhos do painel">
-            <Link href="/painel"><ArrowLeft size={16} aria-hidden="true" />Painel</Link>
-            {isPublished && (
-              <Link href={`/artista/${profile.slug}`} target="_blank">
-                Ver perfil público<ArrowUpRight size={16} aria-hidden="true" />
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
+      <AccountBar isArtist publicProfileSlug={isPublished ? profile.slug : null} />
 
       <div className="editor-layout page-container">
         <aside className="editor-aside">
@@ -424,10 +411,10 @@ function ProfileEditor({ profile, catalogs }) {
               </div>
 
               <fieldset className="editor-field editor-hours">
-                <legend>Horário de atendimento</legend>
+                <legend>Dias e horários em que se apresenta</legend>
                 <p className="editor-hint">
-                  Digite a hora, como 2230 para 22:30. Sem nenhum dia ativo, o perfil não mostra
-                  horário. Para tocar de madrugada, use um fim antes do início: 23:00 até 03:00
+                  Quando você costuma tocar, não quando responde mensagens. Digite a hora, como 2230
+                  para 22:30. Sem nenhum dia ativo, o perfil não mostra horário. Para tocar de madrugada, use um fim antes do início: 23:00 até 03:00
                   termina no dia seguinte.
                 </p>
                 <div className="editor-hours__list">

@@ -5,6 +5,21 @@ import { getCurrentUser } from './auth.js';
 import { queryOne } from './db.js';
 
 /*
+ * Erro inesperado (banco fora do ar, disco cheio...) dentro de uma Server
+ * Action sobe ate o navegador e derruba a tela inteira, perdendo o que a
+ * pessoa digitou. As actions abaixo passam por aqui: o erro fica no log do
+ * servidor e a tela recebe uma mensagem comum, como nos erros esperados.
+ */
+async function guarded(name, run) {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`${name} falhou`, error?.code ?? error?.message);
+    return { error: 'Não foi possível concluir agora. Tente novamente em instantes.' };
+  }
+}
+
+/*
  * Perguntas publicas do perfil ("Pergunte antes de contratar") e a resposta do
  * artista no painel.
  *
@@ -21,7 +36,7 @@ function field(formData, name) {
 }
 
 /* Formulario do perfil publico. Sem login devolve needsAuth: a pagina e estatica e nao sabe quem esta vendo. */
-export async function askQuestion(_prevState, formData) {
+async function askQuestionUnguarded(_prevState, formData) {
   const slug = field(formData, 'slug');
   const body = field(formData, 'body');
   if (body.length < 10 || body.length > 1000) {
@@ -52,7 +67,7 @@ export async function askQuestion(_prevState, formData) {
 }
 
 /* Resposta do artista, no painel. Uma por pergunta, publica no perfil. */
-export async function answerQuestion(_prevState, formData) {
+async function answerQuestionUnguarded(_prevState, formData) {
   const questionId = field(formData, 'questionId');
   const body = field(formData, 'body');
   if (!UUID.test(questionId)) return { error: 'Pergunta inválida.' };
@@ -88,4 +103,14 @@ export async function answerQuestion(_prevState, formData) {
   revalidatePath(`/artista/${answered.slug}`);
   revalidatePath('/painel');
   return { ok: true };
+}
+
+/* Pontos de entrada chamados pelas telas: cada um passa por guarded(). */
+
+export async function askQuestion(_prevState, formData) {
+  return guarded('askQuestion', () => askQuestionUnguarded(_prevState, formData));
+}
+
+export async function answerQuestion(_prevState, formData) {
+  return guarded('answerQuestion', () => answerQuestionUnguarded(_prevState, formData));
 }

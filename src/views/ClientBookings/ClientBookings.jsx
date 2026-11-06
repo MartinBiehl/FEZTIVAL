@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import AccountBar from '../../components/AccountBar/AccountBar.jsx';
 import { BookingReviewForm, BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
 import {
   STATUS_LABEL, formatEventTimeRange, formatMoney, formatShortDate, initials,
 } from '../../lib/bookingDisplay.js';
@@ -105,31 +103,14 @@ const EMPTY_MESSAGE = {
   cancelled: 'Nenhuma reserva cancelada ou recusada.',
 };
 
-function ClientBookings({ clientName, bookings }) {
-  const router = useRouter();
-  const { logout } = useAuth();
+function ClientBookings({ bookings, isArtist = false }) {
   const [activeTab, setActiveTab] = useState('active');
-  const name = clientName || 'Contratante';
   const tab = TABS.find((item) => item.id === activeTab);
   const visible = bookings.filter((booking) => tab.statuses.includes(booking.status));
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-    router.refresh();
-  };
-
   return (
     <div className="bookings-page">
-      <header className="bookings-header">
-        <BrandLogo />
-        <nav><Link href="/explorar">Explorar artistas</Link><Link href="/">Início</Link></nav>
-        <div className="bookings-header__user">
-          <span>{initials(name)}</span>
-          <strong>{name}</strong>
-          <button type="button" onClick={handleLogout}>Sair</button>
-        </div>
-      </header>
+      <AccountBar isArtist={isArtist} />
       <main className="bookings-main page-container">
         <div className="bookings-heading">
           <div><p className="eyebrow">Área do contratante</p><h1>Minhas reservas</h1></div>

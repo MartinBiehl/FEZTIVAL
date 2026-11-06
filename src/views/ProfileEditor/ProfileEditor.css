@@ -4,45 +4,6 @@
 }
 
 /* Barra do topo */
-.editor-topbar {
-  position: sticky;
-  z-index: 20;
-  top: 0;
-  border-bottom: 1px solid var(--border);
-  background: rgba(244, 242, 236, 0.92);
-  backdrop-filter: blur(10px);
-}
-
-.editor-topbar > div {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.editor-topbar nav {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.editor-topbar nav a {
-  display: inline-flex;
-  min-height: 40px;
-  padding: 0 0.85rem;
-  border-radius: 999px;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.editor-topbar nav a:hover {
-  background: var(--surface-elevated);
-  color: var(--ink);
-}
 
 /* Duas colunas: previa e indice fixos a esquerda, secoes a direita. */
 .editor-layout {
@@ -980,10 +941,6 @@ fieldset.editor-field > .editor-hint {
 }
 
 @media (max-width: 640px) {
-  .editor-topbar nav a:first-child {
-    padding-inline: 0.6rem;
-  }
-
   .editor-grid {
     grid-template-columns: 1fr;
   }
