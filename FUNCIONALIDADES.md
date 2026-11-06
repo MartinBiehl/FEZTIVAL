@@ -36,6 +36,8 @@ contagem real de artistas em cada uma, calculada a partir do banco.
 
 | Filtro | Opções |
 |---|---|
+| Preço | Até R$ 1.000, R$ 1.000 a 2.000, R$ 2.000 a 3.000, Acima de R$ 3.000, Sob consulta |
+| Cidade do evento | cidade base do artista e cidades que ele atende |
 | Tempo de set | Até 1h, 1h a 2h, 2h a 3h, Mais de 3h, 6h+ |
 | Gênero musical | vem do catálogo de gêneros do banco |
 

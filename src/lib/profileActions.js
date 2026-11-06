@@ -32,7 +32,7 @@ const MAX_PRICE = 1_000_000;
  */
 const CHECK_MESSAGES = {
   artists_price_defined: 'Para publicar, informe o preço inicial ou marque "sob consulta".',
-  artist_weekly_hours_times_consistent: 'Não foi possível salvar o horário de atendimento. Confira o início e o fim de cada dia.',
+  artist_weekly_hours_times_consistent: 'Não foi possível salvar os dias e horários em que se apresenta. Confira o início e o fim de cada dia.',
 };
 
 class ValidationError extends Error {}

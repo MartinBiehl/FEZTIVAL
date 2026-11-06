@@ -67,7 +67,7 @@
   border-radius: 18px;
   background: white;
   align-items: center;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   gap: 0.8rem;
 }
 
@@ -87,20 +87,12 @@
   font-size: 1rem;
 }
 
-.explore-search button {
-  min-height: 50px;
-  padding: 0 1.6rem;
-  border: 0;
-  border-radius: 13px;
-  background: var(--yellow);
-  color: var(--ink);
-  font-weight: 800;
-  cursor: pointer;
+/* O "x" nativo do campo de busca destoa do visual; limpar e so apagar. */
+.explore-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
 }
 
-.explore-search button:hover {
-  background: var(--pink);
-}
+
 
 .explore-suggestions {
   display: flex;
@@ -215,12 +207,14 @@
 
 .explore-filters__heading {
   display: flex;
+  align-items: center;
+  gap: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-strong);
   justify-content: space-between;
 }
 
-.explore-filters__heading button {
+.explore-filters__heading button:not(.explore-filters__close) {
   padding: 0;
   border: 0;
   background: transparent;
@@ -228,6 +222,14 @@
   font-size: 0.7rem;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.explore-filters__heading strong {
+  margin-right: auto;
+}
+
+.explore-filters__close {
+  display: none;
 }
 
 .explore-filter-group {
@@ -457,6 +459,31 @@
     display: block;
   }
 
+  .explore-filters__heading {
+    position: sticky;
+    z-index: 1;
+    top: -2rem;
+    margin: -2rem -1.2rem 0;
+    padding: 1rem 1.2rem;
+    background: var(--background);
+  }
+
+  .explore-filters__heading strong {
+    font-size: 1.1rem;
+  }
+
+  .explore-filters__close {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    place-items: center;
+  }
+
   .explore-filters__apply {
     position: sticky;
     bottom: 1rem;
@@ -473,14 +500,6 @@
 }
 
 @media (max-width: 560px) {
-  .explore-search {
-    grid-template-columns: auto 1fr;
-  }
-
-  .explore-search button {
-    display: none;
-  }
-
   .explore-grid {
     grid-template-columns: 1fr;
   }

@@ -330,7 +330,7 @@ test('perfil: regra de horario recusada pelo banco nao vira aviso de preco', asy
     // Banco sem a migration 0004, como aconteceu de verdade: exige o fim depois do inicio.
     await swapRule('check (opens_at < closes_at or not is_available) not valid');
     const { error } = await profile.saveArtistProfile(null, form(fields));
-    assert.match(error, /horário de atendimento/);
+    assert.match(error, /dias e horários em que se apresenta/);
     assert.doesNotMatch(error, /preço/);
   } finally {
     await swapRule(def);

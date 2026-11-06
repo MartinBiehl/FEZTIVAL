@@ -47,6 +47,8 @@ function toArtist(row, summary) {
     price: row.price_on_request || row.base_price == null ? null : Number(row.base_price),
     priceOnRequest: row.price_on_request,
     location: row.city,
+    /* Cidade base e as que o artista atende: alimentam o filtro de cidade. */
+    cities: [...new Set([row.city, ...(row.service_areas ?? [])].filter(Boolean))],
     /* Token --artist-color, usado no cartao, no perfil e nos modais. */
     color: row.color,
     bioShort: row.bio_short,
@@ -143,7 +145,7 @@ function toArtistDetail(row, summary, reviews) {
       hours: entry.is_available
         ? `${formatTime(entry.opens_at)} às ${formatTime(entry.closes_at)}${
           entry.closes_at < entry.opens_at ? ' do dia seguinte' : ''}`
-        : 'Não atende',
+        : 'Sem shows',
       available: entry.is_available,
     })),
     paymentMethods: row.payment_methods,
@@ -169,7 +171,10 @@ const ARTIST_LIST_COLUMNS = `
       'price', s.price, 'duration_minutes', s.duration_minutes
     ))
     from artist_services s where s.artist_id = a.id
-  ), '[]') as services
+  ), '[]') as services,
+  array(
+    select sa.city from artist_service_areas sa where sa.artist_id = a.id order by sa.sort_order
+  ) as service_areas
 `;
 
 /* O perfil carrega tudo que o artista declarou, na mesma consulta. */
@@ -188,9 +193,6 @@ const ARTIST_DETAIL_COLUMNS = `
     left join answers an on an.question_id = q.id and an.moderation_status = 'published'
     where q.artist_id = a.id and q.moderation_status = 'published'
   ), '[]') as questions,
-  array(
-    select sa.city from artist_service_areas sa where sa.artist_id = a.id order by sa.sort_order
-  ) as service_areas,
   coalesce((
     select json_agg(json_build_object('status', i.status, 'title', i.title, 'detail', i.detail)
                     order by i.sort_order)

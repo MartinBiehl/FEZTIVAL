@@ -9,7 +9,7 @@ import {
   useSpring,
   useTransform,
 } from 'motion/react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import ArtistCard from '../../components/ArtistCard/ArtistCard.jsx';
 import ArtistPreviewModal from '../../components/ArtistPreviewModal/ArtistPreviewModal.jsx';
 import { OPEN_ENDED_DURATION } from '../../lib/profileOptions.js';
@@ -20,7 +20,7 @@ import './Explore.css';
  * por ser calculo entre duas localizacoes, e nao atributo do artista. Volta
  * quando houver busca por proximidade.
  */
-const initialFilters = { duration: [], genre: [] };
+const initialFilters = { price: [], city: [], duration: [], genre: [] };
 
 /*
  * Faixas, e nao duracoes exatas: o editor oferece 1h30 e 5h, que nenhuma
@@ -34,6 +34,25 @@ const DURATION_OPTIONS = [
   { label: '6h+', value: '6h-mais', min: OPEN_ENDED_DURATION, max: Infinity },
 ];
 
+/*
+ * Faixas do preco "a partir de" do artista. "Sob consulta" e opcao propria:
+ * sem preco declarado, o artista nao cairia em faixa nenhuma.
+ */
+const PRICE_OPTIONS = [
+  { label: 'Até R$ 1.000', value: 'ate-1000', min: 0, max: 1000 },
+  { label: 'R$ 1.000 a R$ 2.000', value: '1000-2000', min: 1000.01, max: 2000 },
+  { label: 'R$ 2.000 a R$ 3.000', value: '2000-3000', min: 2000.01, max: 3000 },
+  { label: 'Acima de R$ 3.000', value: 'acima-3000', min: 3000.01, max: Infinity },
+  { label: 'Sob consulta', value: 'sob-consulta', onRequest: true },
+];
+
+function priceMatches(artist, value) {
+  const range = PRICE_OPTIONS.find((option) => option.value === value);
+  if (!range) return false;
+  if (range.onRequest) return artist.price == null;
+  return artist.price != null && artist.price >= range.min && artist.price <= range.max;
+}
+
 const SORT_VALUES = ['recommended', 'price-low', 'price-high'];
 
 /* Busca sem acento e sem caixa: "musico" encontra "Músico". */
@@ -42,7 +61,7 @@ function normalize(value) {
 }
 
 /*
- * Estado do catalogo <-> URL (?q=&categoria=&genero=&duracao=&ordem=), para
+ * Estado do catalogo <-> URL (?q=&categoria=&preco=&cidade=&genero=&duracao=&ordem=), para
  * o voltar do navegador e links compartilhados manterem a busca. Lido no
  * navegador depois de montar: useSearchParams exigiria Suspense, e o HTML
  * estatico desta pagina (indexado) sairia vazio.
@@ -53,7 +72,7 @@ function readUrlState() {
   return {
     search: params.get('q') ?? '',
     category: params.get('categoria') ?? '',
-    filters: { duration: list('duracao'), genre: list('genero') },
+    filters: { price: list('preco'), city: list('cidade'), duration: list('duracao'), genre: list('genero') },
     sort: SORT_VALUES.includes(params.get('ordem')) ? params.get('ordem') : 'recommended',
   };
 }
@@ -62,6 +81,8 @@ function writeUrlState({ search, category, filters, sort }) {
   const params = new URLSearchParams();
   if (search.trim()) params.set('q', search.trim());
   if (category) params.set('categoria', category);
+  if (filters.price.length) params.set('preco', filters.price.join(','));
+  if (filters.city.length) params.set('cidade', filters.city.join(','));
   if (filters.genre.length) params.set('genero', filters.genre.join(','));
   if (filters.duration.length) params.set('duracao', filters.duration.join(','));
   if (sort !== 'recommended') params.set('ordem', sort);
@@ -288,10 +309,24 @@ function Explore({ artists = [], genres = [] }) {
    */
   const filterGroups = useMemo(() => {
     const genreCounts = new Map();
+    const cityCounts = new Map();
     for (const artist of artists) {
       for (const genre of artist.genres) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
+      for (const city of artist.cities ?? []) cityCounts.set(city, (cityCounts.get(city) ?? 0) + 1);
     }
+    const priceOptions = PRICE_OPTIONS
+      .map((option) => ({ ...option, count: artists.filter((artist) => priceMatches(artist, option.value)).length }))
+      .filter((option) => option.count > 0);
     return [
+      { id: 'price', label: 'Preço', options: priceOptions },
+      {
+        // Cidade base ou atendida: quem mora em Ivoti e toca em Novo Hamburgo aparece nas duas.
+        id: 'city',
+        label: 'Cidade do evento',
+        options: [...cityCounts.entries()]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+          .map(([city, count]) => ({ label: city, value: city, count })),
+      },
       { id: 'duration', label: 'Tempo de set', options: DURATION_OPTIONS },
       {
         id: 'genre',
@@ -300,7 +335,7 @@ function Explore({ artists = [], genres = [] }) {
           .filter((genre) => genreCounts.has(genre.name))
           .map((genre) => ({ label: genre.name, value: genre.name, count: genreCounts.get(genre.name) })),
       },
-    ];
+    ].filter((group) => group.options.length > 0);
   }, [artists, genres]);
 
   useEffect(() => {
@@ -335,7 +370,9 @@ function Explore({ artists = [], genres = [] }) {
       const genreMatches = !filters.genre.length || filters.genre.some(
         (genre) => artist.genres.includes(genre),
       );
-      return searchMatches && categoryMatches && durationMatches && genreMatches;
+      const priceFilterMatches = !filters.price.length || filters.price.some((value) => priceMatches(artist, value));
+      const cityMatches = !filters.city.length || filters.city.some((city) => (artist.cities ?? []).includes(city));
+      return searchMatches && categoryMatches && durationMatches && genreMatches && priceFilterMatches && cityMatches;
     });
 
     /*
@@ -373,6 +410,15 @@ function Explore({ artists = [], genres = [] }) {
         ? current.filter((id) => id !== groupId)
         : [...current, groupId]
     ));
+  }
+
+  /*
+   * No celular os filtros ocupam a tela inteira: abrem com todos os grupos
+   * expandidos, para nao custar um toque a mais por grupo.
+   */
+  function openMobileFilters() {
+    setOpenFilterGroups(filterGroups.map((group) => group.id));
+    setFiltersOpen(true);
   }
 
   function clearAll() {
@@ -419,16 +465,18 @@ function Explore({ artists = [], genres = [] }) {
         />
         <div className="page-container">
           <h1>Encontre o som<br /><span>do seu momento.</span></h1>
-          <form className="explore-search" onSubmit={(event) => event.preventDefault()}>
+          {/* Sem botao "Buscar": a lista ja filtra enquanto se digita. */}
+          <form className="explore-search" role="search" onSubmit={(event) => event.preventDefault()}>
             <span aria-hidden="true">⌕</span>
             <label className="sr-only" htmlFor="artist-search">Buscar artistas</label>
             <input
               id="artist-search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              type="search"
+              enterKeyHint="search"
               placeholder="Busque por artista, gênero ou região"
             />
-            <button type="submit">Buscar</button>
           </form>
           <div className="explore-suggestions">
             <span>Experimente:</span>
@@ -472,7 +520,7 @@ function Explore({ artists = [], genres = [] }) {
             type="button"
             aria-controls="explore-filters-panel"
             aria-expanded={filtersOpen}
-            onClick={() => setFiltersOpen((open) => !open)}
+            onClick={openMobileFilters}
           >
             Filtros {activeFilterCount > 0 && <b>{activeFilterCount}</b>}
           </button>
@@ -498,6 +546,14 @@ function Explore({ artists = [], genres = [] }) {
             <div className="explore-filters__heading">
               <strong>Filtros</strong>
               <button type="button" onClick={clearAll}>Limpar tudo</button>
+              <button
+                className="explore-filters__close"
+                type="button"
+                aria-label="Fechar filtros"
+                onClick={() => setFiltersOpen(false)}
+              >
+                <X size={20} strokeWidth={2.2} aria-hidden="true" />
+              </button>
             </div>
             {filterGroups.map((group) => (
               <FilterGroupDisclosure

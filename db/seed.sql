@@ -194,13 +194,14 @@ select a.id, w.weekday, w.is_available, w.opens_at::time, w.closes_at::time
 from artists a
 cross join (values
 
-  (1, true, '09:00', '18:00'),
-  (2, true, '09:00', '18:00'),
-  (3, true, '09:00', '18:00'),
-  (4, true, '09:00', '18:00'),
-  (5, true, '09:00', '18:00'),
-  (6, true, '10:00', '16:00'),
-  (0, false, null, null)
+  -- Horario de show, nao comercial: noites de quinta a sabado, domingo a tarde.
+  (1, false, null, null),
+  (2, false, null, null),
+  (3, false, null, null),
+  (4, true, '20:00', '23:00'),
+  (5, true, '21:00', '03:00'),
+  (6, true, '21:00', '03:00'),
+  (0, true, '15:00', '20:00')
 ) as w(weekday, is_available, opens_at, closes_at)
 where a.slug in ('dj-kauan', 'marina-santos', 'banda-nativus', 'dj-vitoria', 'rafael-acustico', 'samba-ivoti', 'leticia-black', 'banda-quartel')
 on conflict (artist_id, weekday) do nothing;

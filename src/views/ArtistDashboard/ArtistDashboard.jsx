@@ -2,15 +2,13 @@
 
 import { useActionState, useId } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import useActionSubmit from '../../hooks/useActionSubmit.js';
 import { answerQuestion } from '../../lib/questionActions.js';
-import BrandLogo from '../../components/BrandLogo/BrandLogo.jsx';
+import AccountBar from '../../components/AccountBar/AccountBar.jsx';
 import { BookingStatusActions } from '../../components/BookingActions/BookingActions.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
 import { whatsappUrl } from '../../lib/phone.js';
 import {
-  STATUS_LABEL, dateParts, formatCompactMoney, formatEventTimeRange, formatMoney, initials,
+  STATUS_LABEL, dateParts, formatCompactMoney, formatEventTimeRange, formatMoney,
 } from '../../lib/bookingDisplay.js';
 import './ArtistDashboard.css';
 
@@ -61,38 +59,15 @@ function AnswerForm({ question }) {
 function ArtistDashboard({
   artist, proposals, nextShows, openQuestions, answeredQuestions = [], metrics, todayLabel, greetingText,
 }) {
-  const router = useRouter();
-  const { logout } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-    router.refresh();
-  };
-
   return (
     <div className="dashboard">
-      <aside className="dashboard-sidebar">
-        <BrandLogo />
-        <nav>
-          <Link href="/painel/perfil"><span>○</span> Meu perfil</Link>
-        </nav>
-        <div className="dashboard-sidebar__user">
-          <span>{initials(artist.name)}</span>
-          <div><strong>{artist.name}</strong><small>{artist.isPublished ? 'Perfil publicado' : 'Perfil em rascunho'}</small></div>
-        </div>
-      </aside>
+      <AccountBar isArtist publicProfileSlug={artist.isPublished ? artist.slug : null} />
 
-      <main className="dashboard-main" id="visao">
+      <main className="dashboard-main page-container" id="visao">
         <header className="dashboard-header">
           <div>
             <p>{todayLabel}</p>
             <h1>{greetingText}, {artist.name}.</h1>
-          </div>
-          <div className="dashboard-header__actions">
-            <Link href="/painel/perfil">Editar perfil</Link>
-            {artist.isPublished && <Link href={`/artista/${artist.slug}`}>Ver perfil público ↗</Link>}
-            <button type="button" onClick={handleLogout}>Sair</button>
           </div>
         </header>
 
@@ -112,7 +87,7 @@ function ArtistDashboard({
         <section className="dashboard-metrics">
           <article><span>Visualizações</span><strong>{artist.viewCount.toLocaleString('pt-BR')}</strong><small>{artist.isPublished ? 'Desde a publicação' : 'Publique o perfil para começar a contar'}</small></article>
           <article><span>Novas propostas</span><strong>{metrics.pending}</strong><small>Aguardando sua resposta</small></article>
-          <article><span>Shows confirmados</span><strong>{String(metrics.confirmedNext30).padStart(2, '0')}</strong><small>Próximos 30 dias</small></article>
+          <article><span>Shows confirmados</span><strong>{metrics.confirmedNext30}</strong><small>Próximos 30 dias</small></article>
           <article><span>Receita prevista</span><strong>{formatCompactMoney(metrics.payoutThisMonth)}</strong><small>Repasse deste mês</small></article>
         </section>
 

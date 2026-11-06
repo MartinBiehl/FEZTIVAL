@@ -299,7 +299,7 @@ function ArtistProfile({ artist }) {
                     id="schedule"
                     isOpen={openInfoId === 'schedule'}
                     onToggle={toggleInfoPanel}
-                    title="Expediente semanal"
+                    title="Dias e horários de show"
                   >
                     <dl className="profile-schedule">
                       {artist.weeklyHours.map((item) => (
