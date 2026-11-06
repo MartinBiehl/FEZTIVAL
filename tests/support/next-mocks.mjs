@@ -14,8 +14,9 @@ export function cookies() {
   };
 }
 
+/* Cabecalhos de um navegador em localhost; um teste pode trocar por globalThis.testHeaders. */
 export function headers() {
-  return new Headers({ origin: 'http://localhost:3000' });
+  return new Headers(globalThis.testHeaders ?? { host: 'localhost:3000', origin: 'http://localhost:3000' });
 }
 
 export function revalidatePath() {}

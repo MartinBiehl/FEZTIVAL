@@ -14,7 +14,18 @@ import nodemailer from 'nodemailer';
 
 const FROM = process.env.MAIL_FROM || 'Feztival <nao-responda@feztival.local>';
 
-const transport = process.env.SMTP_URL ? nodemailer.createTransport(process.env.SMTP_URL) : null;
+/*
+ * Tempos curtos: o padrao do nodemailer espera ate 2 minutos por um SMTP que
+ * nao responde, e o cadastro ficaria girando esse tempo todo na tela.
+ */
+const transport = process.env.SMTP_URL
+  ? nodemailer.createTransport({
+    url: process.env.SMTP_URL,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  })
+  : null;
 
 /* Sem SMTP_URL em desenvolvimento: a tela avisa que o link esta no terminal. */
 export function mailGoesToTerminal() {

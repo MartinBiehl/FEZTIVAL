@@ -10,6 +10,21 @@ import { INFRASTRUCTURE_STATUSES, SERVICE_DURATIONS } from './profileOptions.js'
 import { isTimeOfDay } from './timeOfDay.js';
 
 /*
+ * Erro inesperado (banco fora do ar, disco cheio...) dentro de uma Server
+ * Action sobe ate o navegador e derruba a tela inteira, perdendo o que a
+ * pessoa digitou. As actions abaixo passam por aqui: o erro fica no log do
+ * servidor e a tela recebe uma mensagem comum, como nos erros esperados.
+ */
+async function guarded(name, run) {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`${name} falhou`, error?.code ?? error?.message);
+    return { error: 'Não foi possível concluir agora. Tente novamente em instantes.' };
+  }
+}
+
+/*
  * Salva o perfil do artista a partir do editor (/painel/perfil).
  *
  * O artista e sempre o do usuario logado, buscado aqui: o formulario nao
@@ -220,7 +235,7 @@ async function syncRows(tx, table, artistId, rows) {
   }
 }
 
-export async function saveArtistProfile(_prevState, formData) {
+async function saveArtistProfileUnguarded(_prevState, formData) {
   let input;
   try {
     input = parseProfile(formData);
@@ -327,7 +342,7 @@ function removeStoredImage(artistId, url) {
 }
 
 /* Define (FormData com "image") ou remove (null) a foto principal. */
-export async function setArtistCover(formData) {
+async function setArtistCoverUnguarded(formData) {
   const context = await ownArtistContext();
   if (context.error) return context;
   const { artist } = context;
@@ -355,7 +370,7 @@ export async function setArtistCover(formData) {
   return { ok: true, url };
 }
 
-export async function addArtistPhoto(formData) {
+async function addArtistPhotoUnguarded(formData) {
   const context = await ownArtistContext();
   if (context.error) return context;
   const { artist } = context;
@@ -389,7 +404,7 @@ export async function addArtistPhoto(formData) {
   return { ok: true, photo };
 }
 
-export async function removeArtistPhoto(id) {
+async function removeArtistPhotoUnguarded(id) {
   if (typeof id !== 'string' || !UUID.test(id)) return { error: 'Foto inválida.' };
 
   const context = await ownArtistContext();
@@ -406,4 +421,22 @@ export async function removeArtistPhoto(id) {
   await removeStoredImage(artist.id, removed.url);
   revalidateArtistPages(artist.slug);
   return { ok: true };
+}
+
+/* Pontos de entrada chamados pelas telas: cada um passa por guarded(). */
+
+export async function saveArtistProfile(_prevState, formData) {
+  return guarded('saveArtistProfile', () => saveArtistProfileUnguarded(_prevState, formData));
+}
+
+export async function setArtistCover(formData) {
+  return guarded('setArtistCover', () => setArtistCoverUnguarded(formData));
+}
+
+export async function addArtistPhoto(formData) {
+  return guarded('addArtistPhoto', () => addArtistPhotoUnguarded(formData));
+}
+
+export async function removeArtistPhoto(id) {
+  return guarded('removeArtistPhoto', () => removeArtistPhotoUnguarded(id));
 }

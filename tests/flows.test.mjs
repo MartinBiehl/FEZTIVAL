@@ -48,6 +48,7 @@ const { fetchArtistDashboard, fetchClientBookings } = await import(`${L}/lib/boo
 const { fetchArtistBySlug, fetchArtists } = await import(`${L}/lib/artistQueries.js`);
 const { formatEventTimeRange } = await import(`${L}/lib/bookingDisplay.js`);
 const { recordArtistView } = await import(`${L}/lib/artistActions.js`);
+const { safeNextPath } = await import(`${L}/lib/account.js`);
 const { completeTime, isTimeOfDay, shapeTime } = await import(`${L}/lib/timeOfDay.js`);
 const { formatMinutes, formatSetLength } = await import(`${L}/lib/artistDisplay.js`);
 const confirmRoute = await import(`${L}/app/auth/confirm/route.js`);
@@ -257,6 +258,9 @@ test('proposta: contratante envia; artista nao propoe ao proprio perfil', async 
   as('b');
   assert.match((await bookings.createBooking(bookingForm({ city: '' }))).error, /cidade/);
   assert.match((await bookings.createBooking(bookingForm({ date: '2000-01-01' }))).error, /a partir de hoje/);
+  // Data que nao existe no calendario e duracao fora das do artista.
+  assert.match((await bookings.createBooking(bookingForm({ date: '2099-02-31' }))).error, /data válida/);
+  assert.match((await bookings.createBooking(bookingForm({ duration: '99999' }))).error, /duração/);
   assert.deepEqual(await bookings.createBooking(bookingForm()), { ok: true });
   const row = await one(`select id, status, agreed_price, sound_structure, event_location from bookings where artist_id = $1`, [artistId]);
   assert.equal(row.event_location, 'Salão Aurora, Rua das Flores, 120, Ivoti');
@@ -747,4 +751,40 @@ test('horario da reserva: show que passa da meia-noite termina no dia seguinte',
   assert.equal(formatEventTimeRange('23:00', 180), '23h às 02h do dia seguinte');
   assert.equal(formatEventTimeRange('22:00:00', 120), '22h às 00h');
   assert.equal(formatEventTimeRange('20:00', null), '20h');
+});
+
+test('?next= so leva a paginas do proprio site', () => {
+  assert.equal(safeNextPath('/painel'), '/painel');
+  assert.equal(safeNextPath('/reservar/dj-kauan?x=1#y'), '/reservar/dj-kauan?x=1#y');
+  // Tab, quebra de linha e barra invertida viravam "//evil.com" no navegador.
+  for (const evil of ['//evil.com', 'https://evil.com', '/\\evil.com', '/\t/evil.com', '/\n/evil.com', '/\r/evil.com', 'evil.com']) {
+    assert.equal(safeNextPath(evil), null, JSON.stringify(evil));
+  }
+});
+
+test('link de confirmacao ignora Origin forjado e respeita APP_URL', async () => {
+  as('forjado');
+  try {
+    globalThis.testHeaders = { host: 'localhost:3000', origin: 'https://site-falso.example' };
+    await acc.signUp(null, form(signupFields({ email: 'forjado@test.local' })));
+    assert.match(lastMail().match(/http\S+/)[0], /^http:\/\/localhost:3000\/auth\/confirm/);
+
+    process.env.APP_URL = 'https://feztival.com.br';
+    await acc.signUp(null, form(signupFields({ email: 'forjado2@test.local' })));
+    assert.match(lastMail().match(/http\S+/)[0], /^https:\/\/feztival\.com\.br\/auth\/confirm/);
+  } finally {
+    delete globalThis.testHeaders;
+    delete process.env.APP_URL;
+  }
+});
+
+test('erro inesperado numa action vira mensagem, nao derruba a tela', async () => {
+  as('b');
+  // Qualquer excecao inesperada dentro da action: ela devolve { error } em vez de lancar.
+  const brokenForm = new FormData();
+  brokenForm.append('slug', 'dj-kauan');
+  brokenForm.append('body', 'Pergunta de teste com tamanho suficiente');
+  brokenForm.get = () => { throw new Error('falha simulada'); };
+  const result = await questions.askQuestion(null, brokenForm);
+  assert.match(result.error, /Não foi possível concluir agora/);
 });

@@ -9,6 +9,21 @@ import { SERVICE_DURATIONS } from './profileOptions.js';
 import { isTimeOfDay } from './timeOfDay.js';
 
 /*
+ * Erro inesperado (banco fora do ar, disco cheio...) dentro de uma Server
+ * Action sobe ate o navegador e derruba a tela inteira, perdendo o que a
+ * pessoa digitou. As actions abaixo passam por aqui: o erro fica no log do
+ * servidor e a tela recebe uma mensagem comum, como nos erros esperados.
+ */
+async function guarded(name, run) {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`${name} falhou`, error?.code ?? error?.message);
+    return { error: 'Não foi possível concluir agora. Tente novamente em instantes.' };
+  }
+}
+
+/*
  * Server Actions de reservas e avaliacoes.
  *
  * QUEM pode escrever e decidido aqui, dentro de cada query (o WHERE ou o
@@ -35,13 +50,24 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const roundCents = (value) => Math.round(value * 100) / 100;
 
+/*
+ * Data de calendario que existe ("2026-02-31" nao existe) e de hoje em diante.
+ * Antes so o formato era conferido, e a data impossivel virava erro do banco.
+ */
+function isBookableDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return false;
+  return value >= todayIso();
+}
+
 function refreshPrivateAreas() {
   revalidatePath('/painel');
   revalidatePath('/minhas-reservas');
 }
 
 /* Envio da proposta pelo formulario de /reservar/[slug]. */
-export async function createBooking(formData) {
+async function createBookingUnguarded(formData) {
   const user = await getCurrentUser();
   if (!user) return { needsAuth: true };
 
@@ -62,8 +88,8 @@ export async function createBooking(formData) {
   if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 100000) {
     return { error: 'Informe o número de convidados.' };
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayIso()) {
-    return { error: 'Escolha uma data a partir de hoje.' };
+  if (!isBookableDate(date)) {
+    return { error: 'Escolha uma data válida, a partir de hoje.' };
   }
   if (!isTimeOfDay(time)) return { error: 'Informe o horário do evento, entre 00:00 e 23:59.' };
   if (address.length < 3 || address.length > 120) return { error: 'Informe o endereço do evento.' };
@@ -86,8 +112,13 @@ export async function createBooking(formData) {
     return { error: 'Você não pode enviar proposta para o seu próprio perfil.' };
   }
   // Artista sem duracao cadastrada: quem pede escolhe uma das duracoes padrao.
-  const hasOwnDurations = artist.services.some((item) => item.duration_minutes != null);
-  if (!hasOwnDurations && !SERVICE_DURATIONS.includes(duration)) {
+  /*
+   * Com duracoes proprias, so valem as do artista: antes qualquer numero
+   * passava (ex.: 99999 minutos) e ia para a proposta com o preco base.
+   */
+  const ownDurations = artist.services.map((item) => item.duration_minutes).filter((value) => value != null);
+  const allowedDurations = ownDurations.length > 0 ? ownDurations : SERVICE_DURATIONS;
+  if (!allowedDurations.includes(duration)) {
     return { error: 'Escolha a duração do show.' };
   }
 
@@ -151,7 +182,7 @@ const STATUS_FOR_ACTION = {
  * e cancela; o contratante so cancela. Sem essa separacao o contratante
  * marcaria a propria reserva como completed -- transicao valida, papel errado.
  */
-export async function updateBookingStatus(_prevState, formData) {
+async function updateBookingStatusUnguarded(_prevState, formData) {
   const bookingId = field(formData, 'bookingId');
   const status = STATUS_FOR_ACTION[field(formData, 'action')];
   if (!UUID.test(bookingId) || !status) return { error: 'Ação inválida.' };
@@ -206,7 +237,7 @@ export async function updateBookingStatus(_prevState, formData) {
 }
 
 /* Avaliacao do contratante, so para reserva concluida e uma unica vez. */
-export async function createReview(_prevState, formData) {
+async function createReviewUnguarded(_prevState, formData) {
   const bookingId = field(formData, 'bookingId');
   const rating = Number(field(formData, 'rating'));
   const comment = field(formData, 'comment');
@@ -241,4 +272,18 @@ export async function createReview(_prevState, formData) {
 
   refreshPrivateAreas();
   return { ok: true };
+}
+
+/* Pontos de entrada chamados pelas telas: cada um passa por guarded(). */
+
+export async function createBooking(formData) {
+  return guarded('createBooking', () => createBookingUnguarded(formData));
+}
+
+export async function updateBookingStatus(_prevState, formData) {
+  return guarded('updateBookingStatus', () => updateBookingStatusUnguarded(_prevState, formData));
+}
+
+export async function createReview(_prevState, formData) {
+  return guarded('createReview', () => createReviewUnguarded(_prevState, formData));
 }

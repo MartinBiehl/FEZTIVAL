@@ -76,6 +76,8 @@ function cookieOptions(maxAgeSeconds) {
 /* Abre uma sessao e grava o cookie. So em Server Action ou Route Handler. */
 export async function createSession(userId) {
   const token = newToken();
+  // Faxina: sessoes vencidas do usuario nao servem mais e so ocupariam a tabela.
+  await query('delete from sessions where user_id = $1 and expires_at <= now()', [userId]);
   await query(
     `insert into sessions (id, user_id, expires_at)
      values ($1, $2, now() + make_interval(days => $3))`,

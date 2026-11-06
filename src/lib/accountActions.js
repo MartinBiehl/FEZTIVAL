@@ -15,6 +15,21 @@ import {
 } from './account.js';
 
 /*
+ * Erro inesperado (banco fora do ar, disco cheio...) dentro de uma Server
+ * Action sobe ate o navegador e derruba a tela inteira, perdendo o que a
+ * pessoa digitou. As actions abaixo passam por aqui: o erro fica no log do
+ * servidor e a tela recebe uma mensagem comum, como nos erros esperados.
+ */
+async function guarded(name, run) {
+  try {
+    return await run();
+  } catch (error) {
+    console.error(`${name} falhou`, error?.code ?? error?.message);
+    return { error: 'Não foi possível concluir agora. Tente novamente em instantes.' };
+  }
+}
+
+/*
  * Server Actions de acesso: login, cadastro (por senha ou completando o do
  * Google), saida e recuperacao de senha.
  *
@@ -40,13 +55,23 @@ function field(formData, name) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-/* Origem da requisicao, para o link do e-mail de confirmacao. SITE_URL ainda e placeholder. */
+/*
+ * Endereco do site para o link do e-mail de confirmacao.
+ *
+ * Com APP_URL definido (recomendado em producao), o link sempre aponta para
+ * ele. Antes o endereco vinha primeiro do cabecalho Origin, que quem chama
+ * controla: alguem poderia cadastrar o e-mail de outra pessoa com
+ * "Origin: https://site-falso" e o link verdadeiro, com o token, iria para o
+ * site falso. Sem APP_URL, vale o Host, que precisa chegar a este servidor
+ * pela hospedagem (que recusa dominios que nao sao dela).
+ */
 async function requestOrigin() {
+  const configured = process.env.APP_URL?.trim();
+  if (configured) return new URL(configured).origin;
   const headerList = await headers();
-  const origin = headerList.get('origin');
-  if (origin) return origin;
-  const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
-  const protocol = headerList.get('x-forwarded-proto') ?? 'https';
+  const host = headerList.get('x-forwarded-host')?.split(',')[0].trim() ?? headerList.get('host');
+  const protocol = headerList.get('x-forwarded-proto')?.split(',')[0].trim()
+    ?? (process.env.NODE_ENV === 'production' ? 'https' : 'http');
   return `${protocol}://${host}`;
 }
 
@@ -90,7 +115,7 @@ function accountFields(formData, signupAs) {
   };
 }
 
-export async function signIn(_prevState, formData) {
+async function signInUnguarded(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   const password = formData.get('password');
   const next = safeNextPath(field(formData, 'next'));
@@ -98,6 +123,8 @@ export async function signIn(_prevState, formData) {
   if (!EMAIL_PATTERN.test(email) || typeof password !== 'string' || !password) {
     return { error: 'Informe e-mail e senha.' };
   }
+  // Mesmo teto do cadastro: senha gigante so serviria para ocupar o servidor com o scrypt.
+  if (password.length > 200) return { error: 'E-mail ou senha incorretos.' };
 
   const user = await queryOne(
     `select id, password_hash, email_verified_at,
@@ -139,7 +166,7 @@ export async function signIn(_prevState, formData) {
   return { ok: true, destination: next ?? destinationFor(await findOwnArtist(user.id)) };
 }
 
-export async function signUp(_prevState, formData) {
+async function signUpUnguarded(_prevState, formData) {
   const signupAs = field(formData, 'signupAs') === 'artist' ? 'artist' : 'contractor';
   const email = field(formData, 'email').toLowerCase();
   const password = formData.get('password');
@@ -204,7 +231,7 @@ export async function signUp(_prevState, formData) {
  * "Reenviar link" de /entrar. Como requestPasswordReset, sempre responde ok,
  * exista ou nao um cadastro esperando confirmacao para o e-mail.
  */
-export async function resendEmailConfirmation(_prevState, formData) {
+async function resendEmailConfirmationUnguarded(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   const next = safeNextPath(field(formData, 'next'));
   if (!EMAIL_PATTERN.test(email)) return { error: 'Informe seu e-mail no campo acima para reenviar o link.' };
@@ -231,7 +258,7 @@ export async function resendEmailConfirmation(_prevState, formData) {
  * o Google ja provou o e-mail, entao a conta nasce confirmada, sem senha, e a
  * sessao abre na hora. Faltam so os dados que o Google nao fornece.
  */
-export async function completeGoogleSignup(_prevState, formData) {
+async function completeGoogleSignupUnguarded(_prevState, formData) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SIGNUP_COOKIE)?.value;
   const expired = { error: 'O tempo para concluir o cadastro acabou. Clique em "Continuar com Google" de novo.' };
@@ -287,7 +314,7 @@ export async function signOut() {
  * Sempre responde ok, exista ou nao a conta: responder diferente permitiria
  * descobrir quais e-mails estao cadastrados.
  */
-export async function requestPasswordReset(_prevState, formData) {
+async function requestPasswordResetUnguarded(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   if (!EMAIL_PATTERN.test(email)) return { error: 'Informe um e-mail válido.' };
 
@@ -309,7 +336,7 @@ export async function requestPasswordReset(_prevState, formData) {
  * Confere o codigo do e-mail. Certo, grava num cookie httpOnly a autorizacao
  * de 15 minutos que a etapa seguinte usa para gravar a senha nova.
  */
-export async function verifyRecoveryCode(_prevState, formData) {
+async function verifyRecoveryCodeUnguarded(_prevState, formData) {
   const email = field(formData, 'email').toLowerCase();
   const code = field(formData, 'code').replace(/\D/g, '');
   if (!EMAIL_PATTERN.test(email) || code.length !== RESET_CODE_LENGTH) {
@@ -334,7 +361,7 @@ export async function verifyRecoveryCode(_prevState, formData) {
  * pede login com a senha nova. Concluir a recuperacao tambem prova que a
  * pessoa e dona do e-mail, entao a conta passa a confirmada.
  */
-export async function updatePassword(_prevState, formData) {
+async function updatePasswordUnguarded(_prevState, formData) {
   const password = formData.get('password');
   const confirmation = formData.get('confirmation');
 
@@ -365,4 +392,34 @@ export async function updatePassword(_prevState, formData) {
 
   cookieStore.delete(RESET_GRANT_COOKIE);
   return changed ? { ok: true } : expired;
+}
+
+/* Pontos de entrada chamados pelas telas: cada um passa por guarded(). */
+
+export async function signIn(_prevState, formData) {
+  return guarded('signIn', () => signInUnguarded(_prevState, formData));
+}
+
+export async function signUp(_prevState, formData) {
+  return guarded('signUp', () => signUpUnguarded(_prevState, formData));
+}
+
+export async function resendEmailConfirmation(_prevState, formData) {
+  return guarded('resendEmailConfirmation', () => resendEmailConfirmationUnguarded(_prevState, formData));
+}
+
+export async function completeGoogleSignup(_prevState, formData) {
+  return guarded('completeGoogleSignup', () => completeGoogleSignupUnguarded(_prevState, formData));
+}
+
+export async function requestPasswordReset(_prevState, formData) {
+  return guarded('requestPasswordReset', () => requestPasswordResetUnguarded(_prevState, formData));
+}
+
+export async function verifyRecoveryCode(_prevState, formData) {
+  return guarded('verifyRecoveryCode', () => verifyRecoveryCodeUnguarded(_prevState, formData));
+}
+
+export async function updatePassword(_prevState, formData) {
+  return guarded('updatePassword', () => updatePasswordUnguarded(_prevState, formData));
 }

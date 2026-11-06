@@ -26,8 +26,35 @@ if (!process.env.DATABASE_URL) {
   throw new Error('Banco nao configurado: defina DATABASE_URL em .env.local.');
 }
 
+/*
+ * Limites de tempo: sem eles, com o banco fora do ar ou a rede caindo, a
+ * pagina fica carregando para sempre em vez de mostrar um erro.
+ *  - connectionTimeoutMillis: desiste de abrir conexao depois de 10 s;
+ *  - statement_timeout / query_timeout: nenhuma consulta passa de 15 s;
+ *  - idleTimeoutMillis: fecha conexao parada ha 30 s (poolers como o do
+ *    Supabase derrubam conexoes ociosas por conta propria).
+ */
+function createPool() {
+  const created = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 30_000,
+    statement_timeout: 15_000,
+    query_timeout: 15_000,
+  });
+  /*
+   * Conexao ociosa que cai (banco reiniciou, rede piscou) dispara "error" no
+   * pool. Sem ouvinte, o Node trata como excecao nao capturada. O pool ja
+   * descarta a conexao quebrada e abre outra na proxima consulta: so registrar.
+   */
+  created.on('error', (error) => {
+    console.error('Postgres: conexao ociosa caiu', error.code ?? error.message);
+  });
+  return created;
+}
+
 /* Reaproveita o pool entre recargas do `next dev`, que reavalia os modulos. */
-const pool = globalThis.feztivalPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = globalThis.feztivalPool ?? createPool();
 if (process.env.NODE_ENV !== 'production') globalThis.feztivalPool = pool;
 
 /* Todas as linhas. Use sempre parametros ($1, $2...), nunca interpolacao. */
@@ -53,15 +80,21 @@ export async function transaction(fn) {
     queryOne: async (text, params) => (await client.query(text, params)).rows[0] ?? null,
   };
 
+  let broken = false;
   try {
     await client.query('begin');
     const result = await fn(tx);
     await client.query('commit');
     return result;
   } catch (error) {
-    await client.query('rollback');
+    // Se a conexao caiu, o rollback tambem falha; o erro que importa e o original.
+    try {
+      await client.query('rollback');
+    } catch {
+      broken = true;
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(broken);
   }
 }
